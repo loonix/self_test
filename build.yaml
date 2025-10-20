@@ -1,0 +1,8 @@
+builders:
+  self_test:
+    import: "package:self_test/builder.dart"
+    builder_factories: ["selfTestBuilder"]
+    build_extensions: {".dart": [".self_test.g.part"]}
+    auto_apply: root_package
+    build_to: cache
+    applies_builders: ["source_gen|combining_builder"]
