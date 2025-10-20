@@ -12,12 +12,14 @@ class TestNode {
   final VoidCallback? onTap;
   final ValueSetter<String>? onTextChange;
   final BuildContext? context;
+  String? currentText; // For text assertions
 
   TestNode({
     required this.id,
     this.onTap,
     this.onTextChange,
     this.context,
+    this.currentText,
   });
 }
 
@@ -83,6 +85,7 @@ class SelfTestManager {
     final node = _activeTestNodes[id];
     if (node != null && node.onTextChange != null) {
       node.onTextChange!(text);
+      node.currentText = text; // Update current text for assertions
     } else {
       throw Exception('TestNode with id "$id" not found or has no text change callback.');
     }
