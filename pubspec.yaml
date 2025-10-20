@@ -1,7 +1,7 @@
 name: self_test
-description: "A new Flutter package project."
+description: "A Flutter package for automated regression testing through direct callback invocation. Enables fast, reliable testing in development and pre-production environments without UI simulation."
 version: 0.0.1
-homepage:
+homepage: https://github.com/loonix/self_test
 
 environment:
   sdk: ^3.5.0
