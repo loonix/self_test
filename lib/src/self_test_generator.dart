@@ -94,14 +94,18 @@ class SelfTestGenerator extends Generator {
   }''');
     }
 
-    // For text inputs, add text assertions (placeholder)
+    // For text inputs, add text assertions
     final textIds = methods.entries.where((e) => e.key.startsWith('enterText_')).map((e) => e.value);
     for (final id in textIds) {
       methodDefs.add('''
   void expectText_$id(String expectedText) {
-    // TODO: Implement text retrieval from widget
-    // For now, this is a placeholder
-    throw UnimplementedError('Text assertion not yet implemented');
+    final node = SelfTestManager().activeTestNodes['$id'];
+    if (node == null) {
+      throw Exception('TestNode with id "$id" does not exist');
+    }
+    if (node.currentText != expectedText) {
+      throw Exception('Expected text "\$expectedText" but found "\${node.currentText}" for id "$id"');
+    }
   }''');
     }
 

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:self_test/self_test.dart';
 
-part 'example.self_test.g.dart';
+part 'example.g.dart';
 
 class ExampleState extends State<ExampleWidget> {
   @SelfTestButton('login_btn')
