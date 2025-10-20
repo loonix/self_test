@@ -25,6 +25,23 @@ class _LoginPageState extends State<LoginPage> {
   String username = '';
   String password = '';
   String message = '';
+  
+  late TextEditingController _usernameController;
+  late TextEditingController _passwordController;
+
+  @override
+  void initState() {
+    super.initState();
+    _usernameController = TextEditingController(text: username);
+    _passwordController = TextEditingController(text: password);
+  }
+
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   void _onLoginPressed() {
     if (username.isNotEmpty && password.isNotEmpty) {
@@ -42,12 +59,14 @@ class _LoginPageState extends State<LoginPage> {
     setState(() {
       username = value;
     });
+    _usernameController.text = value;
   }
 
   void _onPasswordChanged(String value) {
     setState(() {
       password = value;
     });
+    _passwordController.text = value;
   }
 
   @override
@@ -62,6 +81,7 @@ class _LoginPageState extends State<LoginPage> {
               id: 'username_field',
               onTextChange: _onUsernameChanged,
               child: TextField(
+                controller: _usernameController,
                 decoration: InputDecoration(labelText: 'Username'),
                 onChanged: _onUsernameChanged,
               ),
@@ -71,6 +91,7 @@ class _LoginPageState extends State<LoginPage> {
               id: 'password_field',
               onTextChange: _onPasswordChanged,
               child: TextField(
+                controller: _passwordController,
                 decoration: InputDecoration(labelText: 'Password'),
                 obscureText: true,
                 onChanged: _onPasswordChanged,
@@ -90,6 +111,7 @@ class _LoginPageState extends State<LoginPage> {
             SizedBox(height: 16),
             ElevatedButton(
               onPressed: () {
+                debugPrint('[SelfTest] Activating self-test mode...');
                 SelfTestManager().setSelfTestModeActive(true);
                 SelfTestManager().restartWidgetTree();
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -100,12 +122,14 @@ class _LoginPageState extends State<LoginPage> {
             ),
             ElevatedButton(
               onPressed: () async {
+                debugPrint('[SelfTest] ===== STARTING TEST =====');
                 // Example test
                 SelfTestManager().enterText('username_field', 'testuser');
                 SelfTestManager().enterText('password_field', 'testpass');
                 await SelfTestManager().waitForAnimations();
                 SelfTestManager().trigger('login_button');
                 await SelfTestManager().waitForAnimations();
+                debugPrint('[SelfTest] ===== TEST COMPLETED =====');
               },
               child: Text('Run Test'),
             ),

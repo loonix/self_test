@@ -3,6 +3,6 @@ builders:
     import: "package:self_test/builder.dart"
     builder_factories: ["selfTestBuilder"]
     build_extensions: {".dart": [".g.dart"]}
-    auto_apply: dependents
+    auto_apply: none
     build_to: source
-    required_inputs: ["example/lib/example.dart"]
+    required_inputs: ["lib/example.dart"]
