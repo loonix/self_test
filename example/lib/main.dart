@@ -1,17 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:self_test/self_test.dart';
 
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
 void main() {
-  runApp(SelfTestRoot(child: MyApp()));
+  runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Self Test Example',
-      theme: ThemeData(primarySwatch: Colors.blue),
-      home: LoginPage(),
+    return SelfTestRoot(
+      navigatorKey: navigatorKey,
+      child: MaterialApp(
+        navigatorKey: navigatorKey,
+        title: 'Self Test Example',
+        theme: ThemeData(primarySwatch: Colors.blue),
+        home: LoginPage(),
+      ),
     );
   }
 }
@@ -25,7 +31,7 @@ class _LoginPageState extends State<LoginPage> {
   String username = '';
   String password = '';
   String message = '';
-  
+
   late TextEditingController _usernameController;
   late TextEditingController _passwordController;
 
@@ -122,16 +128,25 @@ class _LoginPageState extends State<LoginPage> {
             ),
             ElevatedButton(
               onPressed: () async {
-                debugPrint('[SelfTest] ===== STARTING TEST =====');
+                debugPrint('[SelfTest] ===== STARTING PROGRAMMATIC TEST =====');
+                // Activate test mode to register widgets
+                SelfTestManager().setTestMode(true);
+                SelfTestManager().restartWidgetTree();
+                await Future.delayed(const Duration(milliseconds: 100)); // Wait for registration
+
                 // Example test
                 SelfTestManager().enterText('username_field', 'testuser');
                 SelfTestManager().enterText('password_field', 'testpass');
                 await SelfTestManager().waitForAnimations();
                 SelfTestManager().trigger('login_button');
                 await SelfTestManager().waitForAnimations();
+
+                // Deactivate test mode
+                SelfTestManager().setTestMode(false);
+                SelfTestManager().restartWidgetTree();
                 debugPrint('[SelfTest] ===== TEST COMPLETED =====');
               },
-              child: Text('Run Test'),
+              child: Text('Run Programmatic Test'),
             ),
           ],
         ),

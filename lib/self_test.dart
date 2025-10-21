@@ -1,10 +1,19 @@
 library self_test;
 
 export 'annotations.dart';
+export 'src/test_code_generator.dart';
 
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
+import 'package:hive_ce/hive.dart';
+import 'package:path_provider/path_provider.dart';
+import 'src/models.dart';
+import 'src/test_code_generator.dart';
+
+/// Represents the current recording mode.
+enum RecordingMode { inactive, recording, viewing, asserting }
 
 /// Represents a testable node in the widget tree.
 class TestNode {
@@ -26,6 +35,8 @@ class TestNode {
 /// Singleton manager for self-testing functionality.
 class SelfTestManager {
   static final SelfTestManager _instance = SelfTestManager._internal();
+  static bool _adaptersRegistered = false;
+
   factory SelfTestManager() => _instance;
   SelfTestManager._internal();
 
@@ -34,6 +45,18 @@ class SelfTestManager {
   bool _isTestMode = false; // For testing environments
   GlobalKey<State>? rootKey;
   int _rebuildCounter = 0; // Counter to force rebuilds
+
+  // Recording functionality
+  bool _isRecordingModeActive = false;
+  int? _currentScriptId;
+  Box<TestScript>? _scriptBox;
+  Box<TestStep>? _stepBox;
+  int _nextScriptId = 0;
+  int _nextStepId = 0;
+
+  // UI functionality
+  RecordingMode _recordingMode = RecordingMode.inactive;
+  TestScript? _currentViewingScript;
 
   /// Gets the current self-test mode status.
   bool get isSelfTestModeActive => _isSelfTestModeActive;
@@ -49,6 +72,44 @@ class SelfTestManager {
   /// Sets the test mode status.
   void setTestMode(bool value) {
     _isTestMode = value;
+  }
+
+  /// Gets the recording mode.
+  RecordingMode get recordingMode => _recordingMode;
+
+  /// Sets the recording mode and restarts the widget tree.
+  void setRecordingMode(RecordingMode mode) {
+    _recordingMode = mode;
+    restartWidgetTree();
+  }
+
+  /// Gets the current viewing script.
+  TestScript? get currentViewingScript => _currentViewingScript;
+
+  /// Sets the current viewing script.
+  void setCurrentViewingScript(TestScript? script) {
+    _currentViewingScript = script;
+  }
+
+  /// Adds an assertion for the given id.
+  Future<void> addAssertion(String id) async {
+    try {
+      debugPrint('[SelfTest] Adding assertion for node: "$id"');
+      final node = _activeTestNodes[id];
+      if (node != null) {
+        final value = node.currentText ?? '';
+        await _recordUserAction('assertText', id, value);
+        debugPrint('[SelfTest] Added assertion: assertText on "$id" with value "$value"');
+      } else {
+        debugPrint('[SelfTest] WARNING: Node "$id" not found for assertion');
+      }
+      setRecordingMode(RecordingMode.viewing);
+    } catch (e, stackTrace) {
+      debugPrint('[SelfTest] ERROR adding assertion for "$id": $e');
+      debugPrint('[SelfTest] Stack trace: $stackTrace');
+      setRecordingMode(RecordingMode.viewing); // Ensure we exit asserting mode
+      rethrow;
+    }
   }
 
   /// Gets the rebuild counter for forcing widget tree rebuilds.
@@ -71,6 +132,31 @@ class SelfTestManager {
     }
   }
 
+  /// Initializes the local database for storing test scripts and steps.
+  Future<void> initializeDatabase() async {
+    try {
+      debugPrint('[SelfTest] Initializing database...');
+      final dir = await getApplicationDocumentsDirectory();
+      debugPrint('[SelfTest] Documents directory: ${dir.path}');
+      Hive.init(dir.path);
+      if (!_adaptersRegistered) {
+        Hive.registerAdapter(TestScriptAdapter());
+        Hive.registerAdapter(TestStepAdapter());
+        _adaptersRegistered = true;
+        debugPrint('[SelfTest] Hive adapters registered');
+      }
+      _scriptBox = await Hive.openBox<TestScript>('testScripts');
+      _stepBox = await Hive.openBox<TestStep>('testSteps');
+      _nextScriptId = (_scriptBox!.values.isEmpty ? 0 : _scriptBox!.values.map((s) => s.id).reduce((a, b) => a > b ? a : b) + 1);
+      _nextStepId = (_stepBox!.values.isEmpty ? 0 : _stepBox!.values.map((s) => s.id).reduce((a, b) => a > b ? a : b) + 1);
+      debugPrint('[SelfTest] Database initialized successfully. Next IDs: script $_nextScriptId, step $_nextStepId');
+    } catch (e, stackTrace) {
+      debugPrint('[SelfTest] ERROR initializing database: $e');
+      debugPrint('[SelfTest] Stack trace: $stackTrace');
+      rethrow;
+    }
+  }
+
   /// Gets the active test nodes (for testing purposes).
   Map<String, TestNode> get activeTestNodes => _activeTestNodes;
 
@@ -86,32 +172,198 @@ class SelfTestManager {
     debugPrint('[SelfTest] Unregistered TestNode: "$id"');
   }
 
+  /// Starts recording a new test script.
+  Future<void> startRecording(String name) async {
+    try {
+      debugPrint('[SelfTest] Starting recording for script: "$name"');
+      if (_scriptBox == null) await initializeDatabase();
+      final script = TestScript(
+        id: _nextScriptId++,
+        name: name,
+        createdAt: DateTime.now(),
+      );
+      await _scriptBox!.put(script.id, script);
+      _currentScriptId = script.id;
+      _isRecordingModeActive = true;
+      setRecordingMode(RecordingMode.recording);
+      debugPrint('[SelfTest] Started recording script: "$name" (id: ${script.id})');
+    } catch (e, stackTrace) {
+      debugPrint('[SelfTest] ERROR starting recording: $e');
+      debugPrint('[SelfTest] Stack trace: $stackTrace');
+      rethrow;
+    }
+  }
+
+  /// Stops the current recording.
+  void stopRecording() {
+    _isRecordingModeActive = false;
+    _currentScriptId = null;
+    debugPrint('[SelfTest] Stopped recording');
+  }
+
+  /// Records a user action during recording.
+  Future<void> _recordUserAction(String action, String targetId, [String? value]) async {
+    try {
+      if (!_isRecordingModeActive || _currentScriptId == null || _stepBox == null) {
+        debugPrint('[SelfTest] Not recording or box not initialized, skipping action: $action on $targetId');
+        return;
+      }
+      final order = _stepBox!.values.where((s) => s.scriptId == _currentScriptId).length;
+      final step = TestStep(
+        id: _nextStepId++,
+        scriptId: _currentScriptId!,
+        order: order,
+        action: action,
+        targetId: targetId,
+        value: value,
+      );
+      await _stepBox!.put(step.id, step);
+      debugPrint('[SelfTest] Recorded action: $action on "$targetId" (order: $order)');
+    } catch (e, stackTrace) {
+      debugPrint('[SelfTest] ERROR recording action: $e');
+      debugPrint('[SelfTest] Stack trace: $stackTrace');
+      rethrow;
+    }
+  }
+
+  /// Deletes a test script and all its steps.
+  Future<void> deleteTestScript(int scriptId) async {
+    try {
+      debugPrint('[SelfTest] Deleting test script: $scriptId');
+      if (_scriptBox == null) await initializeDatabase();
+
+      // Delete all steps for this script
+      final stepsToDelete = _stepBox!.values.where((s) => s.scriptId == scriptId).toList();
+      for (final step in stepsToDelete) {
+        await _stepBox!.delete(step.id);
+        debugPrint('[SelfTest] Deleted step: ${step.id}');
+      }
+
+      // Delete the script
+      await _scriptBox!.delete(scriptId);
+      debugPrint('[SelfTest] Deleted test script: $scriptId');
+    } catch (e, stackTrace) {
+      debugPrint('[SelfTest] ERROR deleting test script $scriptId: $e');
+      debugPrint('[SelfTest] Stack trace: $stackTrace');
+      rethrow;
+    }
+  }
+
+  /// Clears all test scripts and steps (for testing purposes).
+  Future<void> clearDatabase() async {
+    if (_scriptBox != null) await _scriptBox!.clear();
+    if (_stepBox != null) await _stepBox!.clear();
+    _nextScriptId = 0;
+    _nextStepId = 0;
+  }
+
+  /// Gets all test scripts.
+  List<TestScript> getTestScripts() {
+    if (_scriptBox == null) return [];
+    return _scriptBox!.values.toList();
+  }
+
+  /// Gets all test scripts (async version that initializes DB if needed).
+  Future<List<TestScript>> getTestScriptsAsync() async {
+    if (_scriptBox == null) await initializeDatabase();
+    return _scriptBox!.values.toList();
+  }
+
+  /// Gets test steps for a specific script.
+  List<TestStep> getTestSteps(int scriptId) {
+    if (_stepBox == null) return [];
+    return _stepBox!.values.where((s) => s.scriptId == scriptId).toList()..sort((a, b) => a.order.compareTo(b.order));
+  }
+
   /// Triggers the tap action for the given id.
-  void trigger(String id) {
-    debugPrint('[SelfTest] Looking for TestNode: "$id" to trigger tap');
-    debugPrint('[SelfTest] Active nodes: ${_activeTestNodes.keys.toList()}');
-    final node = _activeTestNodes[id];
-    if (node != null && node.onTap != null) {
-      debugPrint('[SelfTest] Found TestNode "$id", triggering tap');
-      node.onTap!();
-    } else {
-      debugPrint('[SelfTest] ERROR: TestNode "$id" not found or has no tap callback');
-      throw Exception('TestNode with id "$id" not found or has no tap callback.');
+  Future<void> trigger(String id) async {
+    try {
+      debugPrint('[SelfTest] Looking for TestNode: "$id" to trigger tap');
+      debugPrint('[SelfTest] Active nodes: ${_activeTestNodes.keys.toList()}');
+      final node = _activeTestNodes[id];
+      if (node != null && node.onTap != null) {
+        debugPrint('[SelfTest] Found TestNode "$id", triggering tap');
+        if (_isRecordingModeActive) {
+          await _recordUserAction('trigger', id);
+        }
+        node.onTap!();
+      } else {
+        debugPrint('[SelfTest] ERROR: TestNode "$id" not found or has no tap callback');
+        throw Exception('TestNode with id "$id" not found or has no tap callback.');
+      }
+    } catch (e, stackTrace) {
+      debugPrint('[SelfTest] ERROR in trigger("$id"): $e');
+      debugPrint('[SelfTest] Stack trace: $stackTrace');
+      rethrow;
     }
   }
 
   /// Enters text for the given id.
-  void enterText(String id, String text) {
-    debugPrint('[SelfTest] Looking for TestNode: "$id" to enter text: "$text"');
-    debugPrint('[SelfTest] Active nodes: ${_activeTestNodes.keys.toList()}');
-    final node = _activeTestNodes[id];
-    if (node != null && node.onTextChange != null) {
-      debugPrint('[SelfTest] Found TestNode "$id", entering text');
-      node.onTextChange!(text);
-      node.currentText = text; // Update current text for assertions
-    } else {
-      debugPrint('[SelfTest] ERROR: TestNode "$id" not found or has no text change callback');
-      throw Exception('TestNode with id "$id" not found or has no text change callback.');
+  Future<void> enterText(String id, String text) async {
+    try {
+      debugPrint('[SelfTest] Looking for TestNode: "$id" to enter text: "$text"');
+      debugPrint('[SelfTest] Active nodes: ${_activeTestNodes.keys.toList()}');
+      final node = _activeTestNodes[id];
+      if (node != null && node.onTextChange != null) {
+        debugPrint('[SelfTest] Found TestNode "$id", entering text');
+        if (_isRecordingModeActive) {
+          await _recordUserAction('enterText', id, text);
+        }
+        node.onTextChange!(text);
+        node.currentText = text; // Update current text for assertions
+      } else {
+        debugPrint('[SelfTest] ERROR: TestNode "$id" not found or has no text change callback');
+        throw Exception('TestNode with id "$id" not found or has no text change callback.');
+      }
+    } catch (e, stackTrace) {
+      debugPrint('[SelfTest] ERROR in enterText("$id", "$text"): $e');
+      debugPrint('[SelfTest] Stack trace: $stackTrace');
+      rethrow;
+    }
+  }
+
+  /// Runs a recorded test script by executing its steps.
+  Future<void> runTestScript(int scriptId) async {
+    try {
+      debugPrint('[SelfTest] Running test script: $scriptId');
+      final steps = getTestSteps(scriptId);
+      if (steps.isEmpty) {
+        debugPrint('[SelfTest] No steps found for script $scriptId');
+        return;
+      }
+
+      // Show running indicator
+      setRecordingMode(RecordingMode.recording); // Reuse recording mode for visual feedback
+
+      for (final step in steps) {
+        debugPrint('[SelfTest] Executing step: ${step.action} on ${step.targetId}');
+        switch (step.action) {
+          case 'trigger':
+            await trigger(step.targetId);
+            break;
+          case 'enterText':
+            if (step.value != null) {
+              await enterText(step.targetId, step.value!);
+            }
+            break;
+          case 'assertText':
+            // Assertions are handled during recording, skip during playback
+            break;
+          default:
+            debugPrint('[SelfTest] Unknown action: ${step.action}');
+        }
+        await waitForAnimations();
+      }
+
+      // Hide running indicator
+      setRecordingMode(RecordingMode.viewing);
+      debugPrint('[SelfTest] Test script $scriptId completed');
+    } catch (e, stackTrace) {
+      // Hide running indicator on error
+      setRecordingMode(RecordingMode.viewing);
+      debugPrint('[SelfTest] ERROR running test script $scriptId: $e');
+      debugPrint('[SelfTest] Stack trace: $stackTrace');
+      rethrow;
     }
   }
 
@@ -168,23 +420,28 @@ class _SelfTestableWidgetState extends State<SelfTestableWidget> {
   }
 
   void _updateRegistration() {
-    final manager = SelfTestManager();
-    final shouldBeRegistered = ((kDebugMode || kProfileMode) && manager.isSelfTestModeActive) || manager.isTestMode;
+    try {
+      final manager = SelfTestManager();
+      final shouldBeRegistered = ((kDebugMode || kProfileMode) && manager.isSelfTestModeActive) || manager.isTestMode;
 
-    if (shouldBeRegistered && !_wasRegistered) {
-      debugPrint('[SelfTest] SelfTestableWidget "${widget.id}" registering (mode active: ${manager.isSelfTestModeActive}, test mode: ${manager.isTestMode})');
-      final node = TestNode(
-        id: widget.id,
-        onTap: widget.onTap,
-        onTextChange: widget.onTextChange,
-        context: context,
-      );
-      manager.registerTestNode(node);
-      _wasRegistered = true;
-    } else if (!shouldBeRegistered && _wasRegistered) {
-      debugPrint('[SelfTest] SelfTestableWidget "${widget.id}" unregistering due to mode change');
-      manager.unregisterTestNode(widget.id);
-      _wasRegistered = false;
+      if (shouldBeRegistered && !_wasRegistered) {
+        debugPrint('[SelfTest] SelfTestableWidget "${widget.id}" registering (mode active: ${manager.isSelfTestModeActive}, test mode: ${manager.isTestMode})');
+        final node = TestNode(
+          id: widget.id,
+          onTap: widget.onTap,
+          onTextChange: widget.onTextChange,
+          context: context,
+        );
+        manager.registerTestNode(node);
+        _wasRegistered = true;
+      } else if (!shouldBeRegistered && _wasRegistered) {
+        debugPrint('[SelfTest] SelfTestableWidget "${widget.id}" unregistering due to mode change');
+        manager.unregisterTestNode(widget.id);
+        _wasRegistered = false;
+      }
+    } catch (e, stackTrace) {
+      debugPrint('[SelfTest] ERROR in _updateRegistration for "${widget.id}": $e');
+      debugPrint('[SelfTest] Stack trace: $stackTrace');
     }
   }
 
@@ -204,15 +461,203 @@ class _SelfTestableWidgetState extends State<SelfTestableWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return widget.child;
+    // Ensure registration is up to date on every build
+    _updateRegistration();
+
+    final manager = SelfTestManager();
+    final isRecording = manager.recordingMode == RecordingMode.recording;
+    final isAsserting = manager.recordingMode == RecordingMode.asserting;
+    final child = widget.child;
+
+    if (isAsserting) {
+      debugPrint('[SelfTest] Building SelfTestableWidget "${widget.id}" with assertion highlight');
+      return GestureDetector(
+        onTap: () => manager.addAssertion(widget.id),
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border.all(color: const Color(0xFFFF0000), width: 2),
+          ),
+          child: child,
+        ),
+      );
+    }
+
+    // Intercept interactions for recording
+    if (isRecording) {
+      if (child is TextField) {
+        return _buildRecordingTextField(child);
+      } else if (child is ElevatedButton || child is TextButton || child is OutlinedButton || child is IconButton) {
+        return _buildRecordingButton(child);
+      }
+    }
+
+    return child;
+  }
+
+  Widget _buildRecordingTextField(TextField textField) {
+    return TextField(
+      controller: textField.controller,
+      focusNode: textField.focusNode,
+      decoration: textField.decoration,
+      keyboardType: textField.keyboardType,
+      textInputAction: textField.textInputAction,
+      textCapitalization: textField.textCapitalization,
+      style: textField.style,
+      strutStyle: textField.strutStyle,
+      textAlign: textField.textAlign,
+      textAlignVertical: textField.textAlignVertical,
+      textDirection: textField.textDirection,
+      readOnly: textField.readOnly,
+      showCursor: textField.showCursor,
+      autofocus: textField.autofocus,
+      obscuringCharacter: textField.obscuringCharacter,
+      obscureText: textField.obscureText,
+      autocorrect: textField.autocorrect,
+      smartDashesType: textField.smartDashesType,
+      smartQuotesType: textField.smartQuotesType,
+      enableSuggestions: textField.enableSuggestions,
+      maxLines: textField.maxLines,
+      minLines: textField.minLines,
+      expands: textField.expands,
+      maxLength: textField.maxLength,
+      maxLengthEnforcement: textField.maxLengthEnforcement,
+      onChanged: (value) async {
+        debugPrint('[SelfTest] Recording text change for "${widget.id}": "$value"');
+        await SelfTestManager().enterText(widget.id, value);
+        textField.onChanged?.call(value);
+        widget.onTextChange?.call(value);
+      },
+      onTap: textField.onTap,
+      onEditingComplete: textField.onEditingComplete,
+      onSubmitted: textField.onSubmitted,
+      inputFormatters: textField.inputFormatters,
+      enabled: textField.enabled,
+      cursorWidth: textField.cursorWidth,
+      cursorHeight: textField.cursorHeight,
+      cursorRadius: textField.cursorRadius,
+      cursorColor: textField.cursorColor,
+      selectionHeightStyle: textField.selectionHeightStyle,
+      selectionWidthStyle: textField.selectionWidthStyle,
+      keyboardAppearance: textField.keyboardAppearance,
+      scrollPadding: textField.scrollPadding,
+      dragStartBehavior: textField.dragStartBehavior,
+      enableInteractiveSelection: textField.enableInteractiveSelection,
+      selectionControls: textField.selectionControls,
+      onTapOutside: textField.onTapOutside,
+      mouseCursor: textField.mouseCursor,
+      buildCounter: textField.buildCounter,
+      scrollController: textField.scrollController,
+      scrollPhysics: textField.scrollPhysics,
+      autofillHints: textField.autofillHints,
+      clipBehavior: textField.clipBehavior,
+      restorationId: textField.restorationId,
+      scribbleEnabled: textField.scribbleEnabled,
+      enableIMEPersonalizedLearning: textField.enableIMEPersonalizedLearning,
+    );
+  }
+
+  Widget _buildRecordingButton(Widget button) {
+    if (button is ElevatedButton) {
+      return ElevatedButton(
+        onPressed: () async {
+          debugPrint('[SelfTest] Recording tap for "${widget.id}"');
+          await SelfTestManager().trigger(widget.id);
+          button.onPressed?.call();
+          widget.onTap?.call();
+        },
+        onLongPress: button.onLongPress,
+        onHover: button.onHover,
+        onFocusChange: button.onFocusChange,
+        style: button.style,
+        focusNode: button.focusNode,
+        autofocus: button.autofocus,
+        clipBehavior: button.clipBehavior,
+        child: button.child ?? const SizedBox(),
+      );
+    } else if (button is TextButton) {
+      return TextButton(
+        onPressed: () async {
+          debugPrint('[SelfTest] Recording tap for "${widget.id}"');
+          await SelfTestManager().trigger(widget.id);
+          button.onPressed?.call();
+          widget.onTap?.call();
+        },
+        onLongPress: button.onLongPress,
+        onHover: button.onHover,
+        onFocusChange: button.onFocusChange,
+        style: button.style,
+        focusNode: button.focusNode,
+        autofocus: button.autofocus,
+        clipBehavior: button.clipBehavior,
+        child: button.child ?? const SizedBox(),
+      );
+    } else if (button is OutlinedButton) {
+      return OutlinedButton(
+        onPressed: () async {
+          debugPrint('[SelfTest] Recording tap for "${widget.id}"');
+          await SelfTestManager().trigger(widget.id);
+          button.onPressed?.call();
+          widget.onTap?.call();
+        },
+        onLongPress: button.onLongPress,
+        onHover: button.onHover,
+        onFocusChange: button.onFocusChange,
+        style: button.style,
+        focusNode: button.focusNode,
+        autofocus: button.autofocus,
+        clipBehavior: button.clipBehavior,
+        child: button.child ?? const SizedBox(),
+      );
+    } else if (button is IconButton) {
+      return IconButton(
+        onPressed: () async {
+          debugPrint('[SelfTest] Recording tap for "${widget.id}"');
+          await SelfTestManager().trigger(widget.id);
+          button.onPressed?.call();
+          widget.onTap?.call();
+        },
+        icon: button.icon,
+        iconSize: button.iconSize,
+        visualDensity: button.visualDensity,
+        padding: button.padding,
+        alignment: button.alignment,
+        splashRadius: button.splashRadius,
+        color: button.color,
+        focusColor: button.focusColor,
+        hoverColor: button.hoverColor,
+        highlightColor: button.highlightColor,
+        splashColor: button.splashColor,
+        disabledColor: button.disabledColor,
+        onHover: button.onHover,
+        focusNode: button.focusNode,
+        autofocus: button.autofocus,
+        tooltip: button.tooltip,
+        enableFeedback: button.enableFeedback,
+        constraints: button.constraints,
+        style: button.style,
+        isSelected: button.isSelected,
+        selectedIcon: button.selectedIcon,
+      );
+    } else {
+      // Fallback for other widgets
+      return GestureDetector(
+        onTap: () async {
+          debugPrint('[SelfTest] Recording tap for "${widget.id}"');
+          await SelfTestManager().trigger(widget.id);
+          widget.onTap?.call();
+        },
+        child: button,
+      );
+    }
   }
 }
 
 /// A wrapper widget for the root of the app to enable programmatic restart.
 class SelfTestRoot extends StatefulWidget {
   final Widget child;
+  final GlobalKey<NavigatorState>? navigatorKey;
 
-  SelfTestRoot({Key? key, required this.child}) : super(key: key ?? (SelfTestManager().rootKey ?? GlobalKey<State>(debugLabel: 'SelfTestRoot'))) {
+  SelfTestRoot({Key? key, required this.child, this.navigatorKey}) : super(key: key ?? (SelfTestManager().rootKey ?? GlobalKey<State>(debugLabel: 'SelfTestRoot'))) {
     // Ensure the manager has a root key
     SelfTestManager().rootKey ??= GlobalKey<State>(debugLabel: 'SelfTestRoot');
   }
@@ -222,6 +667,8 @@ class SelfTestRoot extends StatefulWidget {
 }
 
 class _SelfTestRootState extends State<SelfTestRoot> {
+  bool _isFabExpanded = false;
+
   @override
   void initState() {
     super.initState();
@@ -236,9 +683,483 @@ class _SelfTestRootState extends State<SelfTestRoot> {
     // Force rebuild when self-test mode changes or restart is called
     final manager = SelfTestManager();
     debugPrint('[SelfTest] SelfTestRoot building with key: ${manager.isSelfTestModeActive}_${manager.isTestMode}_${manager.rebuildCounter}');
-    return KeyedSubtree(
+    final child = KeyedSubtree(
       key: ValueKey('${manager.isSelfTestModeActive}_${manager.isTestMode}_${manager.rebuildCounter}'),
       child: widget.child,
+    );
+
+    if (!kDebugMode) return child;
+
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: Stack(
+        children: [
+          child,
+          Positioned.fill(
+            child: _buildOverlay(context, manager),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOverlay(BuildContext context, SelfTestManager manager) {
+    final isRecording = manager.recordingMode == RecordingMode.recording;
+    debugPrint('[SelfTest] Building overlay, isRecording: $isRecording');
+    return Stack(
+      children: [
+        // Recording indicator
+        if (isRecording)
+          Positioned(
+            top: 50,
+            right: 16,
+            child: AnimatedOpacity(
+              opacity: 0.8,
+              duration: const Duration(milliseconds: 500),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.red.withOpacity(0.3),
+                      blurRadius: 8,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.circle, color: Colors.white, size: 12),
+                    SizedBox(width: 4),
+                    Text('RECORDING', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        // Expandable FAB or Stop FAB
+        if (!isRecording) _buildExpandableFab(context, manager) else _buildStopFab(context, manager),
+      ],
+    );
+  }
+
+  Widget _buildExpandableFab(BuildContext context, SelfTestManager manager) {
+    debugPrint('[SelfTest] Building expandable FAB');
+    return Stack(
+      children: [
+        // Background overlay when expanded
+        if (_isFabExpanded)
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: () => setState(() => _isFabExpanded = false),
+              child: Container(color: Colors.black.withOpacity(0.1)),
+            ),
+          ),
+
+        // Mini FABs (when expanded)
+        if (_isFabExpanded) ...[
+          // Start Recording FAB
+          Positioned(
+            bottom: 100,
+            right: 16,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                FloatingActionButton(
+                  mini: true,
+                  backgroundColor: Colors.green,
+                  onPressed: () async {
+                    setState(() => _isFabExpanded = false);
+                    final name = await _showNameDialog(widget.navigatorKey?.currentContext ?? context);
+                    if (name != null && name.isNotEmpty) {
+                      await manager.startRecording(name);
+                      manager.setRecordingMode(RecordingMode.recording);
+                      if ((widget.navigatorKey?.currentContext ?? context).mounted) {
+                        ScaffoldMessenger.of(widget.navigatorKey?.currentContext ?? context).showSnackBar(
+                          SnackBar(content: Text('Started recording: "$name"')),
+                        );
+                      }
+                    }
+                  },
+                  child: const Icon(Icons.play_circle_fill, color: Colors.white),
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.7),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text('START', style: TextStyle(color: Colors.white, fontSize: 8)),
+                ),
+              ],
+            ),
+          ),
+
+          // View Tests FAB
+          Positioned(
+            bottom: 150,
+            right: 16,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                FloatingActionButton(
+                  mini: true,
+                  backgroundColor: Colors.blue,
+                  onPressed: () {
+                    setState(() => _isFabExpanded = false);
+                    _showControlPanel(widget.navigatorKey?.currentContext ?? context, manager);
+                  },
+                  child: const Icon(Icons.list, color: Colors.white),
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.7),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text('VIEW', style: TextStyle(color: Colors.white, fontSize: 8)),
+                ),
+              ],
+            ),
+          ),
+        ],
+
+        // Main FAB
+        Positioned(
+          bottom: 16,
+          right: 16,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 72,
+                height: 72,
+                child: FloatingActionButton(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                  onPressed: () => setState(() => _isFabExpanded = !_isFabExpanded),
+                  child: Icon(_isFabExpanded ? Icons.close : Icons.menu, size: 32),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.7),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  _isFabExpanded ? 'CLOSE' : 'TEST',
+                  style: const TextStyle(color: Colors.white, fontSize: 10),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStopFab(BuildContext context, SelfTestManager manager) {
+    debugPrint('[SelfTest] Building stop FAB');
+    return Positioned(
+      bottom: 16,
+      right: 16,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 72,
+            height: 72,
+            child: FloatingActionButton(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              onPressed: () {
+                manager.stopRecording();
+                manager.setRecordingMode(RecordingMode.viewing);
+                _showControlPanel(widget.navigatorKey?.currentContext ?? context, manager);
+                if ((widget.navigatorKey?.currentContext ?? context).mounted) {
+                  ScaffoldMessenger.of(widget.navigatorKey?.currentContext ?? context).showSnackBar(
+                    const SnackBar(content: Text('Recording stopped')),
+                  );
+                }
+              },
+              child: const Icon(Icons.stop, size: 32),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.7),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Text('STOP', style: TextStyle(color: Colors.white, fontSize: 10)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<String?> _showNameDialog(BuildContext context) async {
+    final controller = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('New Test Script'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(hintText: 'Enter script name'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(controller.text),
+            child: const Text('Start'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showControlPanel(BuildContext context, SelfTestManager manager) async {
+    // Initialize database if needed
+    await manager.initializeDatabase();
+
+    // Use navigator key context if available, otherwise use provided context
+    final dialogContext = widget.navigatorKey?.currentContext ?? context;
+    showModalBottomSheet(
+      context: dialogContext,
+      builder: (context) => _ControlPanel(manager: manager),
+    );
+  }
+}
+
+class _ControlPanel extends StatefulWidget {
+  final SelfTestManager manager;
+
+  const _ControlPanel({required this.manager});
+
+  @override
+  State<_ControlPanel> createState() => _ControlPanelState();
+}
+
+class _ControlPanelState extends State<_ControlPanel> {
+  TestScript? selectedScript;
+  List<TestScript> scripts = [];
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadScripts();
+  }
+
+  Future<void> _loadScripts() async {
+    try {
+      final loadedScripts = await widget.manager.getTestScriptsAsync();
+      if (mounted) {
+        setState(() {
+          scripts = loadedScripts;
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('[SelfTest] ERROR loading scripts: $e');
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 400,
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              const Text('Recorded Tests', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const Spacer(),
+              IconButton(
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(Icons.close),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Text('Tap a test to view/edit steps', style: TextStyle(fontSize: 14, color: Colors.grey)),
+          Expanded(
+            child: isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : scripts.isEmpty
+                    ? const Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.videocam_off, size: 48, color: Colors.grey),
+                            SizedBox(height: 16),
+                            Text('No recorded tests yet', style: TextStyle(color: Colors.grey)),
+                            Text('Tap the play button to start recording', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        itemCount: scripts.length,
+                        itemBuilder: (context, index) {
+                          final script = scripts[index];
+                          return ListTile(
+                            title: Text(script.name),
+                            subtitle: Text('Created: ${script.createdAt} • ${script.lastRunStatus}'),
+                            onTap: () => setState(() => selectedScript = script),
+                            selected: selectedScript == script,
+                            trailing: IconButton(
+                              icon: const Icon(Icons.delete, color: Colors.red),
+                              onPressed: () async {
+                                final confirmed = await showDialog<bool>(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    title: const Text('Delete Test'),
+                                    content: Text('Are you sure you want to delete "${script.name}"?'),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.of(context).pop(false),
+                                        child: const Text('Cancel'),
+                                      ),
+                                      TextButton(
+                                        onPressed: () => Navigator.of(context).pop(true),
+                                        child: const Text('Delete', style: TextStyle(color: Colors.red)),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                                if (confirmed == true) {
+                                  try {
+                                    await widget.manager.deleteTestScript(script.id);
+                                    await _loadScripts(); // Refresh the list
+                                    if (selectedScript == script) {
+                                      setState(() => selectedScript = null);
+                                    }
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text('Deleted "${script.name}"')),
+                                      );
+                                    }
+                                  } catch (e) {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text('Failed to delete: $e')),
+                                      );
+                                    }
+                                  }
+                                }
+                              },
+                            ),
+                          );
+                        },
+                      ),
+          ),
+          if (selectedScript != null) ...[
+            const Divider(),
+            Expanded(
+              child: _buildStepsList(selectedScript!),
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      widget.manager.setRecordingMode(RecordingMode.asserting);
+                      Navigator.of(context).pop();
+                    },
+                    child: const Text('Add Assertion', textScaleFactor: 0.9),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      try {
+                        debugPrint('[SelfTest] Running test script: ${selectedScript!.name}');
+                        await widget.manager.runTestScript(selectedScript!.id);
+                        debugPrint('[SelfTest] Test run completed');
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Test completed successfully')),
+                          );
+                        }
+                      } catch (e, stackTrace) {
+                        debugPrint('[SelfTest] ERROR running test: $e');
+                        debugPrint('[SelfTest] Stack trace: $stackTrace');
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Test failed: $e')),
+                          );
+                        }
+                      }
+                    },
+                    child: const Text('Run Test', textScaleFactor: 0.9),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      try {
+                        debugPrint('[SelfTest] Exporting script: ${selectedScript!.name}');
+                        final steps = widget.manager.getTestSteps(selectedScript!.id);
+                        final generator = TestCodeGenerator();
+                        await generator.exportToDart(selectedScript!, steps);
+                        debugPrint('[SelfTest] Export completed');
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Test exported to app documents/test_generated')),
+                          );
+                        }
+                      } catch (e, stackTrace) {
+                        debugPrint('[SelfTest] ERROR exporting: $e');
+                        debugPrint('[SelfTest] Stack trace: $stackTrace');
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Export failed: $e')),
+                          );
+                        }
+                      }
+                    },
+                    child: const Text('Export to Dart', textScaleFactor: 0.9),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStepsList(TestScript script) {
+    final steps = widget.manager.getTestSteps(script.id);
+    return ListView.builder(
+      itemCount: steps.length,
+      itemBuilder: (context, index) {
+        final step = steps[index];
+        return ListTile(
+          title: Text('${step.action} on ${step.targetId}'),
+          subtitle: step.value != null ? Text('Value: ${step.value}') : null,
+        );
+      },
     );
   }
 }
