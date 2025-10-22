@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:dart_style/dart_style.dart';
 import 'package:flutter/foundation.dart';
@@ -53,11 +54,39 @@ class TestCodeGenerator {
     return _formatter.format(buffer.toString());
   }
 
-  /// Exports the generated code to a file in the app's documents directory.
+  /// Exports the test script and steps to JSON format.
+  Future<void> exportToJson(TestScript script, List<TestStep> steps) async {
+    try {
+      debugPrint('[TestCodeGenerator] Exporting script to JSON: ${script.name}');
+      final jsonData = {
+        'script': script.toJson(),
+        'steps': steps.map((step) => step.toJson()).toList(),
+        'exportedAt': DateTime.now().toIso8601String(),
+        'version': '1.0',
+      };
+      final jsonString = const JsonEncoder.withIndent('  ').convert(jsonData);
+      final fileName = '${script.name.replaceAll(' ', '_').toLowerCase()}_test.json';
+      final dir = await getApplicationDocumentsDirectory();
+      final testDir = Directory('${dir.path}/test_generated');
+      if (!testDir.existsSync()) {
+        testDir.createSync(recursive: true);
+        debugPrint('[TestCodeGenerator] Created test_generated directory in documents');
+      }
+      final file = File(path.join(testDir.path, fileName));
+      await file.writeAsString(jsonString);
+      debugPrint('[TestCodeGenerator] Exported test to JSON: ${file.path}');
+    } catch (e, stackTrace) {
+      debugPrint('[TestCodeGenerator] ERROR exporting to JSON: $e');
+      debugPrint('[TestCodeGenerator] Stack trace: $stackTrace');
+      rethrow;
+    }
+  }
+
+  /// Exports the test script and steps to Dart test code format.
   Future<void> exportToDart(TestScript script, List<TestStep> steps) async {
     try {
-      debugPrint('[TestCodeGenerator] Generating code for script: ${script.name}');
-      final code = generateTestCode(script, steps);
+      debugPrint('[TestCodeGenerator] Exporting script to Dart: ${script.name}');
+      final dartCode = generateTestCode(script, steps);
       final fileName = '${script.name.replaceAll(' ', '_').toLowerCase()}_test.dart';
       final dir = await getApplicationDocumentsDirectory();
       final testDir = Directory('${dir.path}/test_generated');
@@ -66,8 +95,8 @@ class TestCodeGenerator {
         debugPrint('[TestCodeGenerator] Created test_generated directory in documents');
       }
       final file = File(path.join(testDir.path, fileName));
-      await file.writeAsString(code);
-      debugPrint('[TestCodeGenerator] Exported test to ${file.path}');
+      await file.writeAsString(dartCode);
+      debugPrint('[TestCodeGenerator] Exported test to Dart: ${file.path}');
     } catch (e, stackTrace) {
       debugPrint('[TestCodeGenerator] ERROR exporting to Dart: $e');
       debugPrint('[TestCodeGenerator] Stack trace: $stackTrace');

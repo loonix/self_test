@@ -11,11 +11,13 @@ import 'package:hive_ce/hive.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:self_test/recording_fields/button.dart';
 import 'package:self_test/recording_fields/checkbox.dart';
+import 'package:self_test/recording_fields/floating_action_button.dart';
 import 'package:self_test/recording_fields/list_tile.dart';
 import 'package:self_test/recording_fields/radio.dart';
 import 'package:self_test/recording_fields/slider.dart';
 import 'package:self_test/recording_fields/switch.dart';
 import 'package:self_test/recording_fields/text_field.dart';
+import 'package:self_test/recording_fields/text_form_field.dart';
 import 'src/models.dart';
 import 'src/test_code_generator.dart';
 
@@ -45,7 +47,29 @@ class SelfTestManager {
   static bool _adaptersRegistered = false;
 
   factory SelfTestManager() => _instance;
-  SelfTestManager._internal();
+  SelfTestManager._internal() {
+    // Register built-in recording builders
+    _registerBuiltInBuilders();
+  }
+
+  void _registerBuiltInBuilders() {
+    registerRecordingBuilder<TextField>((child, widget) => buildRecordingTextField(child as TextField, widget));
+    registerRecordingBuilder<ElevatedButton>((child, widget) => buildRecordingButton(child, widget));
+    registerRecordingBuilder<TextButton>((child, widget) => buildRecordingButton(child, widget));
+    registerRecordingBuilder<OutlinedButton>((child, widget) => buildRecordingButton(child, widget));
+    registerRecordingBuilder<IconButton>((child, widget) => buildRecordingButton(child, widget));
+    registerRecordingBuilder<CheckboxListTile>((child, widget) => buildRecordingCheckboxListTile(child as CheckboxListTile, widget));
+    registerRecordingBuilder<RadioListTile>((child, widget) => buildRecordingRadioListTile(child as RadioListTile, widget));
+    registerRecordingBuilder<Slider>((child, widget) => buildRecordingSlider(child as Slider, widget));
+    registerRecordingBuilder<SwitchListTile>((child, widget) => buildRecordingSwitchListTile(child as SwitchListTile, widget));
+    registerRecordingBuilder<ListTile>((child, widget) => buildRecordingListTile(child as ListTile, widget));
+    registerRecordingBuilder<Switch>((child, widget) => buildRecordingSwitch(child as Switch, widget));
+    registerRecordingBuilder<Checkbox>((child, widget) => buildRecordingCheckbox(child as Checkbox, widget));
+    registerRecordingBuilder<Radio>((child, widget) => buildRecordingRadio(child as Radio, widget));
+    registerRecordingBuilder<FloatingActionButton>((child, widget) => buildRecordingFloatingActionButton(child as FloatingActionButton, widget));
+    registerRecordingBuilder<TextFormField>((child, widget) => buildRecordingTextFormField(child as TextFormField, widget));
+    // Note: DropdownButtonFormField is intentionally not registered due to complexity
+  }
 
   static final Map<String, TestNode> _activeTestNodes = {};
   bool _isSelfTestModeActive = false;
@@ -64,6 +88,21 @@ class SelfTestManager {
   // UI functionality
   RecordingMode _recordingMode = RecordingMode.inactive;
   TestScript? _currentViewingScript;
+
+  // Widget builder registry for extensibility
+  final Map<Type, Widget Function(Widget, SelfTestableWidget)> _recordingBuilders = {};
+
+  /// Registers a custom recording builder for a specific widget type.
+  /// This allows developers to extend support for custom or third-party widgets.
+  void registerRecordingBuilder<T extends Widget>(Widget Function(Widget, SelfTestableWidget) builder) {
+    _recordingBuilders[T] = builder;
+    debugPrint('[SelfTest] Registered recording builder for ${T.toString()}');
+  }
+
+  /// Gets the registered recording builder for a widget type, if any.
+  Widget Function(Widget, SelfTestableWidget)? getRecordingBuilder(Type widgetType) {
+    return _recordingBuilders[widgetType];
+  }
 
   /// Gets the current self-test mode status.
   bool get isSelfTestModeActive => _isSelfTestModeActive;
@@ -500,30 +539,27 @@ class _SelfTestableWidgetState extends State<SelfTestableWidget> {
 
     // Intercept interactions for recording
     if (isRecording) {
-      if (child is TextField) {
-        return buildRecordingTextField(child, widget);
-      } else if (child is ElevatedButton || child is TextButton || child is OutlinedButton || child is IconButton) {
-        return buildRecordingButton(child, widget);
-      } else if (child is CheckboxListTile) {
-        return buildRecordingCheckboxListTile(child, widget);
-      } else if (child is RadioListTile) {
-        return buildRecordingRadioListTile(child, widget);
-      } else if (child is Slider) {
-        return buildRecordingSlider(child, widget);
-      } else if (child is SwitchListTile) {
-        return buildRecordingSwitchListTile(child, widget);
-      } else if (child is DropdownButtonFormField) {
-        // TODO: Implement recording for DropdownButtonFormField
-        // Currently not supported due to Flutter version compatibility issues
+      final manager = SelfTestManager();
+
+      // First, check if there's a registered builder for this widget type
+      final registeredBuilder = manager.getRecordingBuilder(child.runtimeType);
+      if (registeredBuilder != null) {
+        return registeredBuilder(child, widget);
+      }
+
+      // Final fallback: wrap in GestureDetector if onTap is provided, otherwise return as-is with warning
+      if (widget.onTap != null) {
+        debugPrint('[SelfTest] WARNING: No recording builder found for ${child.runtimeType}, wrapping in GestureDetector for tap recording');
+        return GestureDetector(
+          onTap: () async {
+            await manager.trigger(widget.id);
+            widget.onTap!();
+          },
+          child: child,
+        );
+      } else {
+        debugPrint('[SelfTest] WARNING: No recording builder found for ${child.runtimeType} and no onTap provided - interactions will not be recorded');
         return child;
-      } else if (child is ListTile) {
-        return buildRecordingListTile(child, widget);
-      } else if (child is Switch) {
-        return buildRecordingSwitch(child, widget);
-      } else if (child is Checkbox) {
-        return buildRecordingCheckbox(child, widget);
-      } else if (child is Radio) {
-        return buildRecordingRadio(child, widget);
       }
     }
 
@@ -1018,6 +1054,34 @@ class _ControlPanelState extends State<_ControlPanel> {
                       }
                     },
                     child: const Text('Export to Dart', textScaleFactor: 0.9),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      try {
+                        debugPrint('[SelfTest] Exporting script to JSON: ${selectedScript!.name}');
+                        final steps = widget.manager.getTestSteps(selectedScript!.id);
+                        final generator = TestCodeGenerator();
+                        await generator.exportToJson(selectedScript!, steps);
+                        debugPrint('[SelfTest] JSON export completed');
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Test exported to JSON in app documents/test_generated')),
+                          );
+                        }
+                      } catch (e, stackTrace) {
+                        debugPrint('[SelfTest] ERROR exporting to JSON: $e');
+                        debugPrint('[SelfTest] Stack trace: $stackTrace');
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('JSON export failed: $e')),
+                          );
+                        }
+                      }
+                    },
+                    child: const Text('Export to JSON', textScaleFactor: 0.9),
                   ),
                 ),
               ],

@@ -26,6 +26,16 @@ class TestScript extends HiveObject {
     this.lastRunStatus = 'PENDING',
     this.lastRunDate,
   });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'createdAt': createdAt.toIso8601String(),
+      'lastRunStatus': lastRunStatus,
+      'lastRunDate': lastRunDate?.toIso8601String(),
+    };
+  }
 }
 
 @HiveType(typeId: 1)
@@ -56,4 +66,15 @@ class TestStep extends HiveObject {
     required this.targetId,
     this.value,
   });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'scriptId': scriptId,
+      'order': order,
+      'action': action,
+      'targetId': targetId,
+      'value': value,
+    };
+  }
 }

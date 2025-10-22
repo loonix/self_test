@@ -198,21 +198,70 @@ controller.expectUsernameFieldText('john_doe');
 controller.expectPasswordFieldText('secret123');
 ```
 
-### Text Assertions
+### Extending Widget Support
 
-The generated controllers include text validation methods:
+Self-Test provides built-in support for common Flutter widgets, but you can extend it to work with custom or third-party widgets by registering recording builders.
+
+#### Registering Custom Widget Builders
 
 ```dart
-// Assert exact text match
-controller.expectUsernameFieldText('expected_value');
+import 'package:self_test/self_test.dart';
 
-// Assertions throw exceptions on failure
-try {
-  controller.expectUsernameFieldText('wrong_value');
-} catch (e) {
-  print('Text assertion failed: $e');
+// Define a recording builder for your custom widget
+Widget buildRecordingCustomButton(CustomButton button, SelfTestableWidget widget) {
+  return CustomButton(
+    onPressed: () async {
+      // Record the action
+      await SelfTestManager().trigger(widget.id);
+      // Call the original callback
+      button.onPressed?.call();
+      // Call the SelfTestableWidget callback
+      widget.onTap?.call();
+    },
+    // Copy other properties...
+    child: button.child,
+  );
 }
+
+// Register the builder
+SelfTestManager().registerRecordingBuilder<CustomButton>(
+  (child, widget) => buildRecordingCustomButton(child as CustomButton, widget)
+);
 ```
+
+#### Using Custom Widgets
+
+```dart
+SelfTestableWidget(
+  id: 'custom_button',
+  onTap: () => print('Custom button tapped'),
+  child: CustomButton(
+    onPressed: () => print('Custom button tapped'),
+    child: Text('Custom Button'),
+  ),
+)
+```
+
+#### Important Notes
+
+- **Test Logic Responsibility**: The framework handles infrastructure (recording, playback, node management). You are responsible for implementing the test logic and ensuring your widgets behave correctly during testing.
+- **Fallback Behavior**: If no builder is registered for a widget type, Self-Test will:
+  - Wrap the widget in a `GestureDetector` if `onTap` is provided on `SelfTestableWidget`
+  - Return the widget as-is with a warning if no `onTap` is provided
+- **Memory Management**: Builders should not introduce memory leaks. The framework handles automatic registration/unregistration.
+- **Thread Safety**: Recording builders are called during widget build, so avoid heavy computations.
+
+#### Supported Built-in Widgets
+
+Self-Test includes built-in support for:
+
+- **Text Input**: `TextField`, `TextFormField`
+- **Buttons**: `ElevatedButton`, `TextButton`, `OutlinedButton`, `IconButton`, `FloatingActionButton`
+- **Form Controls**: `Checkbox`, `Radio`, `Switch`, `CheckboxListTile`, `RadioListTile`, `SwitchListTile`
+- **Lists**: `ListTile`
+- **Other**: `Slider`
+
+For unsupported widgets, register custom builders or use the fallback `GestureDetector` wrapping.
 
 ### Testing Integration
 

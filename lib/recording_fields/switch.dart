@@ -41,3 +41,37 @@ Widget buildRecordingSwitchListTile(SwitchListTile switchTile, widget) {
     },
   );
 }
+
+Widget buildRecordingSwitch(Switch switchWidget, widget) {
+  return Switch(
+    key: switchWidget.key,
+    value: switchWidget.value,
+    onChanged: (value) async {
+      debugPrint('[SelfTest] Recording switch change for "${widget.id}": $value');
+      await SelfTestManager().trigger(widget.id);
+      switchWidget.onChanged?.call(value);
+      widget.onTap?.call();
+    },
+    activeColor: switchWidget.activeColor,
+    activeTrackColor: switchWidget.activeTrackColor,
+    inactiveThumbColor: switchWidget.inactiveThumbColor,
+    inactiveTrackColor: switchWidget.inactiveTrackColor,
+    activeThumbImage: switchWidget.activeThumbImage,
+    onActiveThumbImageError: switchWidget.onActiveThumbImageError,
+    inactiveThumbImage: switchWidget.inactiveThumbImage,
+    onInactiveThumbImageError: switchWidget.onInactiveThumbImageError,
+    thumbColor: switchWidget.thumbColor,
+    trackColor: switchWidget.trackColor,
+    thumbIcon: switchWidget.thumbIcon,
+    materialTapTargetSize: switchWidget.materialTapTargetSize,
+    dragStartBehavior: switchWidget.dragStartBehavior,
+    mouseCursor: switchWidget.mouseCursor,
+    focusColor: switchWidget.focusColor,
+    hoverColor: switchWidget.hoverColor,
+    overlayColor: switchWidget.overlayColor,
+    splashRadius: switchWidget.splashRadius,
+    focusNode: switchWidget.focusNode,
+    onFocusChange: switchWidget.onFocusChange,
+    autofocus: switchWidget.autofocus,
+  );
+}
