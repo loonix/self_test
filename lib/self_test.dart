@@ -9,6 +9,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:self_test/recording_fields/button.dart';
+import 'package:self_test/recording_fields/checkbox.dart';
+import 'package:self_test/recording_fields/list_tile.dart';
+import 'package:self_test/recording_fields/radio.dart';
+import 'package:self_test/recording_fields/slider.dart';
+import 'package:self_test/recording_fields/switch.dart';
+import 'package:self_test/recording_fields/text_field.dart';
 import 'src/models.dart';
 import 'src/test_code_generator.dart';
 
@@ -494,317 +501,33 @@ class _SelfTestableWidgetState extends State<SelfTestableWidget> {
     // Intercept interactions for recording
     if (isRecording) {
       if (child is TextField) {
-        return _buildRecordingTextField(child);
+        return buildRecordingTextField(child, widget);
       } else if (child is ElevatedButton || child is TextButton || child is OutlinedButton || child is IconButton) {
-        return _buildRecordingButton(child);
+        return buildRecordingButton(child, widget);
       } else if (child is CheckboxListTile) {
-        return _buildRecordingCheckboxListTile(child);
+        return buildRecordingCheckboxListTile(child, widget);
       } else if (child is RadioListTile) {
-        return _buildRecordingRadioListTile(child);
+        return buildRecordingRadioListTile(child, widget);
       } else if (child is Slider) {
-        return _buildRecordingSlider(child);
+        return buildRecordingSlider(child, widget);
       } else if (child is SwitchListTile) {
-        return _buildRecordingSwitchListTile(child);
+        return buildRecordingSwitchListTile(child, widget);
       } else if (child is DropdownButtonFormField) {
         // TODO: Implement recording for DropdownButtonFormField
         // Currently not supported due to Flutter version compatibility issues
         return child;
+      } else if (child is ListTile) {
+        return buildRecordingListTile(child, widget);
+      } else if (child is Switch) {
+        return buildRecordingSwitch(child, widget);
+      } else if (child is Checkbox) {
+        return buildRecordingCheckbox(child, widget);
+      } else if (child is Radio) {
+        return buildRecordingRadio(child, widget);
       }
     }
 
     return child;
-  }
-
-  Widget _buildRecordingTextField(TextField textField) {
-    return TextField(
-      controller: textField.controller,
-      focusNode: textField.focusNode,
-      decoration: textField.decoration,
-      keyboardType: textField.keyboardType,
-      textInputAction: textField.textInputAction,
-      textCapitalization: textField.textCapitalization,
-      style: textField.style,
-      strutStyle: textField.strutStyle,
-      textAlign: textField.textAlign,
-      textAlignVertical: textField.textAlignVertical,
-      textDirection: textField.textDirection,
-      readOnly: textField.readOnly,
-      showCursor: textField.showCursor,
-      autofocus: textField.autofocus,
-      obscuringCharacter: textField.obscuringCharacter,
-      obscureText: textField.obscureText,
-      autocorrect: textField.autocorrect,
-      smartDashesType: textField.smartDashesType,
-      smartQuotesType: textField.smartQuotesType,
-      enableSuggestions: textField.enableSuggestions,
-      maxLines: textField.maxLines,
-      minLines: textField.minLines,
-      expands: textField.expands,
-      maxLength: textField.maxLength,
-      maxLengthEnforcement: textField.maxLengthEnforcement,
-      onChanged: (value) async {
-        debugPrint('[SelfTest] Recording text change for "${widget.id}": "$value"');
-        await SelfTestManager().enterText(widget.id, value);
-        textField.onChanged?.call(value);
-        widget.onTextChange?.call(value);
-      },
-      onTap: textField.onTap,
-      onEditingComplete: textField.onEditingComplete,
-      onSubmitted: textField.onSubmitted,
-      inputFormatters: textField.inputFormatters,
-      enabled: textField.enabled,
-      cursorWidth: textField.cursorWidth,
-      cursorHeight: textField.cursorHeight,
-      cursorRadius: textField.cursorRadius,
-      cursorColor: textField.cursorColor,
-      selectionHeightStyle: textField.selectionHeightStyle,
-      selectionWidthStyle: textField.selectionWidthStyle,
-      keyboardAppearance: textField.keyboardAppearance,
-      scrollPadding: textField.scrollPadding,
-      dragStartBehavior: textField.dragStartBehavior,
-      enableInteractiveSelection: textField.enableInteractiveSelection,
-      selectionControls: textField.selectionControls,
-      onTapOutside: textField.onTapOutside,
-      mouseCursor: textField.mouseCursor,
-      buildCounter: textField.buildCounter,
-      scrollController: textField.scrollController,
-      scrollPhysics: textField.scrollPhysics,
-      autofillHints: textField.autofillHints,
-      clipBehavior: textField.clipBehavior,
-      restorationId: textField.restorationId,
-      scribbleEnabled: textField.scribbleEnabled,
-      enableIMEPersonalizedLearning: textField.enableIMEPersonalizedLearning,
-    );
-  }
-
-  Widget _buildRecordingButton(Widget button) {
-    if (button is ElevatedButton) {
-      return ElevatedButton(
-        onPressed: () async {
-          debugPrint('[SelfTest] Recording tap for "${widget.id}"');
-          await SelfTestManager().trigger(widget.id);
-          button.onPressed?.call();
-          widget.onTap?.call();
-        },
-        onLongPress: button.onLongPress,
-        onHover: button.onHover,
-        onFocusChange: button.onFocusChange,
-        style: button.style,
-        focusNode: button.focusNode,
-        autofocus: button.autofocus,
-        clipBehavior: button.clipBehavior,
-        child: button.child ?? const SizedBox(),
-      );
-    } else if (button is TextButton) {
-      return TextButton(
-        onPressed: () async {
-          debugPrint('[SelfTest] Recording tap for "${widget.id}"');
-          await SelfTestManager().trigger(widget.id);
-          button.onPressed?.call();
-          widget.onTap?.call();
-        },
-        onLongPress: button.onLongPress,
-        onHover: button.onHover,
-        onFocusChange: button.onFocusChange,
-        style: button.style,
-        focusNode: button.focusNode,
-        autofocus: button.autofocus,
-        clipBehavior: button.clipBehavior,
-        child: button.child ?? const SizedBox(),
-      );
-    } else if (button is OutlinedButton) {
-      return OutlinedButton(
-        onPressed: () async {
-          debugPrint('[SelfTest] Recording tap for "${widget.id}"');
-          await SelfTestManager().trigger(widget.id);
-          button.onPressed?.call();
-          widget.onTap?.call();
-        },
-        onLongPress: button.onLongPress,
-        onHover: button.onHover,
-        onFocusChange: button.onFocusChange,
-        style: button.style,
-        focusNode: button.focusNode,
-        autofocus: button.autofocus,
-        clipBehavior: button.clipBehavior,
-        child: button.child ?? const SizedBox(),
-      );
-    } else if (button is IconButton) {
-      return IconButton(
-        onPressed: () async {
-          debugPrint('[SelfTest] Recording tap for "${widget.id}"');
-          await SelfTestManager().trigger(widget.id);
-          button.onPressed?.call();
-          widget.onTap?.call();
-        },
-        icon: button.icon,
-        iconSize: button.iconSize,
-        visualDensity: button.visualDensity,
-        padding: button.padding,
-        alignment: button.alignment,
-        splashRadius: button.splashRadius,
-        color: button.color,
-        focusColor: button.focusColor,
-        hoverColor: button.hoverColor,
-        highlightColor: button.highlightColor,
-        splashColor: button.splashColor,
-        disabledColor: button.disabledColor,
-        onHover: button.onHover,
-        focusNode: button.focusNode,
-        autofocus: button.autofocus,
-        tooltip: button.tooltip,
-        enableFeedback: button.enableFeedback,
-        constraints: button.constraints,
-        style: button.style,
-        isSelected: button.isSelected,
-        selectedIcon: button.selectedIcon,
-      );
-    } else {
-      // Fallback for other widgets
-      return GestureDetector(
-        onTap: () async {
-          debugPrint('[SelfTest] Recording tap for "${widget.id}"');
-          await SelfTestManager().trigger(widget.id);
-          widget.onTap?.call();
-        },
-        child: button,
-      );
-    }
-  }
-
-  Widget _buildRecordingCheckboxListTile(CheckboxListTile checkbox) {
-    return CheckboxListTile(
-      title: checkbox.title,
-      subtitle: checkbox.subtitle,
-      isThreeLine: checkbox.isThreeLine,
-      dense: checkbox.dense,
-      contentPadding: checkbox.contentPadding,
-      secondary: checkbox.secondary,
-      selected: checkbox.selected,
-      controlAffinity: checkbox.controlAffinity,
-      autofocus: checkbox.autofocus,
-      shape: checkbox.shape,
-      side: checkbox.side,
-      value: checkbox.value,
-      onChanged: (value) async {
-        debugPrint('[SelfTest] Recording checkbox change for "${widget.id}": $value');
-        await SelfTestManager().trigger(widget.id);
-        checkbox.onChanged?.call(value);
-        widget.onTap?.call();
-      },
-      activeColor: checkbox.activeColor,
-      checkColor: checkbox.checkColor,
-      fillColor: checkbox.fillColor,
-      hoverColor: checkbox.hoverColor,
-      overlayColor: checkbox.overlayColor,
-      splashRadius: checkbox.splashRadius,
-      materialTapTargetSize: checkbox.materialTapTargetSize,
-      visualDensity: checkbox.visualDensity,
-      focusNode: checkbox.focusNode,
-      enableFeedback: checkbox.enableFeedback,
-      tristate: checkbox.tristate,
-    );
-  }
-
-  Widget _buildRecordingRadioListTile(RadioListTile radio) {
-    return RadioListTile(
-      title: radio.title,
-      subtitle: radio.subtitle,
-      isThreeLine: radio.isThreeLine,
-      dense: radio.dense,
-      contentPadding: radio.contentPadding,
-      secondary: radio.secondary,
-      selected: radio.selected,
-      controlAffinity: radio.controlAffinity,
-      autofocus: radio.autofocus,
-      shape: radio.shape,
-      tileColor: radio.tileColor,
-      selectedTileColor: radio.selectedTileColor,
-      activeColor: radio.activeColor,
-      fillColor: radio.fillColor,
-      hoverColor: radio.hoverColor,
-      overlayColor: radio.overlayColor,
-      splashRadius: radio.splashRadius,
-      materialTapTargetSize: radio.materialTapTargetSize,
-      visualDensity: radio.visualDensity,
-      focusNode: radio.focusNode,
-      enableFeedback: radio.enableFeedback,
-      value: radio.value,
-      groupValue: radio.groupValue,
-      onChanged: (value) async {
-        debugPrint('[SelfTest] Recording radio change for "${widget.id}": $value');
-        await SelfTestManager().trigger(widget.id);
-        radio.onChanged?.call(value);
-        widget.onTap?.call();
-      },
-      toggleable: radio.toggleable,
-    );
-  }
-
-  Widget _buildRecordingSlider(Slider slider) {
-    return Slider(
-      value: slider.value,
-      onChanged: (value) async {
-        debugPrint('[SelfTest] Recording slider change for "${widget.id}": $value');
-        await SelfTestManager().trigger(widget.id);
-        slider.onChanged?.call(value);
-      },
-      onChangeStart: slider.onChangeStart,
-      onChangeEnd: slider.onChangeEnd,
-      min: slider.min,
-      max: slider.max,
-      divisions: slider.divisions,
-      label: slider.label,
-      activeColor: slider.activeColor,
-      inactiveColor: slider.inactiveColor,
-      secondaryActiveColor: slider.secondaryActiveColor,
-      secondaryTrackValue: slider.secondaryTrackValue,
-      semanticFormatterCallback: slider.semanticFormatterCallback,
-      focusNode: slider.focusNode,
-      autofocus: slider.autofocus,
-      mouseCursor: slider.mouseCursor,
-    );
-  }
-
-  Widget _buildRecordingSwitchListTile(SwitchListTile switchTile) {
-    return SwitchListTile(
-      title: switchTile.title,
-      subtitle: switchTile.subtitle,
-      isThreeLine: switchTile.isThreeLine,
-      dense: switchTile.dense,
-      contentPadding: switchTile.contentPadding,
-      secondary: switchTile.secondary,
-      selected: switchTile.selected,
-      controlAffinity: switchTile.controlAffinity,
-      autofocus: switchTile.autofocus,
-      shape: switchTile.shape,
-      tileColor: switchTile.tileColor,
-      selectedTileColor: switchTile.selectedTileColor,
-      activeColor: switchTile.activeColor,
-      activeTrackColor: switchTile.activeTrackColor,
-      inactiveThumbColor: switchTile.inactiveThumbColor,
-      inactiveTrackColor: switchTile.inactiveTrackColor,
-      activeThumbImage: switchTile.activeThumbImage,
-      onActiveThumbImageError: switchTile.onActiveThumbImageError,
-      inactiveThumbImage: switchTile.inactiveThumbImage,
-      onInactiveThumbImageError: switchTile.onInactiveThumbImageError,
-      thumbColor: switchTile.thumbColor,
-      trackColor: switchTile.trackColor,
-      splashRadius: switchTile.splashRadius,
-      materialTapTargetSize: switchTile.materialTapTargetSize,
-      visualDensity: switchTile.visualDensity,
-      focusNode: switchTile.focusNode,
-      onFocusChange: switchTile.onFocusChange,
-      enableFeedback: switchTile.enableFeedback,
-      hoverColor: switchTile.hoverColor,
-      value: switchTile.value,
-      onChanged: (value) async {
-        debugPrint('[SelfTest] Recording switch change for "${widget.id}": $value');
-        await SelfTestManager().trigger(widget.id);
-        switchTile.onChanged?.call(value);
-        widget.onTap?.call();
-      },
-    );
   }
 }
 

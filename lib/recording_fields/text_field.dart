@@ -1,0 +1,64 @@
+import 'package:flutter/material.dart';
+import 'package:self_test/self_test.dart';
+
+Widget buildRecordingTextField(TextField textField, widget) {
+  return TextField(
+    controller: textField.controller,
+    focusNode: textField.focusNode,
+    decoration: textField.decoration,
+    keyboardType: textField.keyboardType,
+    textInputAction: textField.textInputAction,
+    textCapitalization: textField.textCapitalization,
+    style: textField.style,
+    strutStyle: textField.strutStyle,
+    textAlign: textField.textAlign,
+    textAlignVertical: textField.textAlignVertical,
+    textDirection: textField.textDirection,
+    readOnly: textField.readOnly,
+    showCursor: textField.showCursor,
+    autofocus: textField.autofocus,
+    obscuringCharacter: textField.obscuringCharacter,
+    obscureText: textField.obscureText,
+    autocorrect: textField.autocorrect,
+    smartDashesType: textField.smartDashesType,
+    smartQuotesType: textField.smartQuotesType,
+    enableSuggestions: textField.enableSuggestions,
+    maxLines: textField.maxLines,
+    minLines: textField.minLines,
+    expands: textField.expands,
+    maxLength: textField.maxLength,
+    maxLengthEnforcement: textField.maxLengthEnforcement,
+    onChanged: (value) async {
+      debugPrint('[SelfTest] Recording text change for "${widget.id}": "$value"');
+      await SelfTestManager().enterText(widget.id, value);
+      textField.onChanged?.call(value);
+      widget.onTextChange?.call(value);
+    },
+    onTap: textField.onTap,
+    onEditingComplete: textField.onEditingComplete,
+    onSubmitted: textField.onSubmitted,
+    inputFormatters: textField.inputFormatters,
+    enabled: textField.enabled,
+    cursorWidth: textField.cursorWidth,
+    cursorHeight: textField.cursorHeight,
+    cursorRadius: textField.cursorRadius,
+    cursorColor: textField.cursorColor,
+    selectionHeightStyle: textField.selectionHeightStyle,
+    selectionWidthStyle: textField.selectionWidthStyle,
+    keyboardAppearance: textField.keyboardAppearance,
+    scrollPadding: textField.scrollPadding,
+    dragStartBehavior: textField.dragStartBehavior,
+    enableInteractiveSelection: textField.enableInteractiveSelection,
+    selectionControls: textField.selectionControls,
+    onTapOutside: textField.onTapOutside,
+    mouseCursor: textField.mouseCursor,
+    buildCounter: textField.buildCounter,
+    scrollController: textField.scrollController,
+    scrollPhysics: textField.scrollPhysics,
+    autofillHints: textField.autofillHints,
+    clipBehavior: textField.clipBehavior,
+    restorationId: textField.restorationId,
+    scribbleEnabled: textField.scribbleEnabled,
+    enableIMEPersonalizedLearning: textField.enableIMEPersonalizedLearning,
+  );
+}
