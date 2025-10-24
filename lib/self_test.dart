@@ -661,6 +661,7 @@ class SelfTestRoot extends StatefulWidget {
 
 class _SelfTestRootState extends State<SelfTestRoot> {
   bool _isFabExpanded = false;
+  Offset _fabPosition = Offset(300, 300); // Default position, will be updated
 
   @override
   void initState() {
@@ -669,6 +670,65 @@ class _SelfTestRootState extends State<SelfTestRoot> {
     debugPrint('[SelfTest] SelfTestRoot key: ${widget.key}, manager rootKey: ${SelfTestManager().rootKey}');
     // Ensure the manager's rootKey points to this state
     SelfTestManager().rootKey = widget.key as GlobalKey<State>?;
+    // Initialize FAB position to middle-right, fully visible
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        final screenSize = MediaQuery.of(context).size;
+        final newPosition = Offset(screenSize.width - 88, screenSize.height / 2 - 36);
+        debugPrint('[SelfTest] Setting FAB position to: $newPosition, screen size: $screenSize');
+        setState(() {
+          _fabPosition = newPosition;
+        });
+      }
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Overlay creation is now handled in initState after position is set
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+  }
+
+  Widget _buildDraggableFab(BuildContext context) {
+    return GestureDetector(
+      onPanUpdate: (details) {
+        setState(() {
+          _fabPosition += details.delta;
+        });
+      },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 72,
+            height: 72,
+            child: FloatingActionButton(
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
+              onPressed: () => setState(() => _isFabExpanded = !_isFabExpanded),
+              child: Icon(_isFabExpanded ? Icons.close : Icons.menu, size: 32),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.7),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              _isFabExpanded ? 'CLOSE' : 'TEST',
+              style: const TextStyle(color: Colors.white, fontSize: 10),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -751,12 +811,11 @@ class _SelfTestRootState extends State<SelfTestRoot> {
             ),
           ),
 
-        // Mini FABs (when expanded)
+        // Mini FABs (when expanded) - now positioned relative to main FAB
         if (_isFabExpanded) ...[
-          // Start Recording FAB
           Positioned(
-            bottom: 100,
-            right: 16,
+            left: _fabPosition.dx,
+            top: _fabPosition.dy - 100,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -791,10 +850,9 @@ class _SelfTestRootState extends State<SelfTestRoot> {
             ),
           ),
 
-          // View Tests FAB
           Positioned(
-            bottom: 150,
-            right: 16,
+            left: _fabPosition.dx,
+            top: _fabPosition.dy - 150,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -820,38 +878,10 @@ class _SelfTestRootState extends State<SelfTestRoot> {
             ),
           ),
         ],
-
-        // Main FAB
         Positioned(
-          bottom: 16,
-          right: 16,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 72,
-                height: 72,
-                child: FloatingActionButton(
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                  onPressed: () => setState(() => _isFabExpanded = !_isFabExpanded),
-                  child: Icon(_isFabExpanded ? Icons.close : Icons.menu, size: 32),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.7),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  _isFabExpanded ? 'CLOSE' : 'TEST',
-                  style: const TextStyle(color: Colors.white, fontSize: 10),
-                ),
-              ),
-            ],
-          ),
+          left: _fabPosition.dx,
+          top: _fabPosition.dy,
+          child: _buildDraggableFab(context),
         ),
       ],
     );
@@ -860,40 +890,47 @@ class _SelfTestRootState extends State<SelfTestRoot> {
   Widget _buildStopFab(BuildContext context, SelfTestManager manager) {
     debugPrint('[SelfTest] Building stop FAB');
     return Positioned(
-      bottom: 16,
-      right: 16,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 72,
-            height: 72,
-            child: FloatingActionButton(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-              onPressed: () {
-                manager.stopRecording();
-                manager.setRecordingMode(RecordingMode.viewing);
-                _showControlPanel(widget.navigatorKey?.currentContext ?? context, manager);
-                if ((widget.navigatorKey?.currentContext ?? context).mounted) {
-                  ScaffoldMessenger.of(widget.navigatorKey?.currentContext ?? context).showSnackBar(
-                    const SnackBar(content: Text('Recording stopped')),
-                  );
-                }
-              },
-              child: const Icon(Icons.stop, size: 32),
+      left: _fabPosition.dx,
+      top: _fabPosition.dy,
+      child: GestureDetector(
+        onPanUpdate: (details) {
+          setState(() {
+            _fabPosition += details.delta;
+          });
+        },
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              child: FloatingActionButton(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+                onPressed: () {
+                  manager.stopRecording();
+                  manager.setRecordingMode(RecordingMode.viewing);
+                  _showControlPanel(widget.navigatorKey?.currentContext ?? context, manager);
+                  if ((widget.navigatorKey?.currentContext ?? context).mounted) {
+                    ScaffoldMessenger.of(widget.navigatorKey?.currentContext ?? context).showSnackBar(
+                      const SnackBar(content: Text('Recording stopped')),
+                    );
+                  }
+                },
+                child: const Icon(Icons.stop, size: 32),
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.7),
-              borderRadius: BorderRadius.circular(12),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.7),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Text('STOP', style: TextStyle(color: Colors.white, fontSize: 10)),
             ),
-            child: const Text('STOP', style: TextStyle(color: Colors.white, fontSize: 10)),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1077,7 +1114,14 @@ class _ControlPanelState extends State<_ControlPanel> {
                       widget.manager.setRecordingMode(RecordingMode.asserting);
                       Navigator.of(context).pop();
                     },
-                    child: const Text('Add Assertion', textScaleFactor: 0.9),
+                    child: const Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.add_circle_outline, size: 16),
+                        SizedBox(height: 2),
+                        Text('Assert', textScaleFactor: 0.7),
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -1103,7 +1147,14 @@ class _ControlPanelState extends State<_ControlPanel> {
                         }
                       }
                     },
-                    child: const Text('Run Test', textScaleFactor: 0.9),
+                    child: const Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.play_arrow, size: 16),
+                        SizedBox(height: 2),
+                        Text('Run', textScaleFactor: 0.7),
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -1131,7 +1182,14 @@ class _ControlPanelState extends State<_ControlPanel> {
                         }
                       }
                     },
-                    child: const Text('Export to Dart', textScaleFactor: 0.9),
+                    child: const Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.code, size: 16),
+                        SizedBox(height: 2),
+                        Text('Dart', textScaleFactor: 0.7),
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -1159,7 +1217,14 @@ class _ControlPanelState extends State<_ControlPanel> {
                         }
                       }
                     },
-                    child: const Text('Export to JSON', textScaleFactor: 0.9),
+                    child: const Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.data_object, size: 16),
+                        SizedBox(height: 2),
+                        Text('JSON', textScaleFactor: 0.7),
+                      ],
+                    ),
                   ),
                 ),
               ],
