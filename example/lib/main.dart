@@ -51,6 +51,7 @@ class _LoginPageState extends State<LoginPage> {
   bool rememberMe = false;
   String gender = 'male';
   String country = 'usa';
+  int appRating = 3; // Add state for app rating
   String message = '';
 
   late TextEditingController _usernameController;
@@ -126,6 +127,12 @@ class _LoginPageState extends State<LoginPage> {
         country = value;
       });
     }
+  }
+
+  void _onAppRatingChanged(int rating) {
+    setState(() {
+      appRating = rating;
+    });
   }
 
   @override
@@ -221,10 +228,11 @@ class _LoginPageState extends State<LoginPage> {
             SizedBox(height: 8),
             SelfTestableWidget(
               id: 'app_rating',
-              onTextChange: (rating) => setState(() => debugPrint('App rated: $rating stars')),
+              onTextChange: (rating) => setState(() => appRating = int.parse(rating)),
               child: CustomRatingWidget(
-                initialRating: 3,
+                initialRating: appRating,
                 onRatingChanged: (rating) {
+                  _onAppRatingChanged(rating);
                   debugPrint('User rated the app: $rating stars');
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('Thanks for rating us $rating stars!')),
@@ -281,30 +289,51 @@ class _LoginPageState extends State<LoginPage> {
             SizedBox(height: 16),
             ElevatedButton(
               onPressed: () async {
-                debugPrint('[SelfTest] ===== STARTING PROGRAMMATIC TEST =====');
+                debugPrint('[SelfTest] ===== STARTING STAR RATING TEST =====');
                 // Activate test mode to register widgets
                 SelfTestManager().setTestMode(true);
                 SelfTestManager().restartWidgetTree();
                 await Future.delayed(const Duration(milliseconds: 100)); // Wait for registration
 
-                // Example test
-                SelfTestManager().enterText('username_field', 'testuser');
-                SelfTestManager().enterText('password_field', 'testpass');
-                await SelfTestManager().waitForAnimations();
-                SelfTestManager().trigger('login_button');
+                // Test the custom rating widget - rate 3 stars
+                debugPrint('[SelfTest] Testing custom rating widget - rating 3 stars...');
+                SelfTestManager().trigger('app_rating_star_3'); // Rate 3 stars
                 await SelfTestManager().waitForAnimations();
 
-                // Test the custom rating widget
-                debugPrint('[SelfTest] Testing custom rating widget...');
+                // Wait a bit and then rate 5 stars
+                await Future.delayed(const Duration(milliseconds: 500));
+                debugPrint('[SelfTest] Changing rating to 5 stars...');
                 SelfTestManager().trigger('app_rating_star_5'); // Rate 5 stars
                 await SelfTestManager().waitForAnimations();
 
-                // Deactivate test mode
+                // Deactivate test mode (don't restart widget tree to preserve state)
                 SelfTestManager().setTestMode(false);
-                SelfTestManager().restartWidgetTree();
-                debugPrint('[SelfTest] ===== TEST COMPLETED =====');
+                debugPrint('[SelfTest] ===== STAR RATING TEST COMPLETED =====');
               },
-              child: Text('Run Programmatic Test'),
+              child: Text('Test Star Rating'),
+            ),
+            SizedBox(height: 8),
+            ElevatedButton(
+              onPressed: () async {
+                debugPrint('[SelfTest] ===== RECORDING STAR RATING TEST =====');
+                // Start recording a new test script
+                await SelfTestManager().startRecording('Star Rating Test');
+
+                // The user can now interact with the app to record steps
+                // For demonstration, we'll programmatically add some steps
+                await Future.delayed(const Duration(milliseconds: 500));
+
+                // Simulate clicking on star 4
+                SelfTestManager().trigger('app_rating_star_4');
+                await SelfTestManager().waitForAnimations();
+
+                await Future.delayed(const Duration(milliseconds: 500));
+
+                // Stop recording
+                SelfTestManager().stopRecording();
+                debugPrint('[SelfTest] ===== STAR RATING TEST RECORDING COMPLETED =====');
+              },
+              child: Text('Record Star Rating Test'),
             ),
           ],
         ),
@@ -776,6 +805,7 @@ class _ListPageState extends State<ListPage> {
     _scrollController.dispose();
     super.dispose();
   }
+
   void _onItemTapped(int index) {
     setState(() {
       if (selectedItems.contains(index)) {

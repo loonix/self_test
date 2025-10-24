@@ -38,6 +38,15 @@ class _RecordingCustomRatingWidgetState extends State<_RecordingCustomRatingWidg
     _currentRating = widget.originalWidget.initialRating;
   }
 
+  @override
+  void didUpdateWidget(_RecordingCustomRatingWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Update rating if the original widget's initial rating changed
+    if (oldWidget.originalWidget.initialRating != widget.originalWidget.initialRating) {
+      _currentRating = widget.originalWidget.initialRating;
+    }
+  }
+
   void _onRatingChanged(int rating) {
     setState(() {
       _currentRating = rating;
