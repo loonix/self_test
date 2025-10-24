@@ -1,9 +1,21 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:self_test/self_test.dart';
+import 'custom_rating_widget.dart';
+import 'custom_rating_builder.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() {
+  // Register custom recording builder for our custom rating widget
+  SelfTestManager().registerRecordingBuilder<CustomRatingWidget>(buildRecordingCustomRatingWidget);
+
+  // Automatically activate self-test mode in debug builds
+  if (kDebugMode || kProfileMode) {
+    debugPrint('[SelfTest] Automatically activating self-test mode in debug build');
+    SelfTestManager().setSelfTestModeActive(true);
+  }
+
   runApp(MyApp());
 }
 
@@ -20,6 +32,7 @@ class MyApp extends StatelessWidget {
         routes: {
           '/profile': (context) => ProfilePage(),
           '/settings': (context) => SettingsPage(),
+          '/list': (context) => ListPage(),
         },
       ),
     );
@@ -204,6 +217,22 @@ class _LoginPageState extends State<LoginPage> {
               ),
             ),
             SizedBox(height: 16),
+            Text('Rate our app:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            SizedBox(height: 8),
+            SelfTestableWidget(
+              id: 'app_rating',
+              onTextChange: (rating) => setState(() => debugPrint('App rated: $rating stars')),
+              child: CustomRatingWidget(
+                initialRating: 3,
+                onRatingChanged: (rating) {
+                  debugPrint('User rated the app: $rating stars');
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Thanks for rating us $rating stars!')),
+                  );
+                },
+              ),
+            ),
+            SizedBox(height: 16),
             SelfTestableWidget(
               id: 'login_button',
               onTap: _onLoginPressed,
@@ -241,17 +270,15 @@ class _LoginPageState extends State<LoginPage> {
               ],
             ),
             SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () {
-                debugPrint('[SelfTest] Activating self-test mode...');
-                SelfTestManager().setSelfTestModeActive(true);
-                SelfTestManager().restartWidgetTree();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Self-test mode activated')),
-                );
-              },
-              child: Text('Activate Self-Test Mode'),
+            SelfTestableWidget(
+              id: 'go_to_list',
+              onTap: () => Navigator.pushNamed(context, '/list'),
+              child: ElevatedButton(
+                onPressed: () => Navigator.pushNamed(context, '/list'),
+                child: Text('Go to Scrollable List (100 items)'),
+              ),
             ),
+            SizedBox(height: 16),
             ElevatedButton(
               onPressed: () async {
                 debugPrint('[SelfTest] ===== STARTING PROGRAMMATIC TEST =====');
@@ -265,6 +292,11 @@ class _LoginPageState extends State<LoginPage> {
                 SelfTestManager().enterText('password_field', 'testpass');
                 await SelfTestManager().waitForAnimations();
                 SelfTestManager().trigger('login_button');
+                await SelfTestManager().waitForAnimations();
+
+                // Test the custom rating widget
+                debugPrint('[SelfTest] Testing custom rating widget...');
+                SelfTestManager().trigger('app_rating_star_5'); // Rate 5 stars
                 await SelfTestManager().waitForAnimations();
 
                 // Deactivate test mode
@@ -723,6 +755,119 @@ class _SettingsPageState extends State<SettingsPage> {
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class ListPage extends StatefulWidget {
+  @override
+  _ListPageState createState() => _ListPageState();
+}
+
+class _ListPageState extends State<ListPage> {
+  final int itemCount = 100;
+  final Set<int> selectedItems = {};
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+  void _onItemTapped(int index) {
+    setState(() {
+      if (selectedItems.contains(index)) {
+        selectedItems.remove(index);
+      } else {
+        selectedItems.add(index);
+      }
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Item ${index + 1} ${selectedItems.contains(index) ? 'selected' : 'deselected'}')),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Scrollable List (${selectedItems.length} selected)'),
+        leading: SelfTestableWidget(
+          id: 'back_from_list',
+          onTap: () => Navigator.pop(context),
+          child: IconButton(
+            icon: Icon(Icons.arrow_back),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        actions: [
+          if (selectedItems.isNotEmpty)
+            SelfTestableWidget(
+              id: 'clear_selection_button',
+              onTap: () {
+                setState(() => selectedItems.clear());
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Selection cleared')),
+                );
+              },
+              child: IconButton(
+                icon: Icon(Icons.clear_all),
+                onPressed: () {
+                  setState(() => selectedItems.clear());
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Selection cleared')),
+                  );
+                },
+              ),
+            ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        controller: _scrollController,
+        child: Column(
+          children: List.generate(itemCount, (index) {
+            final isSelected = selectedItems.contains(index);
+            return SelfTestableWidget(
+              id: 'list_item_$index',
+              onTap: () => _onItemTapped(index),
+              child: ListTile(
+                title: Text('Item ${index + 1}'),
+                subtitle: Text('This is a scrollable list item'),
+                leading: Icon(
+                  isSelected ? Icons.check_circle : Icons.radio_button_unchecked,
+                  color: isSelected ? Colors.green : Colors.grey,
+                ),
+                trailing: Text('${index + 1}'),
+                tileColor: isSelected ? Colors.blue.withOpacity(0.1) : null,
+                onTap: () => _onItemTapped(index),
+              ),
+            );
+          }),
+        ),
+      ),
+      floatingActionButton: SelfTestableWidget(
+        id: 'scroll_to_top_button',
+        onTap: () {
+          // Scroll to top
+          _scrollController.animateTo(
+            0,
+            duration: Duration(milliseconds: 500),
+            curve: Curves.easeInOut,
+          );
+        },
+        child: FloatingActionButton(
+          onPressed: () {
+            // Scroll to top
+            _scrollController.animateTo(
+              0,
+              duration: Duration(milliseconds: 500),
+              curve: Curves.easeInOut,
+            );
+          },
+          child: Icon(Icons.arrow_upward),
+          tooltip: 'Scroll to top',
         ),
       ),
     );

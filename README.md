@@ -13,6 +13,7 @@ A Flutter package that enables automated regression testing directly within your
 - **🧠 Memory Safe**: Automatic registration/unregistration prevents memory leaks
 - **🎯 Type Safe**: Compile-time generated controllers with full type safety
 - **🔄 Hot Restart Compatible**: Works seamlessly with Flutter's hot restart
+- **⚙️ Automatic Activation**: Self-test mode activates automatically in debug/profile builds
 
 ## 📦 Installation
 
@@ -111,14 +112,20 @@ class _LoginFormState extends State<LoginForm> {
 }
 ```
 
-### 3. Activate Self-Test Mode
+### 3. Automatic Self-Test Mode Activation
+
+Self-test mode is automatically activated in debug and profile builds. No manual activation is required - the framework detects the build mode and enables testing capabilities automatically.
 
 ```dart
-// In debug/profile builds
-SelfTestManager().setSelfTestModeActive(true);
-SelfTestManager().restartWidgetTree(); // Apply changes
+// Automatic activation - no code needed!
+// In debug/profile builds: Self-test mode is active
+// In release builds: Self-test mode is inactive for performance
+```
 
-// In test environments (where kDebugMode is false)
+For testing release builds or custom environments:
+
+```dart
+// Manual override for testing release builds
 SelfTestManager().setTestMode(true);
 ```
 
@@ -126,10 +133,19 @@ SelfTestManager().setTestMode(true);
 
 ```dart
 // Direct API usage
+SelfTestManager().ensureVisible('login_button'); // Scroll into view if needed
 SelfTestManager().enterText('username_field', 'john_doe');
 SelfTestManager().enterText('password_field', 'secret123');
 await SelfTestManager().waitForAnimations();
 SelfTestManager().trigger('login_button');
+
+// Test scrolling functionality
+SelfTestManager().trigger('go_to_list'); // Navigate to scrollable list
+await SelfTestManager().waitForAnimations();
+SelfTestManager().ensureVisible('list_item_50'); // Scroll to middle of list
+SelfTestManager().trigger('list_item_50'); // Interact with item
+SelfTestManager().ensureVisible('list_item_95'); // Scroll to bottom
+SelfTestManager().trigger('list_item_95'); // Interact with bottom item
 ```
 
 ## 🔧 Advanced Usage
@@ -308,6 +324,7 @@ SelfTestManager().setTestMode(bool active);           // For tests
 // Actions
 SelfTestManager().trigger(String id);                 // Tap button
 SelfTestManager().enterText(String id, String text);  // Enter text
+SelfTestManager().ensureVisible(String id);           // Scroll element into view
 
 // Utilities
 await SelfTestManager().waitForAnimations();          // Wait for UI updates
@@ -352,6 +369,26 @@ class MyWidgetTestController {
   void expectExistsFieldId();
   void expectNotExistsFieldId();
   void expectTextFieldId(String expectedText);
+}
+```
+
+### Scroll Testing
+
+Self-Test provides built-in scroll utilities for testing scrollable content:
+
+```dart
+// Ensure element is visible before interaction
+SelfTestManager().ensureVisible('list_item_50');
+SelfTestManager().trigger('list_item_50');
+
+// Works with any scrollable container (ListView, SingleChildScrollView, etc.)
+SelfTestManager().ensureVisible('bottom_button');
+SelfTestManager().trigger('bottom_button');
+```
+
+The example app includes a scrollable list page with 100 clickable items to demonstrate scroll testing capabilities.
+
+### Testing Integration
 }
 ```
 

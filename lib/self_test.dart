@@ -92,6 +92,28 @@ class SelfTestManager {
   // Widget builder registry for extensibility
   final Map<Type, Widget Function(Widget, SelfTestableWidget)> _recordingBuilders = {};
 
+  /// Helper function to print formatted warnings with color and clear formatting.
+  static void _printWarning(String message) {
+    debugPrint('\x1B[33m######## START WARNING ########\x1B[0m');
+    debugPrint('\x1B[33m$message\x1B[0m');
+    debugPrint('\x1B[33m######## END WARNING ########\x1B[0m');
+  }
+
+  /// Helper function to print formatted errors with color and clear formatting.
+  static void _printError(String message) {
+    debugPrint('\x1B[31m######## START ERROR ########\x1B[0m');
+    debugPrint('\x1B[31m$message\x1B[0m');
+    debugPrint('\x1B[31m######## END ERROR ########\x1B[0m');
+  }
+
+  /// Enable/disable verbose logging for debugging
+  static bool _verboseLogging = false;
+
+  /// Set verbose logging mode (useful for debugging widget lifecycle issues)
+  static void setVerboseLogging(bool enabled) {
+    _verboseLogging = enabled;
+  }
+
   /// Registers a custom recording builder for a specific widget type.
   /// This allows developers to extend support for custom or third-party widgets.
   void registerRecordingBuilder<T extends Widget>(Widget Function(Widget, SelfTestableWidget) builder) {
@@ -147,7 +169,7 @@ class SelfTestManager {
         await _recordUserAction('assertText', id, value);
         debugPrint('[SelfTest] Added assertion: assertText on "$id" with value "$value"');
       } else {
-        debugPrint('[SelfTest] WARNING: Node "$id" not found for assertion');
+        SelfTestManager._printWarning('Node "$id" not found for assertion');
       }
       setRecordingMode(RecordingMode.viewing);
     } catch (e, stackTrace) {
@@ -169,7 +191,7 @@ class SelfTestManager {
       debugPrint('[SelfTest] Calling setState on root key');
       (rootKey!.currentState as dynamic).setState(() {});
     } else {
-      debugPrint('[SelfTest] WARNING: rootKey is null or currentState is null (rootKey: $rootKey)');
+      SelfTestManager._printWarning('rootKey is null or currentState is null (rootKey: $rootKey)');
       // Try to find and set the root key if it exists
       if (rootKey == null) {
         debugPrint('[SelfTest] Attempting to set root key');
@@ -215,7 +237,9 @@ class SelfTestManager {
   /// Unregisters a test node.
   void unregisterTestNode(String id) {
     _activeTestNodes.remove(id);
-    debugPrint('[SelfTest] Unregistered TestNode: "$id"');
+    if (_verboseLogging) {
+      debugPrint('[SelfTest] Unregistered TestNode: "$id"');
+    }
   }
 
   /// Starts recording a new test script.
@@ -334,7 +358,7 @@ class SelfTestManager {
         }
         node.onTap!();
       } else {
-        debugPrint('[SelfTest] ERROR: TestNode "$id" not found or has no tap callback');
+        SelfTestManager._printError('TestNode "$id" not found or has no tap callback');
         throw Exception('TestNode with id "$id" not found or has no tap callback.');
       }
     } catch (e, stackTrace) {
@@ -358,7 +382,7 @@ class SelfTestManager {
         node.onTextChange!(text);
         node.currentText = text; // Update current text for assertions
       } else {
-        debugPrint('[SelfTest] ERROR: TestNode "$id" not found or has no text change callback');
+        SelfTestManager._printError('TestNode "$id" not found or has no text change callback');
         throw Exception('TestNode with id "$id" not found or has no text change callback.');
       }
     } catch (e, stackTrace) {
@@ -427,6 +451,58 @@ class SelfTestManager {
     // Simple delay; in real implementation, might need more sophisticated logic
     await Future.delayed(const Duration(milliseconds: 100));
   }
+
+  /// Scrolls to make the specified element visible (if needed).
+  /// This is a utility method to ensure elements are accessible before interaction.
+  Future<void> ensureVisible(String id) async {
+    debugPrint('[SelfTest] ensureVisible called for id: "$id"');
+    final node = _activeTestNodes[id];
+    debugPrint('[SelfTest] Found node: ${node != null}, context: ${node?.context != null}');
+    if (node != null && node.context != null) {
+      debugPrint('[SelfTest] Attempting to scroll to "$id"');
+      try {
+        // Use ScrollController-based scrolling for better reliability
+        ScrollController? scrollController;
+        try {
+          scrollController = PrimaryScrollController.of(node.context!);
+          // For list items, estimate position based on item index
+          final parts = id.split('_');
+          final itemIndex = parts.length > 1 ? int.tryParse(parts.last) ?? 0 : 0;
+          final estimatedPosition = itemIndex * 72.0; // Rough estimate of item height
+          final clampedPosition = estimatedPosition.clamp(0.0, scrollController.position.maxScrollExtent);
+          debugPrint('[SelfTest] Scrolling to estimated position $clampedPosition for item $itemIndex');
+          await scrollController.animateTo(
+            clampedPosition,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
+          debugPrint('[SelfTest] Scrolling completed for "$id"');
+        } catch (e2) {
+          debugPrint('[SelfTest] ScrollController approach failed for "$id": $e2');
+          // Final fallback
+          try {
+            await Scrollable.ensureVisible(
+              node.context!,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+            ).timeout(
+              const Duration(seconds: 2),
+              onTimeout: () {
+                debugPrint('[SelfTest] Scrollable.ensureVisible timed out for "$id"');
+              },
+            );
+          } catch (e3) {
+            debugPrint('[SelfTest] All scrolling approaches failed for "$id": $e3');
+          }
+        }
+      } catch (e) {
+        debugPrint('[SelfTest] ERROR in ensureVisible("$id"): $e');
+      }
+      await waitForAnimations();
+    } else {
+      debugPrint('[SelfTest] WARNING: Node "$id" not found or has no context');
+    }
+  }
 }
 
 /// A wrapper widget that makes a child widget testable in self-test mode.
@@ -460,7 +536,6 @@ class _SelfTestableWidgetState extends State<SelfTestableWidget> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    debugPrint('[SelfTest] SelfTestableWidget "${widget.id}" didChangeDependencies called');
     _updateRegistration();
   }
 
@@ -480,7 +555,9 @@ class _SelfTestableWidgetState extends State<SelfTestableWidget> {
       final shouldBeRegistered = ((kDebugMode || kProfileMode) && manager.isSelfTestModeActive) || manager.isTestMode;
 
       if (shouldBeRegistered && !_wasRegistered) {
-        debugPrint('[SelfTest] SelfTestableWidget "${widget.id}" registering (mode active: ${manager.isSelfTestModeActive}, test mode: ${manager.isTestMode})');
+        if (SelfTestManager._verboseLogging) {
+          debugPrint('[SelfTest] SelfTestableWidget "${widget.id}" registering (mode active: ${manager.isSelfTestModeActive}, test mode: ${manager.isTestMode})');
+        }
         final node = TestNode(
           id: widget.id,
           onTap: widget.onTap,
@@ -490,7 +567,9 @@ class _SelfTestableWidgetState extends State<SelfTestableWidget> {
         manager.registerTestNode(node);
         _wasRegistered = true;
       } else if (!shouldBeRegistered && _wasRegistered) {
-        debugPrint('[SelfTest] SelfTestableWidget "${widget.id}" unregistering due to mode change');
+        if (SelfTestManager._verboseLogging) {
+          debugPrint('[SelfTest] SelfTestableWidget "${widget.id}" unregistering due to mode change');
+        }
         manager.unregisterTestNode(widget.id);
         _wasRegistered = false;
       }
@@ -502,7 +581,6 @@ class _SelfTestableWidgetState extends State<SelfTestableWidget> {
 
   void _unregisterIfNeeded() {
     if (_wasRegistered) {
-      debugPrint('[SelfTest] SelfTestableWidget "${widget.id}" unregistering');
       SelfTestManager().unregisterTestNode(widget.id);
       _wasRegistered = false;
     }
@@ -537,8 +615,8 @@ class _SelfTestableWidgetState extends State<SelfTestableWidget> {
       );
     }
 
-    // Intercept interactions for recording
-    if (isRecording) {
+    // Intercept interactions for recording or testing
+    if (isRecording || manager.isTestMode) {
       final manager = SelfTestManager();
 
       // First, check if there's a registered builder for this widget type
@@ -549,7 +627,7 @@ class _SelfTestableWidgetState extends State<SelfTestableWidget> {
 
       // Final fallback: wrap in GestureDetector if onTap is provided, otherwise return as-is with warning
       if (widget.onTap != null) {
-        debugPrint('[SelfTest] WARNING: No recording builder found for ${child.runtimeType}, wrapping in GestureDetector for tap recording');
+        SelfTestManager._printWarning('No recording builder found for ${child.runtimeType}, wrapping in GestureDetector for tap recording');
         return GestureDetector(
           onTap: () async {
             await manager.trigger(widget.id);
@@ -558,7 +636,7 @@ class _SelfTestableWidgetState extends State<SelfTestableWidget> {
           child: child,
         );
       } else {
-        debugPrint('[SelfTest] WARNING: No recording builder found for ${child.runtimeType} and no onTap provided - interactions will not be recorded');
+        SelfTestManager._printWarning('No recording builder found for ${child.runtimeType} and no onTap provided - interactions will not be recorded');
         return child;
       }
     }
