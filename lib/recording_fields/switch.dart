@@ -15,7 +15,7 @@ Widget buildRecordingSwitchListTile(SwitchListTile switchTile, widget) {
     shape: switchTile.shape,
     tileColor: switchTile.tileColor,
     selectedTileColor: switchTile.selectedTileColor,
-    activeColor: switchTile.activeColor,
+    activeThumbColor: switchTile.activeThumbColor,
     activeTrackColor: switchTile.activeTrackColor,
     inactiveThumbColor: switchTile.inactiveThumbColor,
     inactiveTrackColor: switchTile.inactiveTrackColor,
@@ -52,7 +52,7 @@ Widget buildRecordingSwitch(Switch switchWidget, widget) {
       switchWidget.onChanged?.call(value);
       widget.onTap?.call();
     },
-    activeColor: switchWidget.activeColor,
+    activeThumbColor: switchWidget.activeThumbColor,
     activeTrackColor: switchWidget.activeTrackColor,
     inactiveThumbColor: switchWidget.inactiveThumbColor,
     inactiveTrackColor: switchWidget.inactiveTrackColor,

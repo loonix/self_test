@@ -1,3 +1,6 @@
+// ignore_for_file: deprecated_member_use
+// Radio groupValue/onChanged are deprecated in Flutter 3.32+ in favor of RadioGroup.
+// We suppress this warning to maintain backwards compatibility with older Flutter versions.
 import 'package:flutter/material.dart';
 import 'package:self_test/self_test.dart';
 

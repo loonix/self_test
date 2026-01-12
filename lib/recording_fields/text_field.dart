@@ -58,7 +58,7 @@ Widget buildRecordingTextField(TextField textField, widget) {
     autofillHints: textField.autofillHints,
     clipBehavior: textField.clipBehavior,
     restorationId: textField.restorationId,
-    scribbleEnabled: textField.scribbleEnabled,
+    stylusHandwritingEnabled: textField.stylusHandwritingEnabled,
     enableIMEPersonalizedLearning: textField.enableIMEPersonalizedLearning,
   );
 }

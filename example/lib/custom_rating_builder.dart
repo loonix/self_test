@@ -4,7 +4,8 @@ import 'custom_rating_widget.dart';
 
 /// Recording builder for CustomRatingWidget.
 /// This demonstrates how to create custom recording builders for third-party or custom widgets.
-Widget buildRecordingCustomRatingWidget(Widget child, SelfTestableWidget selfTestableWidget) {
+Widget buildRecordingCustomRatingWidget(Widget child, dynamic selfTestableWidgetDynamic) {
+  final selfTestableWidget = selfTestableWidgetDynamic as SelfTestableWidget;
   final customRatingWidget = child as CustomRatingWidget;
 
   // For rating widgets, we need to make each star individually testable

@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:self_test/self_test.dart';
 
-Widget buildRecordingSlider(Slider slider, widget) {
+Widget buildRecordingSlider(Slider slider, dynamic widget) {
   return Slider(
     value: slider.value,
     onChanged: (value) async {
       debugPrint('[SelfTest] Recording slider change for "${widget.id}": $value');
-      await SelfTestManager().trigger(widget.id);
+      // Use enterText to capture the slider value for playback
+      await SelfTestManager().enterText(widget.id, value.toString());
       slider.onChanged?.call(value);
+      widget.onTextChange?.call(value.toString());
     },
     onChangeStart: slider.onChangeStart,
     onChangeEnd: slider.onChangeEnd,
