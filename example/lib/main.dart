@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:self_test/self_test.dart';
+import 'example.dart';
 
 void main() {
   runApp(SelfTestRoot(child: MyApp()));
@@ -132,6 +133,17 @@ class _LoginPageState extends State<LoginPage> {
                 debugPrint('[SelfTest] ===== TEST COMPLETED =====');
               },
               child: Text('Run Test'),
+            ),
+            SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => ExampleWidget(),
+                  ),
+                );
+              },
+              child: Text('Open Example Widget'),
             ),
           ],
         ),

@@ -1,25 +1,166 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:self_test/self_test.dart';
 import 'package:self_test_example/main.dart';
+import 'package:self_test_example/example.dart';
 
 void main() {
-  testWidgets('Self-test example', (WidgetTester tester) async {
-    // Activate test mode for testing environment
-    SelfTestManager().setTestMode(true);
+  group('Self-Test Integration Tests', () {
+    setUp(() {
+      // Reset state before each test
+      SelfTestManager().setTestMode(false);
+      SelfTestManager().setSelfTestModeActive(false);
+    });
 
-    // Build the app
-    await tester.pumpWidget(MyApp());
-    await tester.pumpAndSettle();
+    testWidgets('Login flow test', (WidgetTester tester) async {
+      // Activate test mode for testing environment
+      SelfTestManager().setTestMode(true);
 
-    // Run self-test
-    SelfTestManager().enterText('username_field', 'testuser');
-    SelfTestManager().enterText('password_field', 'testpass');
-    SelfTestManager().trigger('login_button');
+      // Build the app wrapped in SelfTestRoot
+      await tester.pumpWidget(SelfTestRoot(child: MyApp()));
+      await tester.pumpAndSettle();
 
-    // Pump to update UI
-    await tester.pump();
+      // Verify initial state
+      expect(find.text('Please fill all fields'), findsNothing);
+      expect(find.text('Login successful!'), findsNothing);
 
-    // Verify result
-    expect(find.text('Login successful!'), findsOneWidget);
+      // Run self-test - enter valid credentials
+      SelfTestManager().enterText('username_field', 'testuser');
+      SelfTestManager().enterText('password_field', 'testpass');
+      await SelfTestManager().waitForAnimations();
+      SelfTestManager().trigger('login_button');
+
+      // Pump to update UI
+      await tester.pump();
+
+      // Verify successful login
+      expect(find.text('Login successful!'), findsOneWidget);
+    });
+
+    testWidgets('Empty fields validation test', (WidgetTester tester) async {
+      // Activate test mode for testing environment
+      SelfTestManager().setTestMode(true);
+
+      // Build the app
+      await tester.pumpWidget(SelfTestRoot(child: MyApp()));
+      await tester.pumpAndSettle();
+
+      // Try to login with empty fields
+      SelfTestManager().trigger('login_button');
+
+      // Pump to update UI
+      await tester.pump();
+
+      // Verify validation message
+      expect(find.text('Please fill all fields'), findsOneWidget);
+      expect(find.text('Login successful!'), findsNothing);
+    });
+
+    testWidgets('Partial fields validation test', (WidgetTester tester) async {
+      // Activate test mode for testing environment
+      SelfTestManager().setTestMode(true);
+
+      // Build the app
+      await tester.pumpWidget(SelfTestRoot(child: MyApp()));
+      await tester.pumpAndSettle();
+
+      // Enter only username
+      SelfTestManager().enterText('username_field', 'testuser');
+      SelfTestManager().trigger('login_button');
+
+      // Pump to update UI
+      await tester.pump();
+
+      // Verify validation message
+      expect(find.text('Please fill all fields'), findsOneWidget);
+    });
+
+    testWidgets('Self-test mode activation test', (WidgetTester tester) async {
+      // Build the app without test mode initially
+      await tester.pumpWidget(SelfTestRoot(child: MyApp()));
+      await tester.pumpAndSettle();
+
+      // Activate self-test mode via UI
+      await tester.tap(find.text('Activate Self-Test Mode'));
+      await tester.pumpAndSettle();
+
+      // Verify mode is activated
+      expect(SelfTestManager().isSelfTestModeActive, isTrue);
+
+      // Verify snackbar appears
+      expect(find.text('Self-test mode activated'), findsOneWidget);
+    });
+
+    testWidgets('ExampleWidget integration test', (WidgetTester tester) async {
+      // Activate test mode
+      SelfTestManager().setTestMode(true);
+
+      // Build ExampleWidget directly
+      await tester.pumpWidget(
+        SelfTestRoot(
+          child: MaterialApp(
+            home: ExampleWidget(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Verify initial state
+      expect(find.text('Current username: '), findsOneWidget);
+
+      // Test text input
+      SelfTestManager().enterText('username_field', 'example_user');
+      await SelfTestManager().waitForAnimations();
+      await tester.pump();
+
+      // Verify text was entered
+      expect(find.text('Current username: example_user'), findsOneWidget);
+
+      // Test button press
+      SelfTestManager().trigger('login_btn');
+      await tester.pump();
+
+      // Note: Since onLoginPressed only prints to debug console,
+      // we verify the button interaction worked by checking no errors occurred
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('Navigation to ExampleWidget test', (WidgetTester tester) async {
+      // Build the app
+      await tester.pumpWidget(SelfTestRoot(child: MyApp()));
+      await tester.pumpAndSettle();
+
+      // Navigate to ExampleWidget
+      await tester.tap(find.text('Open Example Widget'));
+      await tester.pumpAndSettle();
+
+      // Verify we're on the ExampleWidget page
+      expect(find.text('Example Widget'), findsOneWidget);
+      expect(find.text('Current username: '), findsOneWidget);
+    });
+
+    testWidgets('Test node registration test', (WidgetTester tester) async {
+      // Activate test mode
+      SelfTestManager().setTestMode(true);
+
+      // Build the app
+      await tester.pumpWidget(SelfTestRoot(child: MyApp()));
+      await tester.pumpAndSettle();
+
+      // Verify test nodes are registered
+      final activeNodes = SelfTestManager().activeTestNodes;
+      expect(activeNodes.containsKey('username_field'), isTrue);
+      expect(activeNodes.containsKey('password_field'), isTrue);
+      expect(activeNodes.containsKey('login_button'), isTrue);
+
+      // Verify node properties
+      final usernameNode = activeNodes['username_field']!;
+      expect(usernameNode.onTextChange, isNotNull);
+      expect(usernameNode.onTap, isNull);
+
+      final buttonNode = activeNodes['login_button']!;
+      expect(buttonNode.onTap, isNotNull);
+      expect(buttonNode.onTextChange, isNull);
+    });
   });
 }
