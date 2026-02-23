@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "flutter-self-test": {
+      "command": "node",
+      "args": ["./internal_packages/self_test_mcp/dist/index.js"],
+      "env": {
+        "FLUTTER_APP_HOST": "localhost",
+        "FLUTTER_APP_PORT": "9999"
+      }
+    }
+  }
+}
