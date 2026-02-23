@@ -242,3 +242,115 @@ class _SelfTestRootState extends State<SelfTestRoot> {
     );
   }
 }
+
+/// Screenshot boundary widget for capturing screenshots during tests.
+class ScreenshotBoundary extends StatelessWidget {
+  final Widget child;
+  
+  const ScreenshotBoundary({super.key, required this.child});
+  
+  @override
+  Widget build(BuildContext context) => child;
+}
+
+/// Widget catalog for discovering widgets in the app.
+class WidgetCatalog {
+  static Map<String, dynamic> exportCatalog() => {};
+  static Map<String, dynamic> exportByScreen() => {};
+}
+
+/// Flow discovery for navigation analysis.
+class FlowDiscovery {
+  static Map<String, dynamic> exportMetadata(dynamic router) => {};
+}
+
+/// A test scenario definition.
+class TestScenario {
+  final String name;
+  final String? description;
+  final List<TestStep> steps;
+  
+  const TestScenario({
+    required this.name,
+    this.description,
+    required this.steps,
+  });
+  
+  factory TestScenario.fromJson(Map<String, dynamic> json) {
+    return TestScenario(
+      name: json['name'] as String,
+      description: json['description'] as String?,
+      steps: (json['steps'] as List<dynamic>)
+          .map((e) => TestStep.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+  }
+}
+
+/// A single test step in a scenario.
+class TestStep {
+  final String action;
+  final Map<String, dynamic> params;
+  
+  const TestStep({required this.action, required this.params});
+  
+  factory TestStep.fromJson(Map<String, dynamic> json) {
+    return TestStep(
+      action: json['action'] as String,
+      params: (json['params'] as Map<String, dynamic>?) ?? {},
+    );
+  }
+}
+
+/// Result of running a test scenario.
+class TestScenarioResult {
+  final bool success;
+  final int passedSteps;
+  final int totalSteps;
+  final String? error;
+  final int? failedAtStep;
+  final List<StepResult> stepResults;
+  
+  const TestScenarioResult({
+    required this.success,
+    required this.passedSteps,
+    required this.totalSteps,
+    this.error,
+    this.failedAtStep,
+    required this.stepResults,
+  });
+  
+  Map<String, dynamic> toJson() => {
+    'success': success,
+    'passedSteps': passedSteps,
+    'totalSteps': totalSteps,
+    if (error != null) 'error': error,
+    if (failedAtStep != null) 'failedAtStep': failedAtStep,
+    'stepResults': stepResults.map((r) => r.toJson()).toList(),
+  };
+}
+
+/// Result of a single step.
+class StepResult {
+  final int index;
+  final String action;
+  final bool success;
+  final String? error;
+  final Duration duration;
+  
+  const StepResult({
+    required this.index,
+    required this.action,
+    required this.success,
+    this.error,
+    required this.duration,
+  });
+  
+  Map<String, dynamic> toJson() => {
+    'index': index,
+    'action': action,
+    'success': success,
+    if (error != null) 'error': error,
+    'durationMs': duration.inMilliseconds,
+  };
+}
