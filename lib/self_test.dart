@@ -120,6 +120,22 @@ class SelfTestManager {
     // Simple delay; in real implementation, might need more sophisticated logic
     await Future.delayed(const Duration(milliseconds: 100));
   }
+
+  /// Captures a screenshot (stub implementation).
+  Future<String?> captureScreenshot([String? name]) async {
+    // Stub - in real implementation would capture actual screenshot
+    return null;
+  }
+
+  /// Sets the screenshot directory.
+  void setScreenshotDirectory(String path) {
+    // Stub implementation
+  }
+
+  /// Starts a test run.
+  void startTestRun(String name) {
+    // Stub implementation
+  }
 }
 
 /// A wrapper widget that makes a child widget testable in self-test mode.
@@ -269,13 +285,13 @@ class TestScenario {
   final String name;
   final String? description;
   final List<TestStep> steps;
-  
+
   const TestScenario({
     required this.name,
     this.description,
     required this.steps,
   });
-  
+
   factory TestScenario.fromJson(Map<String, dynamic> json) {
     return TestScenario(
       name: json['name'] as String,
@@ -284,6 +300,78 @@ class TestScenario {
           .map((e) => TestStep.fromJson(e as Map<String, dynamic>))
           .toList(),
     );
+  }
+
+  /// Runs the test scenario.
+  Future<TestScenarioResult> run() async {
+    final results = <StepResult>[];
+    int passedSteps = 0;
+
+    for (int i = 0; i < steps.length; i++) {
+      final step = steps[i];
+      final stopwatch = Stopwatch()..start();
+      try {
+        await _executeStep(step);
+        stopwatch.stop();
+        results.add(StepResult(
+          index: i,
+          action: step.action,
+          success: true,
+          duration: stopwatch.elapsed,
+        ));
+        passedSteps++;
+      } catch (e) {
+        stopwatch.stop();
+        results.add(StepResult(
+          index: i,
+          action: step.action,
+          success: false,
+          error: e.toString(),
+          duration: stopwatch.elapsed,
+        ));
+        return TestScenarioResult(
+          success: false,
+          passedSteps: passedSteps,
+          totalSteps: steps.length,
+          error: e.toString(),
+          failedAtStep: i,
+          stepResults: results,
+        );
+      }
+    }
+
+    return TestScenarioResult(
+      success: true,
+      passedSteps: passedSteps,
+      totalSteps: steps.length,
+      stepResults: results,
+    );
+  }
+
+  Future<void> _executeStep(TestStep step) async {
+    final manager = SelfTestManager();
+    switch (step.action) {
+      case 'tap':
+        manager.trigger(step.params['widgetId'] as String);
+        break;
+      case 'enterText':
+        manager.enterText(
+          step.params['widgetId'] as String,
+          step.params['text'] as String,
+        );
+        break;
+      case 'wait':
+        await Future.delayed(Duration(
+          milliseconds: (step.params['milliseconds'] as int?) ?? 100,
+        ));
+        break;
+      case 'screenshot':
+        await manager.captureScreenshot(step.params['name'] as String?);
+        break;
+      default:
+        throw Exception('Unknown action: ${step.action}');
+    }
+    await manager.waitForAnimations();
   }
 }
 
