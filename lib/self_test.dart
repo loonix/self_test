@@ -128,7 +128,7 @@ class SelfTestManager {
   }
 
   /// Sets the screenshot directory.
-  void setScreenshotDirectory(String path) {
+  Future<void> setScreenshotDirectory(String? path) async {
     // Stub implementation
   }
 
@@ -379,13 +379,59 @@ class TestScenario {
 class TestStep {
   final String action;
   final Map<String, dynamic> params;
-  
-  const TestStep({required this.action, required this.params});
-  
+  final String? description;
+  final Future<void> Function()? customAction;
+  final bool captureScreenshot;
+
+  const TestStep({
+    required this.action,
+    this.params = const {},
+    this.description,
+    this.customAction,
+    this.captureScreenshot = false,
+  });
+
   factory TestStep.fromJson(Map<String, dynamic> json) {
     return TestStep(
       action: json['action'] as String,
       params: (json['params'] as Map<String, dynamic>?) ?? {},
+      description: json['description'] as String?,
+    );
+  }
+
+  /// Factory constructor for screenshot step
+  factory TestStep.screenshot(String name) {
+    return TestStep(
+      action: 'screenshot',
+      params: {'name': name},
+      description: 'Capture screenshot: $name',
+    );
+  }
+
+  /// Factory constructor for wait step
+  factory TestStep.wait(Duration duration, {String? description}) {
+    return TestStep(
+      action: 'wait',
+      params: {'milliseconds': duration.inMilliseconds},
+      description: description ?? 'Wait for ${duration.inMilliseconds}ms',
+    );
+  }
+
+  /// Factory constructor for enterText step
+  factory TestStep.enterText(String widgetId, String text, {String? description}) {
+    return TestStep(
+      action: 'enterText',
+      params: {'widgetId': widgetId, 'text': text},
+      description: description ?? 'Enter text in $widgetId',
+    );
+  }
+
+  /// Factory constructor for tap step
+  factory TestStep.tap(String widgetId, {String? description}) {
+    return TestStep(
+      action: 'tap',
+      params: {'widgetId': widgetId},
+      description: description ?? 'Tap on $widgetId',
     );
   }
 }
@@ -398,7 +444,7 @@ class TestScenarioResult {
   final String? error;
   final int? failedAtStep;
   final List<StepResult> stepResults;
-  
+
   const TestScenarioResult({
     required this.success,
     required this.passedSteps,
@@ -407,7 +453,16 @@ class TestScenarioResult {
     this.failedAtStep,
     required this.stepResults,
   });
-  
+
+  /// Convenience getter - alias for success
+  bool get allPassed => success;
+
+  /// Convenience getter - alias for stepResults
+  List<StepResult> get steps => stepResults;
+
+  /// Count of failed steps
+  int get failedCount => totalSteps - passedSteps;
+
   Map<String, dynamic> toJson() => {
     'success': success,
     'passedSteps': passedSteps,
