@@ -127,9 +127,14 @@ class SelfTestManager {
     return null;
   }
 
+  String? _screenshotDirectory;
+
+  /// Gets the screenshot directory.
+  String? get screenshotDirectory => _screenshotDirectory;
+
   /// Sets the screenshot directory.
   Future<void> setScreenshotDirectory(String? path) async {
-    // Stub implementation
+    _screenshotDirectory = path;
   }
 
   /// Starts a test run.
@@ -320,6 +325,7 @@ class TestScenario {
           action: actionName,
           success: true,
           duration: stopwatch.elapsed,
+          step: step,
         ));
         passedSteps++;
       } catch (e) {
@@ -330,6 +336,7 @@ class TestScenario {
           success: false,
           error: e.toString(),
           duration: stopwatch.elapsed,
+          step: step,
         ));
         return TestScenarioResult(
           success: false,
@@ -476,6 +483,9 @@ class TestScenarioResult {
   /// Convenience getter - alias for stepResults
   List<StepResult> get steps => stepResults;
 
+  /// Count of passed steps - alias for passedSteps
+  int get passedCount => passedSteps;
+
   /// Count of failed steps
   int get failedCount => totalSteps - passedSteps;
 
@@ -496,20 +506,28 @@ class StepResult {
   final bool success;
   final String? error;
   final Duration duration;
-  
+  final TestStep? step;
+  final String? screenshotPath;
+
   const StepResult({
     required this.index,
     required this.action,
     required this.success,
     this.error,
     required this.duration,
+    this.step,
+    this.screenshotPath,
   });
-  
+
+  /// Convenience getter - alias for success
+  bool get passed => success;
+
   Map<String, dynamic> toJson() => {
     'index': index,
     'action': action,
     'success': success,
     if (error != null) 'error': error,
     'durationMs': duration.inMilliseconds,
+    if (screenshotPath != null) 'screenshotPath': screenshotPath,
   };
 }
