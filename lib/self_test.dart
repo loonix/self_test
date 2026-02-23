@@ -310,12 +310,14 @@ class TestScenario {
     for (int i = 0; i < steps.length; i++) {
       final step = steps[i];
       final stopwatch = Stopwatch()..start();
+      // Use actionType for built-in steps, or description for custom actions
+      final actionName = step.actionType ?? step.description ?? 'custom';
       try {
         await _executeStep(step);
         stopwatch.stop();
         results.add(StepResult(
           index: i,
-          action: step.action,
+          action: actionName,
           success: true,
           duration: stopwatch.elapsed,
         ));
@@ -324,7 +326,7 @@ class TestScenario {
         stopwatch.stop();
         results.add(StepResult(
           index: i,
-          action: step.action,
+          action: actionName,
           success: false,
           error: e.toString(),
           duration: stopwatch.elapsed,
@@ -350,7 +352,19 @@ class TestScenario {
 
   Future<void> _executeStep(TestStep step) async {
     final manager = SelfTestManager();
-    switch (step.action) {
+
+    // Handle custom action callback first
+    if (step.action != null) {
+      await step.action!();
+      if (step.captureScreenshot) {
+        await manager.captureScreenshot(step.description);
+      }
+      await manager.waitForAnimations();
+      return;
+    }
+
+    // Handle built-in action types
+    switch (step.actionType) {
       case 'tap':
         manager.trigger(step.params['widgetId'] as String);
         break;
@@ -369,7 +383,7 @@ class TestScenario {
         await manager.captureScreenshot(step.params['name'] as String?);
         break;
       default:
-        throw Exception('Unknown action: ${step.action}');
+        throw Exception('Unknown action type: ${step.actionType}');
     }
     await manager.waitForAnimations();
   }
@@ -377,23 +391,25 @@ class TestScenario {
 
 /// A single test step in a scenario.
 class TestStep {
-  final String action;
+  /// Action type for built-in actions ('tap', 'enterText', 'wait', 'screenshot')
+  final String? actionType;
   final Map<String, dynamic> params;
   final String? description;
-  final Future<void> Function()? customAction;
+  /// Custom action callback for complex steps
+  final Future<void> Function()? action;
   final bool captureScreenshot;
 
   const TestStep({
-    required this.action,
+    this.actionType,
     this.params = const {},
     this.description,
-    this.customAction,
+    this.action,
     this.captureScreenshot = false,
   });
 
   factory TestStep.fromJson(Map<String, dynamic> json) {
     return TestStep(
-      action: json['action'] as String,
+      actionType: json['action'] as String,
       params: (json['params'] as Map<String, dynamic>?) ?? {},
       description: json['description'] as String?,
     );
@@ -402,7 +418,7 @@ class TestStep {
   /// Factory constructor for screenshot step
   factory TestStep.screenshot(String name) {
     return TestStep(
-      action: 'screenshot',
+      actionType: 'screenshot',
       params: {'name': name},
       description: 'Capture screenshot: $name',
     );
@@ -411,7 +427,7 @@ class TestStep {
   /// Factory constructor for wait step
   factory TestStep.wait(Duration duration, {String? description}) {
     return TestStep(
-      action: 'wait',
+      actionType: 'wait',
       params: {'milliseconds': duration.inMilliseconds},
       description: description ?? 'Wait for ${duration.inMilliseconds}ms',
     );
@@ -420,7 +436,7 @@ class TestStep {
   /// Factory constructor for enterText step
   factory TestStep.enterText(String widgetId, String text, {String? description}) {
     return TestStep(
-      action: 'enterText',
+      actionType: 'enterText',
       params: {'widgetId': widgetId, 'text': text},
       description: description ?? 'Enter text in $widgetId',
     );
@@ -429,7 +445,7 @@ class TestStep {
   /// Factory constructor for tap step
   factory TestStep.tap(String widgetId, {String? description}) {
     return TestStep(
-      action: 'tap',
+      actionType: 'tap',
       params: {'widgetId': widgetId},
       description: description ?? 'Tap on $widgetId',
     );
