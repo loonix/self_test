@@ -9,6 +9,9 @@ import { FlutterBridge } from "./flutter-bridge.js";
 const FLUTTER_HOST = process.env.FLUTTER_APP_HOST || "localhost";
 const FLUTTER_PORT = parseInt(process.env.FLUTTER_APP_PORT || "9999", 10);
 const GOLDENS_DIR = process.env.FLUTTER_GOLDENS_DIR || "test/goldens";
+// BRIDGE_MODE: "client" (MCP connects to Flutter) or "server" (Flutter connects to MCP)
+// Use "server" mode for Flutter Web since browsers can't run WebSocket servers
+const BRIDGE_MODE = (process.env.BRIDGE_MODE || "server") as "client" | "server";
 
 // Create MCP server
 const server = new McpServer({
@@ -21,9 +24,10 @@ let bridge: FlutterBridge | null = null;
 
 // Initialize bridge connection
 async function ensureBridge(): Promise<FlutterBridge> {
-  if (!bridge || !bridge.isConnected()) {
-    bridge = new FlutterBridge(FLUTTER_HOST, FLUTTER_PORT);
+  if (!bridge) {
+    bridge = new FlutterBridge(FLUTTER_HOST, FLUTTER_PORT, BRIDGE_MODE);
     await bridge.connect();
+    console.error(`Bridge initialized in ${BRIDGE_MODE} mode`);
   }
   return bridge;
 }
@@ -3685,6 +3689,12 @@ async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error("Flutter self_test MCP server v2.0.0 running (Playwright parity)");
+
+  // In server mode, eagerly start the WebSocket server so Flutter Web can connect
+  if (BRIDGE_MODE === "server") {
+    console.error(`Starting WebSocket server on port ${FLUTTER_PORT} (server mode)...`);
+    await ensureBridge();
+  }
 }
 
 main().catch(console.error);

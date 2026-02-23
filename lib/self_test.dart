@@ -3,7 +3,10 @@ library self_test;
 export 'annotations.dart';
 
 import 'dart:async';
+import 'dart:io';
+import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 
 /// Represents a testable node in the widget tree.
@@ -74,6 +77,31 @@ class SelfTestManager {
   /// Gets the active test nodes (for testing purposes).
   Map<String, TestNode> get activeTestNodes => _activeTestNodes;
 
+  /// Gets all registered widgets as a map (for bridge client).
+  Map<String, Map<String, dynamic>> getRegisteredWidgets() {
+    final result = <String, Map<String, dynamic>>{};
+    for (final entry in _activeTestNodes.entries) {
+      result[entry.key] = {
+        'onTap': entry.value.onTap,
+        'onTextChange': entry.value.onTextChange,
+      };
+    }
+    return result;
+  }
+
+  /// Gets widget info for a specific id (for bridge client).
+  Map<String, dynamic>? getWidgetInfo(String id) {
+    final node = _activeTestNodes[id];
+    if (node == null) return null;
+
+    return {
+      'id': node.id,
+      'type': node.onTextChange != null ? 'textField' : 'button',
+      'hasCallback': node.onTap != null || node.onTextChange != null,
+      'currentText': node.currentText,
+    };
+  }
+
   /// Registers a test node.
   void registerTestNode(TestNode node) {
     _activeTestNodes[node.id] = node;
@@ -121,10 +149,73 @@ class SelfTestManager {
     await Future.delayed(const Duration(milliseconds: 100));
   }
 
-  /// Captures a screenshot (stub implementation).
+  /// Captures a screenshot of the current widget tree.
   Future<String?> captureScreenshot([String? name]) async {
-    // Stub - in real implementation would capture actual screenshot
-    return null;
+    try {
+      // Get the render object from the root of the widget tree
+      final binding = WidgetsBinding.instance;
+      final rootElement = binding.rootElement;
+
+      if (rootElement == null) {
+        debugPrint('[SelfTest] Screenshot failed: rootElement is null');
+        return null;
+      }
+
+      final renderObject = rootElement.findRenderObject();
+      if (renderObject == null || renderObject is! RenderRepaintBoundary) {
+        // Try to find a RepaintBoundary in the tree
+        RenderRepaintBoundary? boundary;
+        void visitor(RenderObject object) {
+          if (boundary != null) return;
+          if (object is RenderRepaintBoundary) {
+            boundary = object;
+            return;
+          }
+          object.visitChildren(visitor);
+        }
+        renderObject?.visitChildren(visitor);
+
+        if (boundary == null) {
+          debugPrint('[SelfTest] Screenshot failed: No RenderRepaintBoundary found');
+          return null;
+        }
+
+        final image = await boundary!.toImage(pixelRatio: 3.0);
+        final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+
+        if (byteData == null) {
+          debugPrint('[SelfTest] Screenshot failed: Could not convert to PNG');
+          return null;
+        }
+
+        final fileName = '${name ?? 'screenshot'}_${DateTime.now().millisecondsSinceEpoch}.png';
+        final dir = _screenshotDirectory ?? Directory.systemTemp.path;
+        final file = File('$dir/$fileName');
+        await file.writeAsBytes(byteData.buffer.asUint8List());
+        debugPrint('[SelfTest] Screenshot saved to: ${file.path}');
+        return file.path;
+      }
+
+      final boundary = renderObject;
+      final image = await boundary.toImage(pixelRatio: 3.0);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+
+      if (byteData == null) {
+        debugPrint('[SelfTest] Screenshot failed: Could not convert to PNG');
+        return null;
+      }
+
+      final fileName = '${name ?? 'screenshot'}_${DateTime.now().millisecondsSinceEpoch}.png';
+      final dir = _screenshotDirectory ?? Directory.systemTemp.path;
+      final file = File('$dir/$fileName');
+      await file.writeAsBytes(byteData.buffer.asUint8List());
+      debugPrint('[SelfTest] Screenshot saved to: ${file.path}');
+      return file.path;
+    } catch (e, stack) {
+      debugPrint('[SelfTest] Screenshot failed: $e');
+      debugPrint('[SelfTest] Stack trace: $stack');
+      return null;
+    }
   }
 
   String? _screenshotDirectory;
