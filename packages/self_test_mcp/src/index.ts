@@ -4,30 +4,49 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { FlutterBridge } from "./flutter-bridge.js";
+import { PlaywrightBridge } from "./playwright-bridge.js";
 
 // Configuration from environment
 const FLUTTER_HOST = process.env.FLUTTER_APP_HOST || "localhost";
 const FLUTTER_PORT = parseInt(process.env.FLUTTER_APP_PORT || "9999", 10);
 const GOLDENS_DIR = process.env.FLUTTER_GOLDENS_DIR || "test/goldens";
-// BRIDGE_MODE: "client" (MCP connects to Flutter) or "server" (Flutter connects to MCP)
-// Use "server" mode for Flutter Web since browsers can't run WebSocket servers
-const BRIDGE_MODE = (process.env.BRIDGE_MODE || "server") as "client" | "server";
+// BRIDGE_MODE:
+//   "client" - MCP connects to Flutter app's WebSocket server (native platforms)
+//   "server" - MCP runs WebSocket server, Flutter app connects to it (Flutter Web with bridge)
+//   "web-external" - Use Playwright to automate Flutter Web via semantics tree (no bridge needed!)
+const BRIDGE_MODE = (process.env.BRIDGE_MODE || "server") as "client" | "server" | "web-external";
+// For web-external mode: URL of the Flutter web app
+const FLUTTER_APP_URL = process.env.FLUTTER_APP_URL || "http://localhost:8080";
+// For web-external mode: run browser headless or visible
+const PLAYWRIGHT_HEADLESS = process.env.PLAYWRIGHT_HEADLESS !== "false";
 
 // Create MCP server
 const server = new McpServer({
   name: "flutter-self-test",
-  version: "2.0.0",
+  version: "2.1.0",
 });
 
-// Flutter bridge instance
-let bridge: FlutterBridge | null = null;
+// Bridge instance - can be FlutterBridge or PlaywrightBridge
+let bridge: FlutterBridge | PlaywrightBridge | null = null;
 
 // Initialize bridge connection
-async function ensureBridge(): Promise<FlutterBridge> {
+async function ensureBridge(): Promise<FlutterBridge | PlaywrightBridge> {
   if (!bridge) {
-    bridge = new FlutterBridge(FLUTTER_HOST, FLUTTER_PORT, BRIDGE_MODE);
-    await bridge.connect();
-    console.error(`Bridge initialized in ${BRIDGE_MODE} mode`);
+    if (BRIDGE_MODE === "web-external") {
+      // Use Playwright to automate Flutter Web directly via semantics tree
+      // No SelfTestBridge needed in the Flutter app!
+      bridge = new PlaywrightBridge(FLUTTER_APP_URL, {
+        headless: PLAYWRIGHT_HEADLESS,
+        goldensDir: GOLDENS_DIR,
+      });
+      await bridge.connect();
+      console.error(`Bridge initialized in web-external mode (Playwright) at ${FLUTTER_APP_URL}`);
+    } else {
+      // Use WebSocket bridge (requires SelfTestBridge in Flutter app)
+      bridge = new FlutterBridge(FLUTTER_HOST, FLUTTER_PORT, BRIDGE_MODE);
+      await bridge.connect();
+      console.error(`Bridge initialized in ${BRIDGE_MODE} mode`);
+    }
   }
   return bridge;
 }

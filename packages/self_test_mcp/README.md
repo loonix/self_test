@@ -16,6 +16,7 @@ npm install && npm run build
 
 ## Architecture
 
+### With Bridge (client/server modes)
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                         AI Agent (Claude)                        │
@@ -45,6 +46,37 @@ npm install && npm run build
 │  │  - WebSocket server on port 9999                            ││
 │  │  - Receives commands from MCP server                        ││
 │  │  - Executes actions via SelfTestManager                     ││
+│  └─────────────────────────────────────────────────────────────┘│
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Web-External Mode (no bridge needed!)
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         AI Agent (Claude)                        │
+└─────────────────────────────┬───────────────────────────────────┘
+                              │ MCP Protocol (JSON-RPC over stdio)
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                     self_test MCP Server                         │
+│  ┌─────────────────────────────────────────────────────────────┐│
+│  │  PlaywrightBridge (web-external mode)                       ││
+│  │  - Launches Chromium browser                                ││
+│  │  - Navigates to Flutter web app URL                         ││
+│  │  - Interacts via flt-semantics-host accessibility tree      ││
+│  │  - Types via flt-text-editing-host input element           ││
+│  └─────────────────────────────────────────────────────────────┘│
+└─────────────────────────────┬───────────────────────────────────┘
+                              │ Playwright (Chrome DevTools Protocol)
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                 Flutter Web App (any production build)           │
+│  ┌─────────────────────────────────────────────────────────────┐│
+│  │  No SelfTestBridge needed!                                  ││
+│  │  Uses Flutter's built-in accessibility tree:                ││
+│  │  - flt-semantics-placeholder → enables semantics            ││
+│  │  - flt-semantics-host → widget tree with roles/labels       ││
+│  │  - flt-text-editing-host → real <input> for text fields    ││
 │  └─────────────────────────────────────────────────────────────┘│
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -503,12 +535,61 @@ await mcp.callTool("flutter_pump", {
 });
 ```
 
+## Bridge Modes
+
+The MCP server supports three modes for connecting to Flutter apps:
+
+| Mode | Bridge Required | Use Case |
+|------|-----------------|----------|
+| `server` | ✅ Yes | Flutter Web with `SelfTestBridge` (MCP runs WebSocket server) |
+| `client` | ✅ Yes | Native platforms with `SelfTestBridge` (MCP connects to app) |
+| `web-external` | ❌ **No** | Any Flutter Web app via Playwright + semantics tree |
+
+### web-external Mode (New in v2.1)
+
+Test **any Flutter web app** without code changes! Uses Playwright browser automation + Flutter's accessibility/semantics tree.
+
+```bash
+# Configure for web-external mode
+export BRIDGE_MODE=web-external
+export FLUTTER_APP_URL=https://your-flutter-app.com
+export PLAYWRIGHT_HEADLESS=false  # Set to true for CI
+
+# Run MCP server
+npm start
+```
+
+**How it works:**
+1. Launches Chromium via Playwright
+2. Navigates to your Flutter web app
+3. Enables Flutter's semantics tree (`flt-semantics-host`)
+4. Interacts with widgets via coordinate-based clicks
+5. Types into text fields via `flt-text-editing-host input`
+
+**Supported tools in web-external mode:**
+- ✅ `flutter_snapshot`, `flutter_get_by_role`, `flutter_get_by_text`
+- ✅ `flutter_tap`, `flutter_type`, `flutter_clear`, `flutter_press_key`
+- ✅ `flutter_scroll`, `flutter_navigate`, `flutter_back`, `flutter_reload`
+- ✅ `flutter_expect`, `flutter_screenshot`, `flutter_resize`
+- ⚠️ State inspection tools require full bridge
+- ⚠️ Network mocking requires full bridge
+
+**Best for:**
+- E2E smoke tests on production builds
+- Testing third-party Flutter apps
+- CI/CD pipelines without app modifications
+- Quick exploratory testing
+
 ## Environment Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `FLUTTER_APP_HOST` | `localhost` | Flutter app WebSocket host |
-| `FLUTTER_APP_PORT` | `9999` | Flutter app WebSocket port |
+| `BRIDGE_MODE` | `server` | Bridge mode: `client`, `server`, or `web-external` |
+| `FLUTTER_APP_HOST` | `localhost` | WebSocket host (client/server modes) |
+| `FLUTTER_APP_PORT` | `9999` | WebSocket port (client/server modes) |
+| `FLUTTER_APP_URL` | `http://localhost:8080` | Flutter app URL (web-external mode) |
+| `PLAYWRIGHT_HEADLESS` | `true` | Run browser headless (web-external mode) |
+| `FLUTTER_GOLDENS_DIR` | `test/goldens` | Directory for golden/screenshot files |
 
 ## Troubleshooting
 
