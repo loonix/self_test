@@ -3,30 +3,34 @@ import 'package:self_test/self_test.dart';
 import 'example.dart';
 
 void main() {
-  runApp(SelfTestRoot(child: MyApp()));
+  runApp(SelfTestRoot(child: const MyApp()));
 }
 
 class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Self Test Example',
       theme: ThemeData(primarySwatch: Colors.blue),
-      home: LoginPage(),
+      home: const LoginPage(),
     );
   }
 }
 
 class LoginPage extends StatefulWidget {
+  const LoginPage({super.key});
+
   @override
-  _LoginPageState createState() => _LoginPageState();
+  State<LoginPage> createState() => _LoginPageState();
 }
 
 class _LoginPageState extends State<LoginPage> {
   String username = '';
   String password = '';
   String message = '';
-  
+
   late TextEditingController _usernameController;
   late TextEditingController _passwordController;
 
@@ -73,9 +77,9 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Login')),
+      appBar: AppBar(title: const Text('Login')),
       body: Padding(
-        padding: EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
             SelfTestableWidget(
@@ -83,67 +87,71 @@ class _LoginPageState extends State<LoginPage> {
               onTextChange: _onUsernameChanged,
               child: TextField(
                 controller: _usernameController,
-                decoration: InputDecoration(labelText: 'Username'),
+                decoration:
+                    const InputDecoration(labelText: 'Username'),
                 onChanged: _onUsernameChanged,
               ),
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             SelfTestableWidget(
               id: 'password_field',
               onTextChange: _onPasswordChanged,
               child: TextField(
                 controller: _passwordController,
-                decoration: InputDecoration(labelText: 'Password'),
+                decoration:
+                    const InputDecoration(labelText: 'Password'),
                 obscureText: true,
                 onChanged: _onPasswordChanged,
               ),
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             SelfTestableWidget(
               id: 'login_button',
               onTap: _onLoginPressed,
               child: ElevatedButton(
                 onPressed: _onLoginPressed,
-                child: Text('Login'),
+                child: const Text('Login'),
               ),
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             Text(message),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () {
                 debugPrint('[SelfTest] Activating self-test mode...');
                 SelfTestManager().setSelfTestModeActive(true);
                 SelfTestManager().restartWidgetTree();
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Self-test mode activated')),
+                  const SnackBar(
+                      content: Text('Self-test mode activated')),
                 );
               },
-              child: Text('Activate Self-Test Mode'),
+              child: const Text('Activate Self-Test Mode'),
             ),
             ElevatedButton(
               onPressed: () async {
                 debugPrint('[SelfTest] ===== STARTING TEST =====');
-                // Example test
-                SelfTestManager().enterText('username_field', 'testuser');
-                SelfTestManager().enterText('password_field', 'testpass');
+                SelfTestManager()
+                    .enterText('username_field', 'testuser');
+                SelfTestManager()
+                    .enterText('password_field', 'testpass');
                 await SelfTestManager().waitForAnimations();
                 SelfTestManager().trigger('login_button');
                 await SelfTestManager().waitForAnimations();
                 debugPrint('[SelfTest] ===== TEST COMPLETED =====');
               },
-              child: Text('Run Test'),
+              child: const Text('Run Test'),
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (context) => ExampleWidget(),
+                    builder: (context) => const ExampleWidget(),
                   ),
                 );
               },
-              child: Text('Open Example Widget'),
+              child: const Text('Open Example Widget'),
             ),
           ],
         ),

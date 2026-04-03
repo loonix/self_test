@@ -10,7 +10,8 @@ class SelfTestGenerator extends Generator {
     final controllers = <String, Map<String, String>>{};
 
     // Collect annotations
-    for (final annotatedElement in library.annotatedWith(TypeChecker.fromRuntime(SelfTestButton))) {
+    for (final annotatedElement in library
+        .annotatedWith(const TypeChecker.fromRuntime(SelfTestButton))) {
       final element = annotatedElement.element;
       final annotation = annotatedElement.annotation;
       final id = _getAnnotationId(annotation);
@@ -21,7 +22,8 @@ class SelfTestGenerator extends Generator {
       }
     }
 
-    for (final annotatedElement in library.annotatedWith(TypeChecker.fromRuntime(SelfTestInput))) {
+    for (final annotatedElement
+        in library.annotatedWith(const TypeChecker.fromRuntime(SelfTestInput))) {
       final element = annotatedElement.element;
       final annotation = annotatedElement.annotation;
       final id = _getAnnotationId(annotation);
@@ -95,7 +97,9 @@ class SelfTestGenerator extends Generator {
     }
 
     // For text inputs, add text assertions
-    final textIds = methods.entries.where((e) => e.key.startsWith('enterText_')).map((e) => e.value);
+    final textIds = methods.entries
+        .where((e) => e.key.startsWith('enterText_'))
+        .map((e) => e.value);
     for (final id in textIds) {
       methodDefs.add('''
   void expectText_$id(String expectedText) {

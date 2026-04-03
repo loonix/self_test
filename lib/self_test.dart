@@ -60,12 +60,14 @@ class SelfTestManager {
   /// Restarts the widget tree by setting state on the root key.
   void restartWidgetTree() {
     _rebuildCounter++;
-    debugPrint('[SelfTest] Restarting widget tree (rebuild counter: $_rebuildCounter, rootKey: $rootKey)');
+    debugPrint(
+        '[SelfTest] Restarting widget tree (rebuild counter: $_rebuildCounter, rootKey: $rootKey)');
     if (rootKey?.currentState != null) {
       debugPrint('[SelfTest] Calling setState on root key');
       (rootKey!.currentState as dynamic).setState(() {});
     } else {
-      debugPrint('[SelfTest] WARNING: rootKey is null or currentState is null (rootKey: $rootKey)');
+      debugPrint(
+          '[SelfTest] WARNING: rootKey is null or currentState is null (rootKey: $rootKey)');
       // Try to find and set the root key if it exists
       if (rootKey == null) {
         debugPrint('[SelfTest] Attempting to set root key');
@@ -105,7 +107,8 @@ class SelfTestManager {
   /// Registers a test node.
   void registerTestNode(TestNode node) {
     _activeTestNodes[node.id] = node;
-    debugPrint('[SelfTest] Registered TestNode: "${node.id}" (tap: ${node.onTap != null}, text: ${node.onTextChange != null})');
+    debugPrint(
+        '[SelfTest] Registered TestNode: "${node.id}" (tap: ${node.onTap != null}, text: ${node.onTextChange != null})');
   }
 
   /// Unregisters a test node.
@@ -123,8 +126,10 @@ class SelfTestManager {
       debugPrint('[SelfTest] Found TestNode "$id", triggering tap');
       node.onTap!();
     } else {
-      debugPrint('[SelfTest] ERROR: TestNode "$id" not found or has no tap callback');
-      throw Exception('TestNode with id "$id" not found or has no tap callback.');
+      debugPrint(
+          '[SelfTest] ERROR: TestNode "$id" not found or has no tap callback');
+      throw Exception(
+          'TestNode with id "$id" not found or has no tap callback.');
     }
   }
 
@@ -138,8 +143,10 @@ class SelfTestManager {
       node.onTextChange!(text);
       node.currentText = text; // Update current text for assertions
     } else {
-      debugPrint('[SelfTest] ERROR: TestNode "$id" not found or has no text change callback');
-      throw Exception('TestNode with id "$id" not found or has no text change callback.');
+      debugPrint(
+          '[SelfTest] ERROR: TestNode "$id" not found or has no text change callback');
+      throw Exception(
+          'TestNode with id "$id" not found or has no text change callback.');
     }
   }
 
@@ -173,10 +180,12 @@ class SelfTestManager {
           }
           object.visitChildren(visitor);
         }
+
         renderObject?.visitChildren(visitor);
 
         if (boundary == null) {
-          debugPrint('[SelfTest] Screenshot failed: No RenderRepaintBoundary found');
+          debugPrint(
+              '[SelfTest] Screenshot failed: No RenderRepaintBoundary found');
           return null;
         }
 
@@ -188,7 +197,8 @@ class SelfTestManager {
           return null;
         }
 
-        final fileName = '${name ?? 'screenshot'}_${DateTime.now().millisecondsSinceEpoch}.png';
+        final fileName =
+            '${name ?? 'screenshot'}_${DateTime.now().millisecondsSinceEpoch}.png';
         final dir = _screenshotDirectory ?? Directory.systemTemp.path;
         final file = File('$dir/$fileName');
         await file.writeAsBytes(byteData.buffer.asUint8List());
@@ -205,7 +215,8 @@ class SelfTestManager {
         return null;
       }
 
-      final fileName = '${name ?? 'screenshot'}_${DateTime.now().millisecondsSinceEpoch}.png';
+      final fileName =
+          '${name ?? 'screenshot'}_${DateTime.now().millisecondsSinceEpoch}.png';
       final dir = _screenshotDirectory ?? Directory.systemTemp.path;
       final file = File('$dir/$fileName');
       await file.writeAsBytes(byteData.buffer.asUint8List());
@@ -265,7 +276,8 @@ class _SelfTestableWidgetState extends State<SelfTestableWidget> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    debugPrint('[SelfTest] SelfTestableWidget "${widget.id}" didChangeDependencies called');
+    debugPrint(
+        '[SelfTest] SelfTestableWidget "${widget.id}" didChangeDependencies called');
     _updateRegistration();
   }
 
@@ -281,10 +293,13 @@ class _SelfTestableWidgetState extends State<SelfTestableWidget> {
 
   void _updateRegistration() {
     final manager = SelfTestManager();
-    final shouldBeRegistered = ((kDebugMode || kProfileMode) && manager.isSelfTestModeActive) || manager.isTestMode;
+    final shouldBeRegistered =
+        ((kDebugMode || kProfileMode) && manager.isSelfTestModeActive) ||
+            manager.isTestMode;
 
     if (shouldBeRegistered && !_wasRegistered) {
-      debugPrint('[SelfTest] SelfTestableWidget "${widget.id}" registering (mode active: ${manager.isSelfTestModeActive}, test mode: ${manager.isTestMode})');
+      debugPrint(
+          '[SelfTest] SelfTestableWidget "${widget.id}" registering (mode active: ${manager.isSelfTestModeActive}, test mode: ${manager.isTestMode})');
       final node = TestNode(
         id: widget.id,
         onTap: widget.onTap,
@@ -294,7 +309,8 @@ class _SelfTestableWidgetState extends State<SelfTestableWidget> {
       manager.registerTestNode(node);
       _wasRegistered = true;
     } else if (!shouldBeRegistered && _wasRegistered) {
-      debugPrint('[SelfTest] SelfTestableWidget "${widget.id}" unregistering due to mode change');
+      debugPrint(
+          '[SelfTest] SelfTestableWidget "${widget.id}" unregistering due to mode change');
       manager.unregisterTestNode(widget.id);
       _wasRegistered = false;
     }
@@ -324,7 +340,11 @@ class _SelfTestableWidgetState extends State<SelfTestableWidget> {
 class SelfTestRoot extends StatefulWidget {
   final Widget child;
 
-  SelfTestRoot({Key? key, required this.child}) : super(key: key ?? (SelfTestManager().rootKey ?? GlobalKey<State>(debugLabel: 'SelfTestRoot'))) {
+  SelfTestRoot({Key? key, required this.child})
+      : super(
+            key: key ??
+                (SelfTestManager().rootKey ??
+                    GlobalKey<State>(debugLabel: 'SelfTestRoot'))) {
     // Ensure the manager has a root key
     SelfTestManager().rootKey ??= GlobalKey<State>(debugLabel: 'SelfTestRoot');
   }
@@ -338,7 +358,8 @@ class _SelfTestRootState extends State<SelfTestRoot> {
   void initState() {
     super.initState();
     debugPrint('[SelfTest] SelfTestRoot initState called');
-    debugPrint('[SelfTest] SelfTestRoot key: ${widget.key}, manager rootKey: ${SelfTestManager().rootKey}');
+    debugPrint(
+        '[SelfTest] SelfTestRoot key: ${widget.key}, manager rootKey: ${SelfTestManager().rootKey}');
     // Ensure the manager's rootKey points to this state
     SelfTestManager().rootKey = widget.key as GlobalKey<State>?;
   }
@@ -347,9 +368,11 @@ class _SelfTestRootState extends State<SelfTestRoot> {
   Widget build(BuildContext context) {
     // Force rebuild when self-test mode changes or restart is called
     final manager = SelfTestManager();
-    debugPrint('[SelfTest] SelfTestRoot building with key: ${manager.isSelfTestModeActive}_${manager.isTestMode}_${manager.rebuildCounter}');
+    debugPrint(
+        '[SelfTest] SelfTestRoot building with key: ${manager.isSelfTestModeActive}_${manager.isTestMode}_${manager.rebuildCounter}');
     return KeyedSubtree(
-      key: ValueKey('${manager.isSelfTestModeActive}_${manager.isTestMode}_${manager.rebuildCounter}'),
+      key: ValueKey(
+          '${manager.isSelfTestModeActive}_${manager.isTestMode}_${manager.rebuildCounter}'),
       child: widget.child,
     );
   }
@@ -358,9 +381,9 @@ class _SelfTestRootState extends State<SelfTestRoot> {
 /// Screenshot boundary widget for capturing screenshots during tests.
 class ScreenshotBoundary extends StatelessWidget {
   final Widget child;
-  
+
   const ScreenshotBoundary({super.key, required this.child});
-  
+
   @override
   Widget build(BuildContext context) => child;
 }
@@ -493,6 +516,7 @@ class TestStep {
   final String? actionType;
   final Map<String, dynamic> params;
   final String? description;
+
   /// Custom action callback for complex steps
   final Future<void> Function()? action;
   final bool captureScreenshot;
@@ -532,7 +556,8 @@ class TestStep {
   }
 
   /// Factory constructor for enterText step
-  factory TestStep.enterText(String widgetId, String text, {String? description}) {
+  factory TestStep.enterText(String widgetId, String text,
+      {String? description}) {
     return TestStep(
       actionType: 'enterText',
       params: {'widgetId': widgetId, 'text': text},
@@ -581,13 +606,13 @@ class TestScenarioResult {
   int get failedCount => totalSteps - passedSteps;
 
   Map<String, dynamic> toJson() => {
-    'success': success,
-    'passedSteps': passedSteps,
-    'totalSteps': totalSteps,
-    if (error != null) 'error': error,
-    if (failedAtStep != null) 'failedAtStep': failedAtStep,
-    'stepResults': stepResults.map((r) => r.toJson()).toList(),
-  };
+        'success': success,
+        'passedSteps': passedSteps,
+        'totalSteps': totalSteps,
+        if (error != null) 'error': error,
+        if (failedAtStep != null) 'failedAtStep': failedAtStep,
+        'stepResults': stepResults.map((r) => r.toJson()).toList(),
+      };
 }
 
 /// Result of a single step.
@@ -614,11 +639,11 @@ class StepResult {
   bool get passed => success;
 
   Map<String, dynamic> toJson() => {
-    'index': index,
-    'action': action,
-    'success': success,
-    if (error != null) 'error': error,
-    'durationMs': duration.inMilliseconds,
-    if (screenshotPath != null) 'screenshotPath': screenshotPath,
-  };
+        'index': index,
+        'action': action,
+        'success': success,
+        if (error != null) 'error': error,
+        'durationMs': duration.inMilliseconds,
+        if (screenshotPath != null) 'screenshotPath': screenshotPath,
+      };
 }

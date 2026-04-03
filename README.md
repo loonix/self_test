@@ -1,32 +1,30 @@
-# Self-Test Package for Flutter
+# self_test
 
 [![pub package](https://img.shields.io/pub/v/self_test.svg)](https://pub.dev/packages/self_test)
 
-A Flutter package that enables automated regression testing directly within your app's runtime environment. Unlike traditional testing frameworks that simulate UI interactions, Self-Test invokes widget callbacks directly, providing fast and reliable testing for development and pre-production environments.
+Automated regression testing for Flutter through **direct callback invocation**. Unlike traditional testing frameworks that simulate UI interactions, `self_test` invokes widget callbacks directly, providing fast and reliable testing for development and pre-production environments.
 
-## ✨ Features
+## Features
 
-- **🚀 Direct Callback Invocation**: Execute user actions by calling widget callbacks directly instead of injecting touch events
-- **⚡ Runtime Testing**: Run tests in live app environments without external test frameworks
-- **🔧 Code Generation**: Automatic test controller generation using build_runner and annotations
-- **📝 Text Assertions**: Built-in text validation for input fields
-- **🧠 Memory Safe**: Automatic registration/unregistration prevents memory leaks
-- **🎯 Type Safe**: Compile-time generated controllers with full type safety
-- **🔄 Hot Restart Compatible**: Works seamlessly with Flutter's hot restart
+- **Direct Callback Invocation** - Execute user actions by calling widget callbacks directly instead of injecting touch events
+- **Runtime Testing** - Run tests in live app environments without external test frameworks
+- **Code Generation** - Automatic test controller generation using `build_runner` and annotations
+- **Text Assertions** - Built-in text validation for input fields
+- **Memory Safe** - Automatic registration/unregistration prevents memory leaks
+- **Type Safe** - Compile-time generated controllers with full type safety
+- **Hot Restart Compatible** - Works seamlessly with Flutter's hot restart
+- **Test Scenarios** - Define and run multi-step test scenarios with `TestScenario`
 
-## 📦 Installation
+## Installation
 
-Add the following to your `pubspec.yaml`:
+Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  self_test: ^0.0.1
+  self_test: ^0.1.0
 
 dev_dependencies:
   build_runner: ^2.4.9
-  source_gen: ^1.5.0
-  analyzer: ^6.0.0
-  dart_style: ^2.3.6
 ```
 
 Then run:
@@ -35,7 +33,17 @@ Then run:
 flutter pub get
 ```
 
-## 🚀 Quick Start
+## Sponsors
+
+<div align="center">
+  <a href="https://objais.com" target="_blank">
+    <img src="logo-objais.png" alt="Objais" width="200"/>
+  </a>
+  <br/>
+  <em>Proudly sponsored by <a href="https://objais.com">Objais</a></em>
+</div>
+
+## Quick Start
 
 ### 1. Wrap Your App Root
 
@@ -47,133 +55,47 @@ void main() {
 }
 ```
 
-### 2. Manual Widget Wrapping
-
-Wrap interactive widgets with `SelfTestableWidget`:
+### 2. Wrap Interactive Widgets
 
 ```dart
-class LoginForm extends StatefulWidget {
-  @override
-  _LoginFormState createState() => _LoginFormState();
-}
-
-class _LoginFormState extends State<LoginForm> {
-  String username = '';
-  String password = '';
-
-  void _onLoginPressed() {
-    // Your login logic
-    print('Login pressed with: $username, $password');
-  }
-
-  void _onUsernameChanged(String value) {
-    setState(() => username = value);
-  }
-
-  void _onPasswordChanged(String value) {
-    setState(() => password = value);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        SelfTestableWidget(
-          id: 'username_field',
-          onTextChange: _onUsernameChanged,
-          child: TextField(
-            decoration: InputDecoration(labelText: 'Username'),
-            onChanged: _onUsernameChanged,
-          ),
-        ),
-        SizedBox(height: 16),
-        SelfTestableWidget(
-          id: 'password_field',
-          onTextChange: _onPasswordChanged,
-          child: TextField(
-            decoration: InputDecoration(labelText: 'Password'),
-            obscureText: true,
-            onChanged: _onPasswordChanged,
-          ),
-        ),
-        SizedBox(height: 16),
-        SelfTestableWidget(
-          id: 'login_button',
-          onTap: _onLoginPressed,
-          child: ElevatedButton(
-            onPressed: _onLoginPressed,
-            child: Text('Login'),
-          ),
-        ),
-      ],
-    );
-  }
-}
+SelfTestableWidget(
+  id: 'username_field',
+  onTextChange: (value) => setState(() => username = value),
+  child: TextField(
+    decoration: InputDecoration(labelText: 'Username'),
+    onChanged: (value) => setState(() => username = value),
+  ),
+),
 ```
 
-### 3. Activate Self-Test Mode
+### 3. Run Tests
 
 ```dart
-// In debug/profile builds
-SelfTestManager().setSelfTestModeActive(true);
-SelfTestManager().restartWidgetTree(); // Apply changes
-
-// In test environments (where kDebugMode is false)
-SelfTestManager().setTestMode(true);
-```
-
-### 4. Run Tests
-
-```dart
-// Direct API usage
 SelfTestManager().enterText('username_field', 'john_doe');
-SelfTestManager().enterText('password_field', 'secret123');
-await SelfTestManager().waitForAnimations();
 SelfTestManager().trigger('login_button');
+await SelfTestManager().waitForAnimations();
 ```
 
-## 🔧 Advanced Usage
+## Usage
 
 ### Code Generation with Annotations
 
-For type-safe test controllers, use annotations and code generation:
+For type-safe test controllers, annotate your callback methods:
 
 ```dart
 import 'package:self_test/self_test.dart';
 
-part 'login_form.self_test.g.dart'; // Generated file
-
-class LoginForm extends StatefulWidget {
-  @override
-  _LoginFormState createState() => _LoginFormState();
-}
+part 'login_form.self_test.g.dart';
 
 class _LoginFormState extends State<LoginForm> {
   @SelfTestButton('login_btn')
-  void onLoginPressed() {
-    // Login logic
-  }
+  void onLoginPressed() { /* ... */ }
 
   @SelfTestInput('username_field')
-  void onUsernameChanged(String value) {
-    // Handle username input
-  }
+  void onUsernameChanged(String value) { /* ... */ }
 
   @SelfTestInput('password_field')
-  void onPasswordChanged(String value) {
-    // Handle password input
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        TextField(onChanged: onUsernameChanged),
-        TextField(onChanged: onPasswordChanged, obscureText: true),
-        ElevatedButton(onPressed: onLoginPressed, child: Text('Login')),
-      ],
-    );
-  }
+  void onPasswordChanged(String value) { /* ... */ }
 }
 ```
 
@@ -188,90 +110,81 @@ Use the generated controller:
 ```dart
 final controller = LoginFormTestController();
 
-// Type-safe actions
 controller.enterUsernameField('john_doe');
 controller.enterPasswordField('secret123');
 controller.tapLoginBtn();
-
-// Text assertions
 controller.expectUsernameFieldText('john_doe');
-controller.expectPasswordFieldText('secret123');
 ```
 
-### Text Assertions
+### Test Scenarios
 
-The generated controllers include text validation methods:
+Define multi-step test scenarios:
 
 ```dart
-// Assert exact text match
-controller.expectUsernameFieldText('expected_value');
+final scenario = TestScenario(
+  name: 'Login flow',
+  steps: [
+    TestStep.enterText('username_field', 'user@example.com'),
+    TestStep.enterText('password_field', 'password123'),
+    TestStep.tap('login_button'),
+    TestStep.wait(Duration(milliseconds: 500)),
+    TestStep.screenshot('after_login'),
+  ],
+);
 
-// Assertions throw exceptions on failure
-try {
-  controller.expectUsernameFieldText('wrong_value');
-} catch (e) {
-  print('Text assertion failed: $e');
-}
+final result = await scenario.run();
+print(result.allPassed ? 'All steps passed' : 'Failed at step ${result.failedAtStep}');
 ```
 
-### Testing Integration
+### Widget Testing
 
-For unit/integration tests:
+Integrate with `flutter_test`:
 
 ```dart
-import 'package:flutter_test/flutter_test.dart';
-import 'package:self_test/self_test.dart';
+testWidgets('Login flow test', (WidgetTester tester) async {
+  SelfTestManager().setTestMode(true);
 
-void main() {
-  testWidgets('Login flow test', (WidgetTester tester) async {
-    // Enable test mode
-    SelfTestManager().setTestMode(true);
+  await tester.pumpWidget(MyApp());
+  await tester.pumpAndSettle();
 
-    // Build app
-    await tester.pumpWidget(MyApp());
-    await tester.pumpAndSettle();
+  SelfTestManager().enterText('username_field', 'testuser');
+  SelfTestManager().trigger('login_button');
+  await tester.pump();
 
-    // Run self-test
-    SelfTestManager().enterText('username_field', 'testuser');
-    SelfTestManager().enterText('password_field', 'testpass');
-    SelfTestManager().trigger('login_button');
-
-    // Wait for UI updates
-    await tester.pump();
-
-    // Verify results
-    expect(find.text('Login successful!'), findsOneWidget);
-  });
-}
+  expect(find.text('Login successful!'), findsOneWidget);
+});
 ```
 
-## 📚 API Reference
+### Enabling Self-Test Mode
+
+```dart
+// In debug/profile builds
+SelfTestManager().setSelfTestModeActive(true);
+SelfTestManager().restartWidgetTree();
+
+// In test environments
+SelfTestManager().setTestMode(true);
+```
+
+## API Reference
 
 ### SelfTestManager
 
-Singleton class managing test nodes and actions.
+Singleton managing test nodes and actions.
 
-```dart
-// Mode control
-SelfTestManager().setSelfTestModeActive(bool active); // For debug/profile
-SelfTestManager().setTestMode(bool active);           // For tests
-
-// Actions
-SelfTestManager().trigger(String id);                 // Tap button
-SelfTestManager().enterText(String id, String text);  // Enter text
-
-// Utilities
-await SelfTestManager().waitForAnimations();          // Wait for UI updates
-SelfTestManager().restartWidgetTree();                // Hot restart simulation
-
-// Node management
-SelfTestManager().registerTestNode(TestNode node);
-SelfTestManager().unregisterTestNode(String id);
-```
+| Method | Description |
+|--------|-------------|
+| `trigger(id)` | Tap a button by ID |
+| `enterText(id, text)` | Enter text in a field by ID |
+| `waitForAnimations()` | Wait for UI updates |
+| `restartWidgetTree()` | Force widget tree rebuild |
+| `captureScreenshot([name])` | Capture a screenshot |
+| `registerTestNode(node)` | Register a test node |
+| `unregisterTestNode(id)` | Unregister a test node |
+| `setSelfTestModeActive(bool)` | Enable/disable in debug/profile |
+| `setTestMode(bool)` | Enable/disable in test environments |
 
 ### SelfTestableWidget
-
-Wrapper widget for manual testing setup.
 
 ```dart
 SelfTestableWidget({
@@ -289,123 +202,15 @@ SelfTestableWidget({
 @SelfTestInput(String id)   // For text input widgets
 ```
 
-### Generated Controllers
+## Ecosystem
 
-Auto-generated classes with type-safe methods:
+| Package | Description |
+|---------|-------------|
+| `self_test` | Core Flutter package (this one) |
+| `self_test_bridge` | WebSocket bridge for MCP/external tool integration |
+| `self_test_mcp` | MCP server for AI-assisted testing |
 
-```dart
-class MyWidgetTestController {
-  // Actions
-  void tapButtonId();
-  void enterTextFieldId(String text);
-
-  // Assertions
-  void expectExistsFieldId();
-  void expectNotExistsFieldId();
-  void expectTextFieldId(String expectedText);
-}
-```
-
-## 🎯 Best Practices
-
-### 1. ID Naming Convention
-```dart
-// ✅ Good: descriptive and unique
-'login_button', 'username_input', 'submit_form'
-
-// ❌ Avoid: generic or conflicting
-'button', 'input', 'btn1'
-```
-
-### 2. Test Organization
-```dart
-class LoginTests {
-  static Future<void> testValidLogin() async {
-    SelfTestManager().enterText('username_field', 'user@example.com');
-    SelfTestManager().enterText('password_field', 'password123');
-    SelfTestManager().trigger('login_button');
-    await SelfTestManager().waitForAnimations();
-  }
-
-  static Future<void> testEmptyFields() async {
-    SelfTestManager().trigger('login_button');
-    await SelfTestManager().waitForAnimations();
-    // Assert error message appears
-  }
-}
-```
-
-### 3. State Management
-```dart
-class TestStateManager {
-  static void setupTestMode() {
-    SelfTestManager().setTestMode(true);
-    // Additional test setup
-  }
-
-  static void cleanup() {
-    SelfTestManager().setTestMode(false);
-    // Cleanup logic
-  }
-}
-```
-
-### 4. Error Handling
-```dart
-try {
-  SelfTestManager().trigger('nonexistent_button');
-} catch (e) {
-  print('Test failed: $e');
-  // Handle test failure
-}
-```
-
-## 🔍 Troubleshooting
-
-### Build Issues
-
-**Problem**: `build_runner` fails with dependency errors
-```bash
-# Solution: Update dependencies
-flutter pub upgrade
-flutter pub run build_runner clean
-flutter pub run build_runner build
-```
-
-**Problem**: Generated files not found
-```bash
-# Check build.yaml configuration
-# Ensure part directive is correct: part 'filename.g.dart';
-```
-
-### Runtime Issues
-
-**Problem**: Actions not working in release builds
-```dart
-// Self-test only works in debug/profile builds by default
-// For testing release builds, use:
-SelfTestManager().setTestMode(true);
-```
-
-**Problem**: Memory leaks in tests
-```dart
-// Ensure proper cleanup
-tearDown(() {
-  SelfTestManager().setTestMode(false);
-});
-```
-
-**Problem**: Text assertions failing unexpectedly
-```dart
-// Check that onTextChange callback is provided
-SelfTestableWidget(
-  id: 'field_id',
-  onTextChange: (value) => setState(() => text = value), // Required
-  child: TextField(onChanged: (value) => setState(() => text = value)),
-);
-```
-
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch
@@ -414,10 +219,8 @@ SelfTestableWidget(
 5. Run the test suite: `flutter test`
 6. Submit a pull request
 
-## 📄 License
+## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Copyright (c) 2025-2026 Ari Silva, Daniel Carneiro. All rights reserved.
 
-## 🙏 Acknowledgments
-
-Inspired by the need for fast, reliable regression testing in Flutter applications without the overhead of full UI testing frameworks.
+This software may be used and modified in your own products and services, but may not be sold or redistributed as a standalone product. See the [LICENSE](LICENSE) file for details.

@@ -23,13 +23,6 @@ void main() async {
   // Enable self-test mode
   SelfTestManager().setSelfTestModeActive(kDebugMode);
 
-  // Set navigation callback for route navigation
-  SelfTestManager().setNavigationCallback((route) async {
-    // Get the navigator and push the route
-    _router.go(route);
-    await Future.delayed(const Duration(milliseconds: 500));
-  });
-
   runApp(const MyApp());
 }
 
@@ -60,8 +53,6 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SelfTestRoot(
-      enableAutoDetection: true, // Auto-detect all interactive widgets
-      scanIntervalMs: 1000,
       child: ScreenshotBoundary(
         child: MaterialApp.router(
           title: 'Self Test Example',

@@ -6,7 +6,6 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter/services.dart';
 import 'package:self_test/self_test.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
