@@ -4,27 +4,36 @@
 
 Automated regression testing for Flutter through **direct callback invocation**. Unlike traditional testing frameworks that simulate UI interactions, `self_test` invokes widget callbacks directly, providing fast and reliable testing for development and pre-production environments.
 
+**🤖 AI-Powered Testing:** Pair with [self_test_mcp](packages/self_test_mcp) to enable Claude and other AI agents to test your Flutter apps with Playwright feature parity - works on iOS, Android, Web, and Desktop!
+
 ## Features
 
+### Core Testing
 - **Direct Callback Invocation** - Execute user actions by calling widget callbacks directly instead of injecting touch events
 - **Runtime Testing** - Run tests in live app environments without external test frameworks
-- **Code Generation** - Automatic test controller generation using `build_runner` and annotations
 - **Text Assertions** - Built-in text validation for input fields
 - **Memory Safe** - Automatic registration/unregistration prevents memory leaks
-- **Type Safe** - Compile-time generated controllers with full type safety
 - **Hot Restart Compatible** - Works seamlessly with Flutter's hot restart
 - **Test Scenarios** - Define and run multi-step test scenarios with `TestScenario`
 
+### AI-Powered Testing (with MCP)
+- **60+ Playwright-Equivalent Tools** - Full feature parity with Playwright browser testing
+- **State Management Inspection** - Inspect and modify Riverpod, Bloc, and Provider state
+- **Network Mocking** - Mock HTTP responses, block requests, monitor traffic
+- **Visual Regression** - Golden file comparison for UI testing
+- **Platform Mocking** - Mock GPS, permissions, platform channels, sensors
+- **Cross-Platform** - Works on iOS, Android, Web (with or without bridge), Desktop
+- **Bridgeless Web Testing** - Test any Flutter web app via Playwright + semantics tree
+
 ## Installation
+
+### Core Package Only
 
 Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
   self_test: ^0.1.0
-
-dev_dependencies:
-  build_runner: ^2.4.9
 ```
 
 Then run:
@@ -32,6 +41,29 @@ Then run:
 ```bash
 flutter pub get
 ```
+
+### With AI-Powered Testing (Optional)
+
+For AI agent integration with Claude Code:
+
+1. **Install MCP server:**
+   ```bash
+   git clone https://github.com/loonix/self_test
+   cd self_test/packages/self_test_mcp
+   npm install && npm run build
+   ./scripts/setup-claude.sh
+   ```
+
+2. **Add bridge to your app:**
+   ```yaml
+   dependencies:
+     self_test_bridge:
+       git:
+         url: https://github.com/loonix/self_test
+         path: packages/self_test_bridge
+   ```
+
+See [Architecture](#architecture) section below for details.
 
 ## Sponsors
 
@@ -202,13 +234,186 @@ SelfTestableWidget({
 @SelfTestInput(String id)   // For text input widgets
 ```
 
-## Ecosystem
+## Architecture
 
-| Package | Description |
-|---------|-------------|
-| `self_test` | Core Flutter package (this one) |
-| `self_test_bridge` | WebSocket bridge for MCP/external tool integration |
-| `self_test_mcp` | MCP server for AI-assisted testing |
+The self_test ecosystem consists of three components:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      AI Agent (Claude)                           │
+└─────────────────────────────┬───────────────────────────────────┘
+                              │ MCP Protocol
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                   self_test_mcp Server                           │
+│  • 60+ Playwright-equivalent tools                               │
+│  • Actions: tap, type, scroll, drag                             │
+│  • Assertions: expect, visual regression                        │
+│  • State inspection: Riverpod, Bloc, Provider                   │
+│  • Network mocking & monitoring                                 │
+└─────────────────────────────┬───────────────────────────────────┘
+                              │ WebSocket
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                Flutter App + self_test_bridge                    │
+│  • Receives commands from MCP                                    │
+│  • Executes via self_test callbacks                             │
+│  • Works on iOS, Android, Web, Desktop                          │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Components
+
+| Package | Description | When to Use |
+|---------|-------------|-------------|
+| **self_test** (this package) | Core testing framework with direct callback invocation | Always - enables runtime testing in your Flutter app |
+| **self_test_bridge** | WebSocket bridge connecting MCP to Flutter | When using AI-powered testing with Claude |
+| **self_test_mcp** | MCP server with 60+ tools for AI agents | When using AI agents for automated testing |
+
+## AI-Powered Testing with MCP
+
+The self_test MCP (Model Context Protocol) server enables AI agents like Claude to test your Flutter apps with **Playwright feature parity**.
+
+### Platform Support
+
+| Platform | Bridge Required | How It Works |
+|----------|----------------|--------------|
+| **iOS** | ✅ Yes | Bridge runs WebSocket server on device, MCP connects |
+| **Android** | ✅ Yes | Bridge runs WebSocket server on device, MCP connects |
+| **Web** (with bridge) | ✅ Yes | Bridge embedded in web app, MCP connects |
+| **Web** (bridgeless) | ❌ No | MCP uses Playwright + Flutter semantics tree |
+| **Desktop** | ✅ Yes | Bridge runs WebSocket server in app, MCP connects |
+
+### Quick Start with MCP
+
+#### 1. Install MCP Server
+
+```bash
+cd packages/self_test_mcp
+npm install && npm run build
+
+# Add to Claude Code automatically
+./scripts/setup-claude.sh
+```
+
+Or manually add to `~/.claude/settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "flutter-self-test": {
+      "command": "node",
+      "args": ["/path/to/self_test_mcp/dist/index.js"],
+      "env": {
+        "FLUTTER_APP_HOST": "localhost",
+        "FLUTTER_APP_PORT": "9999"
+      }
+    }
+  }
+}
+```
+
+#### 2. Add Bridge to Flutter App
+
+Add to `pubspec.yaml`:
+
+```yaml
+dependencies:
+  self_test_bridge:
+    git:
+      url: https://github.com/loonix/self_test
+      path: packages/self_test_bridge
+```
+
+Add to `main.dart`:
+
+```dart
+import 'package:flutter/foundation.dart';
+import 'package:self_test_bridge/self_test_bridge.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Start bridge in debug mode only
+  if (kDebugMode) {
+    final bridge = SelfTestBridge(port: 9999);
+    await bridge.start();
+  }
+
+  runApp(SelfTestRoot(child: MyApp()));
+}
+```
+
+#### 3. Test with Claude
+
+Open Claude Code and ask:
+
+```
+Test the login flow in my Flutter app:
+1. Enter username "test@example.com"
+2. Enter password "password123"
+3. Tap login button
+4. Verify we navigated to the dashboard
+```
+
+Claude will use the MCP tools to interact with your app!
+
+### Web-External Mode (No Bridge Required!)
+
+Test **any Flutter web app** without code changes using Playwright:
+
+```bash
+# Configure for web-external mode
+export BRIDGE_MODE=web-external
+export FLUTTER_APP_URL=https://your-app.com
+export PLAYWRIGHT_HEADLESS=false
+
+# Run MCP server
+npm start
+```
+
+Perfect for:
+- Production web apps
+- Third-party Flutter apps
+- CI/CD smoke tests
+- Quick exploratory testing
+
+### Available MCP Tools
+
+The MCP server provides 60+ tools with Playwright feature parity:
+
+**Locators & Queries:**
+- `flutter_snapshot` - Get widget tree
+- `flutter_get_by_role` - Find by semantic role
+- `flutter_get_by_text` - Find by text content
+
+**Actions:**
+- `flutter_tap`, `flutter_type`, `flutter_clear`, `flutter_scroll`
+- `flutter_drag`, `flutter_hover`, `flutter_focus`
+- `flutter_long_press`, `flutter_double_tap`
+
+**Assertions:**
+- `flutter_expect` - Assert widget state (toBeVisible, toHaveText, etc.)
+- `flutter_expect_screenshot` - Visual regression testing
+
+**State Management:**
+- `flutter_get_state` - Inspect Riverpod/Bloc/Provider state
+- `flutter_dispatch_action` - Dispatch events/actions
+- `flutter_watch_state` - Subscribe to state changes
+
+**Network:**
+- `flutter_mock_http` - Mock API responses
+- `flutter_block_http` - Block requests
+- `flutter_network_log` - Monitor network traffic
+
+**Platform Mocking:**
+- `flutter_set_geolocation` - Mock GPS
+- `flutter_set_permission` - Mock permissions
+- `flutter_mock_channel` - Mock platform channels
+
+[See full tool list in packages/self_test_mcp/README.md]
+
+## Ecosystem
 
 ## Contributing
 
