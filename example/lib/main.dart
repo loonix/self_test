@@ -118,12 +118,21 @@ class _LoginPageState extends State<LoginPage> {
               onPressed: () {
                 debugPrint('[SelfTest] Activating self-test mode...');
                 SelfTestManager().setSelfTestModeActive(true);
+                // No snackbar here. restartWidgetTree rebuilds everything
+                // below SelfTestRoot, MaterialApp and its ScaffoldMessenger
+                // included, so a snackbar shown around this call is torn down
+                // in the same frame. The restart is what makes the widgets
+                // re-register, so it is the snackbar that has to go.
                 SelfTestManager().restartWidgetTree();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Self-test mode activated')),
-                );
               },
               child: const Text('Activate Self-Test Mode'),
+            ),
+            // Survives the restart, unlike a snackbar, because it is derived
+            // from the manager rather than held in this widget's state.
+            Text(
+              SelfTestManager().isSelfTestModeActive
+                  ? 'Self-test mode activated'
+                  : 'Self-test mode off',
             ),
             ElevatedButton(
               onPressed: () async {
