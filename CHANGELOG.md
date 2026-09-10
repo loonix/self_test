@@ -24,6 +24,17 @@
 - `exists` and `isVisible` are separate questions. A list keeps items built
   after they scroll away, and tapping one of those would land on whatever is
   drawn at those coordinates now, so a driven gesture refuses instead.
+- **A recording keeps how each widget was addressed**, not just an id.
+  `RecordedStep.locator` carries the locator, so a session recorded on an app
+  with no wrappers replays. A step recorded before this, or against an id,
+  still replays through the id path.
+- `recordAssertion` records an assertion against a locator, so a recorded
+  session can check something. Recording only actions produces a generated
+  test that drives the app and asserts nothing, which passes on a blank screen.
+- The code generator emits the locator API and a `testWidgets` body that pumps
+  between steps, because a driven tap is a real pointer event and nothing it
+  changes is visible until the next frame. It also pumps the app for you when
+  given an `appExpression`.
 - `useClock` lets a widget test hand the driver `tester.pump`, which is what a
   long press needs to be held rather than silently degrading to a tap.
 
