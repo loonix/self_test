@@ -1,0 +1,12 @@
+analyzer:
+  exclude:
+    - build/**
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    # The bridge answers a command over a socket when the command's work is
+    # done. A dropped future means it answers before the tap has happened, and
+    # the caller then reads the screen it was about to change. That bug was
+    # here thirteen times; this is what stops it coming back.
+    - unawaited_futures

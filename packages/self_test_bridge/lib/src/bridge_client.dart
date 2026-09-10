@@ -128,7 +128,7 @@ class SelfTestBridgeClient {
         if (ref == null) {
           throw Exception('Missing ref parameter');
         }
-        manager.trigger(ref);
+        await manager.trigger(ref);
         await Future.delayed(const Duration(milliseconds: 100));
         return {'success': true};
 
@@ -138,7 +138,7 @@ class SelfTestBridgeClient {
         if (ref == null || text == null) {
           throw Exception('Missing ref/widgetId or text parameter');
         }
-        manager.enterText(ref, text);
+        await manager.enterText(ref, text);
         await Future.delayed(const Duration(milliseconds: 100));
         return {'success': true};
 
@@ -163,7 +163,7 @@ class SelfTestBridgeClient {
         if (ref == null) {
           throw Exception('Missing ref/widgetId parameter');
         }
-        manager.enterText(ref, '');
+        await manager.enterText(ref, '');
         return {'success': true};
 
       case 'scroll':
@@ -290,7 +290,7 @@ class SelfTestBridgeClient {
   /// Handle disconnection
   void _handleDisconnect() {
     _channel = null;
-    _subscription?.cancel();
+    unawaited(_subscription?.cancel() ?? Future<void>.value());
     _subscription = null;
 
     if (_shouldReconnect && _reconnectAttempts < maxReconnectAttempts) {
@@ -311,7 +311,7 @@ class SelfTestBridgeClient {
   Future<void> stop() async {
     _shouldReconnect = false;
     _reconnectTimer?.cancel();
-    _subscription?.cancel();
+    await _subscription?.cancel();
     await _channel?.sink.close();
     _channel = null;
     debugPrint('[SelfTestBridge] Stopped');

@@ -774,7 +774,7 @@ class SelfTestBridge {
         final widgetId = params['widgetId'] as String;
         final timeout = params['timeout'] as int? ?? 5000;
         await _waitForWidget(widgetId, timeout);
-        manager.trigger(widgetId);
+        await manager.trigger(widgetId);
         await manager.waitForAnimations();
         if (_traceScreenshots) await _captureTraceScreenshot('tap_$widgetId');
         return {'success': true};
@@ -788,9 +788,9 @@ class SelfTestBridge {
 
         if (!append) {
           // Clear by entering empty string first
-          manager.enterText(widgetId, '');
+          await manager.enterText(widgetId, '');
         }
-        manager.enterText(widgetId, text);
+        await manager.enterText(widgetId, text);
 
         if (submit) {
           // Simulate enter key press
@@ -811,7 +811,7 @@ class SelfTestBridge {
       case 'clear':
         final widgetId = params['widgetId'] as String;
         // Clear by entering empty string
-        manager.enterText(widgetId, '');
+        await manager.enterText(widgetId, '');
         return {'success': true};
 
       case 'pressKey':
@@ -898,7 +898,7 @@ class SelfTestBridge {
           await backTarget.goBack();
         } else {
           // Nothing left in the app to pop, so ask the platform to leave it.
-          SystemNavigator.pop();
+          await SystemNavigator.pop();
         }
         await manager.waitForAnimations();
         return {'success': true};
@@ -2000,9 +2000,9 @@ class SelfTestBridge {
 
   Future<void> _doubleTap(String widgetId) async {
     final manager = SelfTestManager();
-    manager.trigger(widgetId);
+    await manager.trigger(widgetId);
     await Future.delayed(const Duration(milliseconds: 100));
-    manager.trigger(widgetId);
+    await manager.trigger(widgetId);
     await manager.waitForAnimations();
   }
 
@@ -2040,7 +2040,7 @@ class SelfTestBridge {
     final manager = SelfTestManager();
 
     // First tap to open dropdown
-    manager.trigger(widgetId);
+    await manager.trigger(widgetId);
     await manager.waitForAnimations();
     await Future.delayed(const Duration(milliseconds: 200));
 
@@ -2048,7 +2048,7 @@ class SelfTestBridge {
     final nodes = manager.activeTestNodes;
     for (final entry in nodes.entries) {
       if (entry.value.currentText == value) {
-        manager.trigger(entry.key);
+        await manager.trigger(entry.key);
         break;
       }
     }
@@ -2065,7 +2065,7 @@ class SelfTestBridge {
     // TestNode doesn't track checked state, so we always trigger the tap
     // The widget itself manages its internal state
     if (node.onTap != null) {
-      manager.trigger(widgetId);
+      await manager.trigger(widgetId);
     } else {
       throw Exception(
         'Widget "$widgetId" is not toggleable (no onTap callback)',
@@ -2752,7 +2752,7 @@ class SelfTestBridge {
             nodeText.contains('yes') ||
             nodeText.contains('confirm') ||
             nodeText.contains('accept')) {
-          manager.trigger(entry.key);
+          await manager.trigger(entry.key);
           await manager.waitForAnimations();
           return {'success': true, 'text': entry.value.currentText};
         }
@@ -2761,7 +2761,7 @@ class SelfTestBridge {
             nodeText.contains('no') ||
             nodeText.contains('close') ||
             nodeText.contains('dismiss')) {
-          manager.trigger(entry.key);
+          await manager.trigger(entry.key);
           await manager.waitForAnimations();
           return {'success': true};
         }
@@ -3314,7 +3314,7 @@ class SelfTestBridge {
           }
           final manager = SelfTestManager();
           await _waitForWidget(widgetId, 5000);
-          manager.trigger(widgetId);
+          await manager.trigger(widgetId);
           await manager.waitForAnimations();
           break;
 
@@ -3333,7 +3333,7 @@ class SelfTestBridge {
           }
           final text = actionParams['text'] as String? ?? '';
           final manager = SelfTestManager();
-          manager.enterText(widgetId, text);
+          await manager.enterText(widgetId, text);
           await manager.waitForAnimations();
           break;
 
@@ -6069,7 +6069,7 @@ class SelfTestBridge {
     } else {
       // Nothing left in the app to pop, so ask the platform to leave it. That
       // may close the app, which is not a pop.
-      SystemNavigator.pop();
+      await SystemNavigator.pop();
     }
 
     await manager.waitForAnimations();
