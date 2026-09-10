@@ -76,6 +76,29 @@ For AI agent integration with Claude Code:
 
 See [Architecture](#architecture) section below for details.
 
+## Security
+
+self_test can read the entire widget tree, tap anything, type anything and
+photograph the screen. That is the product in a debug build and a remote
+control in a shipped one, so:
+
+- **It is inert in a release build.** Every action and every query returns
+  nothing or throws. Opt in explicitly with
+  `SelfTestManager.enableInReleaseBuilds()` if a device farm needs to drive a
+  signed build.
+- **The bridge listens on loopback only**, and refuses to start in a release
+  build. Pass `host: InternetAddress.anyIPv4` to reach it from a real device
+  and accept that the network can reach it too.
+- **The bridge requires a token**, generated per instance and printed at
+  startup, presented as `?token=` or an `x-self-test-token` header. A wrong
+  token gets a 403 before the WebSocket upgrade.
+
+```dart
+final bridge = SelfTestBridge();      // loopback, random token
+await bridge.start();
+debugPrint(bridge.url);               // ws://127.0.0.1:9999?token=...
+```
+
 ## Sponsors
 
 <div align="center">

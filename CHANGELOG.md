@@ -27,6 +27,28 @@
 - `useClock` lets a widget test hand the driver `tester.pump`, which is what a
   long press needs to be held rather than silently degrading to a tap.
 
+### Security
+
+- **self_test is inert in a release build.** Every action and every query is
+  gated: no taps, no typing, no screenshots, no recording, no reading the
+  widget tree, and no register of what is on screen is even built. A device
+  farm that means to drive a signed build calls
+  `SelfTestManager.enableInReleaseBuilds()` deliberately. Nothing flips it by
+  accident, and `debugSimulateReleaseBuild` exists so the guard is covered by
+  tests rather than asserted in a comment.
+- **The bridge binds to loopback**, not to every network interface. Until now
+  it was `InternetAddress.anyIPv4`, so anyone on the same wifi could drive a
+  colleague's debug build: read the tree, tap, type, photograph the screen.
+  Pass `host: InternetAddress.anyIPv4` to reach it from a real device, and it
+  says out loud what that means.
+- **The bridge requires a token.** One is generated per instance and printed
+  at startup, or the app supplies its own. A connection without it, or with a
+  wrong one, gets an HTTP 403 before the WebSocket upgrade. The comparison is
+  constant time.
+- **The bridge refuses to start in a release build** unless
+  `allowInReleaseBuilds: true` is passed, because a bridge in a shipped app is
+  a remote control for it.
+
 ### Fixed
 
 - A recorded tap fired the app's handler twice. The recording wrappers called
