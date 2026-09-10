@@ -19,9 +19,12 @@ Widget buildRecordingCheckboxListTile(CheckboxListTile checkbox, widget) {
       debugPrint(
         '[SelfTest] Recording checkbox change for "${widget.id}": $value',
       );
-      await SelfTestManager().trigger(widget.id);
-      checkbox.onChanged?.call(value);
-      widget.onTap?.call();
+      await SelfTestManager().recordTap(widget.id);
+      if (checkbox.onChanged != null) {
+        checkbox.onChanged!(value);
+      } else {
+        widget.onTap?.call();
+      }
     },
     activeColor: checkbox.activeColor,
     checkColor: checkbox.checkColor,
@@ -45,9 +48,12 @@ Widget buildRecordingCheckbox(Checkbox checkbox, widget) {
       debugPrint(
         '[SelfTest] Recording checkbox change for "${widget.id}": $value',
       );
-      await SelfTestManager().trigger(widget.id);
-      checkbox.onChanged?.call(value);
-      widget.onTap?.call();
+      await SelfTestManager().recordTap(widget.id);
+      if (checkbox.onChanged != null) {
+        checkbox.onChanged!(value);
+      } else {
+        widget.onTap?.call();
+      }
     },
     tristate: checkbox.tristate,
     activeColor: checkbox.activeColor,

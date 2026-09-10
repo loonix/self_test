@@ -33,9 +33,12 @@ Widget buildRecordingRadioListTile(RadioListTile radio, widget) {
       debugPrint(
         '[SelfTest] Recording radio change for "${widget.id}": $value',
       );
-      await SelfTestManager().trigger(widget.id);
-      radio.onChanged?.call(value);
-      widget.onTap?.call();
+      await SelfTestManager().recordTap(widget.id);
+      if (radio.onChanged != null) {
+        radio.onChanged!(value);
+      } else {
+        widget.onTap?.call();
+      }
     },
     toggleable: radio.toggleable,
   );
@@ -50,9 +53,12 @@ Widget buildRecordingRadio(Radio radio, widget) {
       debugPrint(
         '[SelfTest] Recording radio change for "${widget.id}": $value',
       );
-      await SelfTestManager().trigger(widget.id);
-      radio.onChanged?.call(value);
-      widget.onTap?.call();
+      await SelfTestManager().recordTap(widget.id);
+      if (radio.onChanged != null) {
+        radio.onChanged!(value);
+      } else {
+        widget.onTap?.call();
+      }
     },
     activeColor: radio.activeColor,
     fillColor: radio.fillColor,

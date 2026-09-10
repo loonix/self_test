@@ -6,9 +6,8 @@ Widget buildRecordingButton(Widget button, widget) {
     return ElevatedButton(
       onPressed: () async {
         debugPrint('[SelfTest] Recording tap for "${widget.id}"');
-        await SelfTestManager().trigger(widget.id);
-        button.onPressed?.call();
-        widget.onTap?.call();
+        await SelfTestManager().recordTap(widget.id);
+        (button.onPressed ?? widget.onTap)?.call();
       },
       onLongPress: button.onLongPress,
       onHover: button.onHover,
@@ -23,9 +22,8 @@ Widget buildRecordingButton(Widget button, widget) {
     return TextButton(
       onPressed: () async {
         debugPrint('[SelfTest] Recording tap for "${widget.id}"');
-        await SelfTestManager().trigger(widget.id);
-        button.onPressed?.call();
-        widget.onTap?.call();
+        await SelfTestManager().recordTap(widget.id);
+        (button.onPressed ?? widget.onTap)?.call();
       },
       onLongPress: button.onLongPress,
       onHover: button.onHover,
@@ -40,9 +38,8 @@ Widget buildRecordingButton(Widget button, widget) {
     return OutlinedButton(
       onPressed: () async {
         debugPrint('[SelfTest] Recording tap for "${widget.id}"');
-        await SelfTestManager().trigger(widget.id);
-        button.onPressed?.call();
-        widget.onTap?.call();
+        await SelfTestManager().recordTap(widget.id);
+        (button.onPressed ?? widget.onTap)?.call();
       },
       onLongPress: button.onLongPress,
       onHover: button.onHover,
@@ -57,9 +54,8 @@ Widget buildRecordingButton(Widget button, widget) {
     return IconButton(
       onPressed: () async {
         debugPrint('[SelfTest] Recording tap for "${widget.id}"');
-        await SelfTestManager().trigger(widget.id);
-        button.onPressed?.call();
-        widget.onTap?.call();
+        await SelfTestManager().recordTap(widget.id);
+        (button.onPressed ?? widget.onTap)?.call();
       },
       icon: button.icon,
       iconSize: button.iconSize,
@@ -88,7 +84,7 @@ Widget buildRecordingButton(Widget button, widget) {
     return GestureDetector(
       onTap: () async {
         debugPrint('[SelfTest] Recording tap for "${widget.id}"');
-        await SelfTestManager().trigger(widget.id);
+        await SelfTestManager().recordTap(widget.id);
         widget.onTap?.call();
       },
       child: button,

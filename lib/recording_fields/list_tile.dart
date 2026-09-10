@@ -19,9 +19,8 @@ Widget buildRecordingListTile(ListTile listTile, widget) {
     enabled: listTile.enabled,
     onTap: () async {
       debugPrint('[SelfTest] Recording tap for "${widget.id}"');
-      await SelfTestManager().trigger(widget.id);
-      listTile.onTap?.call();
-      widget.onTap?.call();
+      await SelfTestManager().recordTap(widget.id);
+      (listTile.onTap ?? widget.onTap)?.call();
     },
     onLongPress: listTile.onLongPress,
     mouseCursor: listTile.mouseCursor,

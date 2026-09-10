@@ -9,7 +9,7 @@
 //     items: dropdown.items,
 //     onChanged: (value) async {
 //       debugPrint('[SelfTest] Recording dropdown change for "${widget.id}": $value');
-//       await SelfTestManager().trigger(widget.id);
+//       await SelfTestManager().recordTap(widget.id);
 //       dropdown.onChanged?.call(value);
 //       widget.onTextChange?.call(value.toString());
 //     },

@@ -8,10 +8,13 @@ Widget buildRecordingSlider(Slider slider, dynamic widget) {
       debugPrint(
         '[SelfTest] Recording slider change for "${widget.id}": $value',
       );
-      // Use enterText to capture the slider value for playback
-      await SelfTestManager().enterText(widget.id, value.toString());
-      slider.onChanged?.call(value);
-      widget.onTextChange?.call(value.toString());
+      // The value is recorded as text so playback can restore it.
+      await SelfTestManager().recordTextChange(widget.id, value.toString());
+      if (slider.onChanged != null) {
+        slider.onChanged!(value);
+      } else {
+        widget.onTextChange?.call(value.toString());
+      }
     },
     onChangeStart: slider.onChangeStart,
     onChangeEnd: slider.onChangeEnd,

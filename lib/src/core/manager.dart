@@ -5,6 +5,10 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
+import '../gestures/pointer_driver.dart';
+import '../gestures/text_input_driver.dart';
+import '../locator/element_scanner.dart';
+import '../locator/locator.dart';
 import '../models.dart';
 import '../persistence/recording_store.dart';
 import '../screenshot/screenshot_writer.dart';
@@ -309,57 +313,289 @@ class SelfTestManager {
     return _store.getSteps(scriptId);
   }
 
-  /// Triggers the tap action for the given id.
-  Future<void> trigger(String id) async {
+  // ---------------------------------------------------------------------------
+  // Locating and driving any widget
+  // ---------------------------------------------------------------------------
+
+  final ElementScanner _scanner = const ElementScanner();
+  final TextInputDriver _textInput = const TextInputDriver();
+  ClockAdvance? _clock;
+  int _drivingDepth = 0;
+
+  /// Registers how to wait for the framework to settle.
+  ///
+  /// In a widget test this is `tester.pump`: the test owns the clock, so a
+  /// real `Future.delayed` inside a `testWidgets` body never completes. In a
+  /// real app leave it unset.
+  void useClock(ClockAdvance advance) {
+    _clock = advance;
+  }
+
+  /// Forgets the clock registered by [useClock]. Call it in `tearDown`, or the
+  /// next test inherits a `pump` bound to a finished tester.
+  void clearClock() {
+    _clock = null;
+  }
+
+  PointerDriver get _pointer => PointerDriver(advance: _clock);
+
+  /// The widget [locator] points at.
+  ///
+  /// Throws [WidgetNotFoundError], which lists what was on screen instead.
+  WidgetSnapshot find(SelfTestLocator locator) => _scanner.resolve(locator);
+
+  /// Every widget [locator] matches, in tree order. Empty when none do.
+  List<WidgetSnapshot> findAll(SelfTestLocator locator) =>
+      _scanner.findAll(locator);
+
+  /// Whether [locator] matches anything in the widget tree right now.
+  ///
+  /// A list keeps items built after they scroll out of view, so this can be
+  /// true for something the user cannot see. Ask [isVisible] for that.
+  bool exists(SelfTestLocator locator) => _scanner.tryResolve(locator) != null;
+
+  /// Whether [locator] matches something the user can actually see.
+  bool isVisible(SelfTestLocator locator) =>
+      _scanner.tryResolve(locator)?.isOnScreen ?? false;
+
+  /// Everything on screen that can be acted on, plus the labels around it.
+  ///
+  /// This is what an agent asks for before deciding what to do, and what the
+  /// bridge answers a discovery request with. It needs no registration: the
+  /// widgets are read straight off the element tree.
+  List<WidgetSnapshot> describeScreen() => _scanner.describeInteractive();
+
+  /// Taps the widget [locator] points at, with a real pointer event.
+  ///
+  /// Hit testing runs, so a widget behind a dialog is not reachable and a
+  /// disabled button swallows the tap, exactly as for a finger. Pump after
+  /// this in a test: the framework has to rebuild before the effect is
+  /// visible.
+  Future<void> tap(SelfTestLocator locator) async {
+    final target = _requireTappable(locator);
+    await _drive(locator, 'trigger', null, () => _pointer.tap(target.center));
+  }
+
+  /// Two quick taps on the widget [locator] points at.
+  Future<void> doubleTap(SelfTestLocator locator) async {
+    final target = _requireTappable(locator);
+    await _drive(
+      locator,
+      'doubleTap',
+      null,
+      () => _pointer.doubleTap(target.center),
+    );
+  }
+
+  /// Presses and holds the widget [locator] points at.
+  ///
+  /// Under `flutter_test` this needs [useClock]; without it the press cannot
+  /// be held and the driver says so rather than degrading to a tap.
+  Future<void> longPress(
+    SelfTestLocator locator, {
+    Duration hold = const Duration(milliseconds: 600),
+  }) async {
+    final target = _requireTappable(locator);
+    await _drive(
+      locator,
+      'longPress',
+      null,
+      () => _pointer.longPress(target.center, hold: hold),
+    );
+  }
+
+  /// Drags from the centre of the widget [locator] points at by [offset].
+  Future<void> dragFrom(
+    SelfTestLocator locator,
+    Offset offset, {
+    int steps = 10,
+    Duration duration = const Duration(milliseconds: 300),
+  }) async {
+    final target = _requireTappable(locator);
+    await _drive(
+      locator,
+      'drag',
+      '${offset.dx},${offset.dy}',
+      () => _pointer.drag(
+        target.center,
+        target.center + offset,
+        steps: steps,
+        duration: duration,
+      ),
+    );
+  }
+
+  /// Sends a wheel or trackpad scroll over the widget [locator] points at.
+  Future<void> scrollBy(SelfTestLocator locator, Offset delta) async {
+    final target = _requireTappable(locator);
+    await _drive(locator, 'scroll', '${delta.dx},${delta.dy}', () async {
+      _pointer.scroll(target.center, delta);
+    });
+  }
+
+  /// Types [text] into the field [locator] points at, through the same path
+  /// the soft keyboard uses.
+  Future<void> typeInto(SelfTestLocator locator, String text) async {
+    final target = _scanner.resolve(locator);
+    await _drive(locator, 'enterText', text, () async {
+      _textInput.enterText(target.element, text);
+    });
+    final node = _activeTestNodes[target.id ?? locator.value];
+    if (node != null) node.currentText = text;
+  }
+
+  /// Fires the keyboard action of the field [locator] points at.
+  Future<void> submit(SelfTestLocator locator) async {
+    final target = _scanner.resolve(locator);
+    await _drive(locator, 'submit', null, () async {
+      _textInput.submit(target.element);
+    });
+  }
+
+  /// The text the widget [locator] points at is showing, or null when it
+  /// shows none.
+  String? readText(SelfTestLocator locator) {
+    final target = _scanner.tryResolve(locator);
+    if (target == null) return null;
+    return target.text ?? _textInput.textOf(target.element);
+  }
+
+  WidgetSnapshot _requireTappable(SelfTestLocator locator) {
+    final target = _scanner.resolve(locator);
+    if (!target.hasSize) {
+      throw StateError(
+        'Widget $locator is in the tree but has no size, so there is nothing '
+        'to tap. It is probably inside a collapsed or unbuilt parent.',
+      );
+    }
+    if (!target.isOnScreen) {
+      throw StateError(
+        'Widget $locator is in the tree at ${target.bounds} but outside the '
+        'view, so a tap at its centre would land on whatever is drawn there '
+        'instead. Scroll it into view first.',
+      );
+    }
+    return target;
+  }
+
+  /// Records the step, runs the gesture, and keeps the recorder from writing
+  /// the same action twice.
+  ///
+  /// A driven gesture reaches the app's real handler, which for a widget
+  /// wrapped in `SelfTestableWidget` calls back into [recordTap]. Without the
+  /// depth guard, one drive would record two steps.
+  Future<void> _drive(
+    SelfTestLocator locator,
+    String action,
+    String? value,
+    Future<void> Function() gesture,
+  ) async {
+    if (_isRecordingModeActive) {
+      await _recordUserAction(action, locator.value, value);
+    }
+    _drivingDepth++;
     try {
-      debugPrint('[SelfTest] Looking for TestNode: "$id" to trigger tap');
-      debugPrint('[SelfTest] Active nodes: ${_activeTestNodes.keys.toList()}');
-      final node = _activeTestNodes[id];
-      if (node != null && node.onTap != null) {
-        debugPrint('[SelfTest] Found TestNode "$id", triggering tap');
-        if (_isRecordingModeActive) {
-          await _recordUserAction('trigger', id);
-        }
-        node.onTap!();
-      } else {
-        printError('TestNode "$id" not found or has no tap callback');
-        throw Exception(
-          'TestNode with id "$id" not found or has no tap callback.',
-        );
-      }
-    } catch (e, stackTrace) {
-      debugPrint('[SelfTest] ERROR in trigger("$id"): $e');
-      debugPrint('[SelfTest] Stack trace: $stackTrace');
-      rethrow;
+      await gesture();
+    } finally {
+      _drivingDepth--;
     }
   }
 
-  /// Enters text for the given id.
-  Future<void> enterText(String id, String text) async {
-    try {
-      debugPrint(
-        '[SelfTest] Looking for TestNode: "$id" to enter text: "$text"',
+  /// Records a tap the user just made on a registered widget.
+  ///
+  /// Called by the recording wrappers. It records and returns: it does not
+  /// perform the tap, because the tap already happened.
+  Future<void> recordTap(String id) async {
+    if (_drivingDepth > 0) return;
+    if (!_isRecordingModeActive) return;
+    await _recordUserAction('trigger', id);
+  }
+
+  /// Records a text change the user just made on a registered widget.
+  Future<void> recordTextChange(String id, String value) async {
+    _activeTestNodes[id]?.currentText = value;
+    if (_drivingDepth > 0) return;
+    if (!_isRecordingModeActive) return;
+    await _recordUserAction('enterText', id, value);
+  }
+
+  /// Taps the widget registered under [id].
+  ///
+  /// Kept for scripts and bridges written against the old API. It now sends a
+  /// real pointer event when the widget is on screen, and only falls back to
+  /// invoking the registered `onTap` when it is not, which is the case for a
+  /// node registered without a laid-out widget behind it.
+  Future<void> trigger(String id) async {
+    final target = _scanner.tryResolve(SelfTestLocator.id(id));
+    if (target != null && target.hasSize) {
+      await _drive(
+        SelfTestLocator.id(id),
+        'trigger',
+        null,
+        () => _pointer.tap(target.center),
       );
-      debugPrint('[SelfTest] Active nodes: ${_activeTestNodes.keys.toList()}');
-      final node = _activeTestNodes[id];
-      if (node != null && node.onTextChange != null) {
-        debugPrint('[SelfTest] Found TestNode "$id", entering text');
-        if (_isRecordingModeActive) {
-          await _recordUserAction('enterText', id, text);
-        }
-        node.onTextChange!(text);
-        node.currentText = text; // Update current text for assertions
-      } else {
-        printError('TestNode "$id" not found or has no text change callback');
-        throw Exception(
-          'TestNode with id "$id" not found or has no text change callback.',
-        );
-      }
-    } catch (e, stackTrace) {
-      debugPrint('[SelfTest] ERROR in enterText("$id", "$text"): $e');
-      debugPrint('[SelfTest] Stack trace: $stackTrace');
-      rethrow;
+      return;
     }
+
+    final node = _activeTestNodes[id];
+    if (node?.onTap == null) {
+      printError('TestNode "$id" not found or has no tap callback');
+      throw Exception(
+        'TestNode with id "$id" not found or has no tap callback.',
+      );
+    }
+    printWarning(
+      'Widget "$id" is registered but not on screen, so the tap could not be '
+      'a real pointer event. Calling its onTap callback directly.',
+    );
+    if (_isRecordingModeActive) {
+      await _recordUserAction('trigger', id);
+    }
+    _drivingDepth++;
+    try {
+      node!.onTap!();
+    } finally {
+      _drivingDepth--;
+    }
+  }
+
+  /// Enters text into the field registered under [id].
+  ///
+  /// Like [trigger], this now goes through the real text input path when the
+  /// field is on screen, and falls back to the registered `onTextChange`
+  /// callback when it is not.
+  Future<void> enterText(String id, String text) async {
+    final target = _scanner.tryResolve(SelfTestLocator.id(id));
+    if (target != null && target.hasSize) {
+      try {
+        await _drive(SelfTestLocator.id(id), 'enterText', text, () async {
+          _textInput.enterText(target.element, text);
+        });
+        _activeTestNodes[id]?.currentText = text;
+        return;
+      } on StateError {
+        // Registered, on screen, but not a text field. The callback below is
+        // the app telling us what it wants done instead.
+      }
+    }
+
+    final node = _activeTestNodes[id];
+    if (node?.onTextChange == null) {
+      printError('TestNode "$id" not found or has no text change callback');
+      throw Exception(
+        'TestNode with id "$id" not found or has no text change callback.',
+      );
+    }
+    if (_isRecordingModeActive) {
+      await _recordUserAction('enterText', id, text);
+    }
+    _drivingDepth++;
+    try {
+      node!.onTextChange!(text);
+    } finally {
+      _drivingDepth--;
+    }
+    node.currentText = text;
   }
 
   /// Runs a recorded test script by executing its steps.
@@ -461,8 +697,14 @@ class SelfTestManager {
   /// way. In a test, pump yourself after the action; that is the point of
   /// having the clock.
   Future<void> waitForAnimations() async {
+    const settle = Duration(milliseconds: 100);
+    final clock = _clock;
+    if (clock != null) {
+      await clock(settle);
+      return;
+    }
     if (isRunningUnderTest) return;
-    await Future.delayed(const Duration(milliseconds: 100));
+    await Future.delayed(settle);
   }
 
   /// Scrolls to make the specified element visible (if needed).

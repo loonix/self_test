@@ -37,9 +37,12 @@ Widget buildRecordingSwitchListTile(SwitchListTile switchTile, widget) {
       debugPrint(
         '[SelfTest] Recording switch change for "${widget.id}": $value',
       );
-      await SelfTestManager().trigger(widget.id);
-      switchTile.onChanged?.call(value);
-      widget.onTap?.call();
+      await SelfTestManager().recordTap(widget.id);
+      if (switchTile.onChanged != null) {
+        switchTile.onChanged!(value);
+      } else {
+        widget.onTap?.call();
+      }
     },
   );
 }
@@ -52,9 +55,12 @@ Widget buildRecordingSwitch(Switch switchWidget, widget) {
       debugPrint(
         '[SelfTest] Recording switch change for "${widget.id}": $value',
       );
-      await SelfTestManager().trigger(widget.id);
-      switchWidget.onChanged?.call(value);
-      widget.onTap?.call();
+      await SelfTestManager().recordTap(widget.id);
+      if (switchWidget.onChanged != null) {
+        switchWidget.onChanged!(value);
+      } else {
+        widget.onTap?.call();
+      }
     },
     activeThumbColor: switchWidget.activeThumbColor,
     activeTrackColor: switchWidget.activeTrackColor,

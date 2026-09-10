@@ -3,9 +3,10 @@ import 'package:flutter/material.dart';
 import '../core/manager.dart';
 import '../core/recording_mode.dart';
 import '../core/test_node.dart';
+import '../locator/locator.dart';
 
 /// A wrapper widget that makes a child widget testable in self-test mode.
-class SelfTestableWidget extends StatefulWidget {
+class SelfTestableWidget extends StatefulWidget implements SelfTestIdentified {
   final String id;
   final Widget child;
   final VoidCallback? onTap;
@@ -18,6 +19,9 @@ class SelfTestableWidget extends StatefulWidget {
     this.onTap,
     this.onTextChange,
   });
+
+  @override
+  String get selfTestId => id;
 
   @override
   State<SelfTestableWidget> createState() => _SelfTestableWidgetState();
@@ -138,8 +142,11 @@ class _SelfTestableWidgetState extends State<SelfTestableWidget> {
           'No recording builder found for ${child.runtimeType}, wrapping in GestureDetector for tap recording',
         );
         return GestureDetector(
+          // recordTap, never trigger: trigger now sends a real pointer event,
+          // which lands back on this GestureDetector and recurses until the
+          // stack gives out.
           onTap: () async {
-            await manager.trigger(widget.id);
+            await manager.recordTap(widget.id);
             widget.onTap!();
           },
           child: child,

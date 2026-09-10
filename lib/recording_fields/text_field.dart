@@ -32,9 +32,8 @@ Widget buildRecordingTextField(TextField textField, widget) {
       debugPrint(
         '[SelfTest] Recording text change for "${widget.id}": "$value"',
       );
-      await SelfTestManager().enterText(widget.id, value);
-      textField.onChanged?.call(value);
-      widget.onTextChange?.call(value);
+      await SelfTestManager().recordTextChange(widget.id, value);
+      (textField.onChanged ?? widget.onTextChange)?.call(value);
     },
     onTap: textField.onTap,
     onEditingComplete: textField.onEditingComplete,

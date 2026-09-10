@@ -13,9 +13,8 @@ Widget buildRecordingTextFormField(
       debugPrint(
         '[SelfTest] Recording text change for "${widget.id}": "$value"',
       );
-      await SelfTestManager().enterText(widget.id, value);
-      textField.onChanged?.call(value);
-      widget.onTextChange?.call(value);
+      await SelfTestManager().recordTextChange(widget.id, value);
+      (textField.onChanged ?? widget.onTextChange)?.call(value);
     },
     onSaved: textField.onSaved,
     validator: textField.validator,

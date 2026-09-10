@@ -24,9 +24,8 @@ Widget buildRecordingFloatingActionButton(
             debugPrint(
               '[SelfTest] Recording FloatingActionButton tap for "${widget.id}"',
             );
-            await SelfTestManager().trigger(widget.id);
+            await SelfTestManager().recordTap(widget.id);
             fab.onPressed!();
-            widget.onTap?.call();
           }
         : null,
     mouseCursor: fab.mouseCursor,
