@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -36,6 +37,22 @@ class SelfTestBridge {
 
   /// Port to listen on
   final int port;
+
+  /// The interface to listen on. Loopback unless the app says otherwise.
+  ///
+  /// The bridge can read the whole widget tree, tap anything, type anything
+  /// and photograph the screen. Bound to every interface, which is what it did
+  /// until now, that is offered to everyone on the same wifi.
+  final InternetAddress host;
+
+  /// The shared secret a client has to present as `?token=` to connect.
+  ///
+  /// Generated per instance when the app does not supply one, so a bridge left
+  /// running is not open by default. It is printed once at startup.
+  final String token;
+
+  /// Whether this bridge may run in a release build.
+  final bool allowInReleaseBuilds;
 
   /// GoRouter instance for navigation
   final GoRouter? router;
@@ -405,8 +422,39 @@ class SelfTestBridge {
   MockConnectivity? get mockConnectivity => _mockConnectivity;
 
   /// Create a new bridge instance
-  SelfTestBridge({this.router, this.port = 9999, String? projectRoot})
-    : _projectRoot = projectRoot;
+  ///
+  /// [host] defaults to loopback, so only this machine can connect. Pass
+  /// `InternetAddress.anyIPv4` to reach it from a real device, and understand
+  /// that everyone else on that network can reach it too.
+  ///
+  /// [token] defaults to a fresh random secret, printed at startup.
+  SelfTestBridge({
+    this.router,
+    this.port = 9999,
+    String? projectRoot,
+    InternetAddress? host,
+    String? token,
+    this.allowInReleaseBuilds = false,
+  }) : _projectRoot = projectRoot,
+       host = host ?? InternetAddress.loopbackIPv4,
+       token = token ?? _generateToken();
+
+  static String _generateToken() {
+    final random = Random.secure();
+    return List<String>.generate(
+      16,
+      (_) => random.nextInt(256).toRadixString(16).padLeft(2, '0'),
+    ).join();
+  }
+
+  /// The port actually listening.
+  ///
+  /// Differs from [port] when the app passed 0 to let the operating system
+  /// pick one, which is what a test does to avoid fighting over 9999.
+  int get boundPort => _server?.port ?? port;
+
+  /// The URL a client connects to, token included.
+  String get url => 'ws://${host.address}:$boundPort?token=$token';
 
   /// Set the project root directory for golden file storage.
   /// This should be the root directory of your Flutter project.
@@ -477,9 +525,26 @@ class SelfTestBridge {
       return;
     }
 
+    if (!allowInReleaseBuilds && !SelfTestManager.isEnabled) {
+      throw StateError(
+        'The self_test bridge refuses to start: self_test is disabled in '
+        'release builds, and a bridge in a shipped app is a remote control '
+        'for it. Pass allowInReleaseBuilds: true if that is really what you '
+        'want.',
+      );
+    }
+
     try {
-      _server = await HttpServer.bind(InternetAddress.anyIPv4, port);
-      debugPrint('[SelfTestBridge] Server started on port $port');
+      _server = await HttpServer.bind(host, port);
+      debugPrint('[SelfTestBridge] Listening on ${host.address}:$port');
+      if (!host.isLoopback) {
+        SelfTestManager.printWarning(
+          'The bridge is bound to ${host.address}, not loopback. Everyone who '
+          'can reach this device on the network can drive this app if they '
+          'have the token.',
+        );
+      }
+      debugPrint('[SelfTestBridge] Connect with: $url');
 
       // Setup error capture
       FlutterError.onError = (details) {
@@ -487,14 +552,12 @@ class SelfTestBridge {
         FlutterError.presentError(details);
       };
 
-      _server!
-          .transform(WebSocketTransformer())
-          .listen(
-            _handleConnection,
-            onError: (error) {
-              debugPrint('[SelfTestBridge] Server error: $error');
-            },
-          );
+      _server!.listen(
+        _handleRequest,
+        onError: (Object error) {
+          debugPrint('[SelfTestBridge] Server error: $error');
+        },
+      );
     } catch (e) {
       debugPrint('[SelfTestBridge] Failed to start server: $e');
       rethrow;
@@ -512,6 +575,52 @@ class SelfTestBridge {
     await _server?.close();
     _server = null;
     debugPrint('[SelfTestBridge] Server stopped');
+  }
+
+  /// Check the token, then upgrade.
+  ///
+  /// The check happens before the upgrade so a client with the wrong token
+  /// gets an HTTP 403 it can read, rather than a WebSocket that closes for no
+  /// stated reason.
+  Future<void> _handleRequest(HttpRequest request) async {
+    if (!_isAuthorised(request)) {
+      debugPrint(
+        '[SelfTestBridge] Rejected a connection with a bad or missing token',
+      );
+      request.response
+        ..statusCode = HttpStatus.forbidden
+        ..write('self_test bridge: bad or missing token');
+      await request.response.close();
+      return;
+    }
+
+    if (!WebSocketTransformer.isUpgradeRequest(request)) {
+      request.response
+        ..statusCode = HttpStatus.badRequest
+        ..write('self_test bridge: expected a WebSocket upgrade');
+      await request.response.close();
+      return;
+    }
+
+    _handleConnection(await WebSocketTransformer.upgrade(request));
+  }
+
+  bool _isAuthorised(HttpRequest request) {
+    final presented =
+        request.uri.queryParameters['token'] ??
+        request.headers.value('x-self-test-token');
+    if (presented == null) return false;
+    return _secretsMatch(presented, token);
+  }
+
+  /// Compares without leaking where the difference is through timing.
+  static bool _secretsMatch(String a, String b) {
+    if (a.length != b.length) return false;
+    var difference = 0;
+    for (var i = 0; i < a.length; i++) {
+      difference |= a.codeUnitAt(i) ^ b.codeUnitAt(i);
+    }
+    return difference == 0;
   }
 
   /// Handle a new WebSocket connection
