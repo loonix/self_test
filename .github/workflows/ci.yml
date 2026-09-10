@@ -89,10 +89,12 @@ jobs:
         run: dart test
         working-directory: packages/self_test_gen
 
-      # packages/self_test_bridge has no test/ directory at all. Not skipped
-      # here to be polite: there is nothing to run, and `flutter test` on a
-      # package with no tests fails. Adding tests is part of splitting its
-      # 7134-line service file apart.
+      # The bridge opens a socket into a running app. Its tests are the ones
+      # that prove that socket is bound to loopback and needs a token, so a
+      # green run here is a security claim, not a formality.
+      - name: Test the bridge
+        run: flutter test
+        working-directory: packages/self_test_bridge
 
   quickstart:
     name: The README quickstart works end to end
