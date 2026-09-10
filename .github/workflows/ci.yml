@@ -152,7 +152,7 @@ jobs:
         run: flutter test
 
   mcp:
-    name: Build the MCP server
+    name: Build and test the MCP server
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -164,8 +164,10 @@ jobs:
           cache-dependency-path: packages/self_test_mcp/package-lock.json
 
       # --ignore-scripts skips the postinstall, which downloads a Chromium
-      # for Playwright. CI only builds the server here, so that is a browser
-      # download and a couple of minutes bought for nothing.
+      # for Playwright. Only web-external mode needs that browser, and it is
+      # behind a dynamic import, so everything below runs without it. Leaving
+      # it out is a browser download and a couple of minutes saved, and it
+      # also proves the postinstall is genuinely optional.
       - name: Install
         working-directory: packages/self_test_mcp
         run: npm ci --ignore-scripts
@@ -173,6 +175,31 @@ jobs:
       - name: Build
         working-directory: packages/self_test_mcp
         run: npm run build
+
+      # Locator serialisation, the CLI, and the 403 the bridge answers with
+      # when the token is wrong. The last one runs against a real loopback
+      # socket, so it proves the error mapping is wired up rather than merely
+      # written down.
+      - name: Test
+        working-directory: packages/self_test_mcp
+        run: npm test
+
+      # The package is meant to be installed, not just compiled. A build that
+      # passes while `npx self-test-mcp` cannot start is the failure this
+      # catches: a missing bin, a lost executable bit, a file left out of
+      # `files`, or a --help that tries to reach an app that is not there.
+      - name: The published package installs and runs
+        working-directory: packages/self_test_mcp
+        run: |
+          set -euo pipefail
+          tarball=$(npm pack --silent)
+          echo "packed $tarball"
+          npm i -g --ignore-scripts "./$tarball"
+          self-test-mcp --version
+          self-test-mcp --help > help.txt
+          grep -q 'Usage:' help.txt
+          grep -q -- '--token' help.txt
+          npm uninstall -g self-test-mcp
 
   devtools:
     name: The DevTools panel builds

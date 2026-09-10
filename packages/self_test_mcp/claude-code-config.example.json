@@ -1,11 +1,10 @@
 {
   "mcpServers": {
     "flutter-self-test": {
-      "command": "node",
-      "args": ["./internal_packages/self_test_mcp/dist/index.js"],
+      "command": "npx",
+      "args": ["-y", "self-test-mcp", "--port", "9999"],
       "env": {
-        "FLUTTER_APP_HOST": "localhost",
-        "FLUTTER_APP_PORT": "9999"
+        "SELF_TEST_TOKEN": "the-token-the-app-printed-at-startup"
       }
     }
   }
