@@ -75,9 +75,10 @@ jobs:
         run: dart test
         working-directory: packages/self_test_gen
 
-      - name: Test the bridge
-        run: flutter test
-        working-directory: packages/self_test_bridge
+      # packages/self_test_bridge has no test/ directory at all. Not skipped
+      # here to be polite: there is nothing to run, and `flutter test` on a
+      # package with no tests fails. Adding tests is part of splitting its
+      # 7134-line service file apart.
 
   quickstart:
     name: The README quickstart works end to end
