@@ -96,6 +96,15 @@ class SelfTestBridge {
   /// File picker mock files
   List<String>? _filePickerMockFiles;
 
+  /// The paths the `filePicker` command last staged, or null when none were.
+  ///
+  /// The bridge cannot reach into a plugin's picker, so the app has to read
+  /// this and return it from its own picker call. Without this getter the
+  /// command was staging a list nothing could ever read.
+  List<String>? get filePickerMockFiles => _filePickerMockFiles == null
+      ? null
+      : List<String>.unmodifiable(_filePickerMockFiles!);
+
   /// Project root directory (for relative golden paths)
   String? _projectRoot;
 
@@ -666,10 +675,46 @@ class SelfTestBridge {
 
     try {
       final result = await _executeCommand(command);
+      if (_interactionCommands.contains(command.command)) {
+        await _afterInteraction(command.command, command.params);
+      }
       return BridgeResponse(id: command.id, result: result);
     } catch (e) {
       return BridgeResponse(id: command.id, error: e.toString());
     }
+  }
+
+  /// The commands that drive the app rather than merely question it.
+  ///
+  /// Time-travel capture and test recording both need to know when one runs,
+  /// and listing them once here is what stopped both features being wired to
+  /// nothing.
+  static const Set<String> _interactionCommands = {
+    'tap',
+    'doubleTap',
+    'longPress',
+    'type',
+    'enterText',
+    'clear',
+    'drag',
+    'scroll',
+    'scrollTo',
+    'hover',
+    'focus',
+    'select',
+    'toggle',
+    'setSlider',
+    'pressKey',
+    'submit',
+  };
+
+  /// Runs after a command that changed the app, once it has succeeded.
+  Future<void> _afterInteraction(
+    String action,
+    Map<String, dynamic> params,
+  ) async {
+    await _onUserInteraction();
+    _recordInteractionStep(action, params);
   }
 
   /// Execute a specific command
@@ -3392,6 +3437,9 @@ class SelfTestBridge {
 
   /// Start memory profiling at specified intervals
   void _startMemoryProfiling({int intervalMs = 1000}) {
+    // Starting twice used to drop the first timer on the floor and keep it
+    // ticking forever, so the samples came from two interleaved runs.
+    if (_isProfilingMemory) return;
     _memorySamples.clear();
     _isProfilingMemory = true;
 
@@ -4484,7 +4532,7 @@ class SelfTestBridge {
           () => _RebuildInfo(),
         );
         info.count++;
-        info.reasons.add('Frame sample');
+        info.reasons.add(_inferRebuildReason(element));
 
         // Try to get the widget location from debug info
         if (info.location == null) {
@@ -5463,9 +5511,10 @@ class SelfTestBridge {
   }
 
   /// Called when a user interaction occurs (for captureOnInteraction mode)
-  void _onUserInteraction() {
+  Future<void> _onUserInteraction() async {
     if (_isRecordingTimeline && _captureOnInteraction) {
-      _captureSnapshotInternal(label: 'interaction');
+      // _captureSnapshotInternal appends to _timelineSnapshots itself.
+      await _captureSnapshotInternal(label: 'interaction');
     }
   }
 
@@ -6718,6 +6767,7 @@ class SelfTestBridge {
         action: 'comment',
         params: {'comment': comment},
         timestamp: DateTime.now(),
+        comment: comment,
       ),
     );
 
@@ -6793,6 +6843,7 @@ class SelfTestBridge {
       _RecordedStep(
         type: 'interaction',
         action: action,
+        widgetId: params['widgetId'] as String?,
         params: Map<String, dynamic>.from(params),
         timestamp: DateTime.now(),
       ),
@@ -7172,10 +7223,6 @@ class TestPointer {
   }
 }
 
-extension on double {
-  String toFixed(int fractionDigits) => toStringAsFixed(fractionDigits);
-}
-
 /// Rebuild tracking information for a widget
 class _RebuildInfo {
   int count = 0;
@@ -7348,17 +7395,4 @@ class _AppSnapshot {
     'widgetTreeDigest': widgetTreeDigest,
   };
 
-  factory _AppSnapshot.fromJson(Map<String, dynamic> json) {
-    return _AppSnapshot(
-      id: json['id'] as String,
-      label: json['label'] as String?,
-      timestamp: DateTime.fromMillisecondsSinceEpoch(json['timestamp'] as int),
-      currentRoute: json['currentRoute'] as String,
-      providerStates: (json['providerStates'] as Map<String, dynamic>).map(
-        (k, v) => MapEntry(k, v as Map<String, dynamic>),
-      ),
-      storageSnapshot: json['storageSnapshot'] as Map<String, dynamic>,
-      widgetTreeDigest: json['widgetTreeDigest'] as String?,
-    );
-  }
 }
