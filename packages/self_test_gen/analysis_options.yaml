@@ -1,0 +1,7 @@
+# A pure Dart package, so it cannot inherit the repo root's flutter_lints.
+include: package:lints/recommended.yaml
+
+analyzer:
+  language:
+    strict-casts: true
+    strict-raw-types: true

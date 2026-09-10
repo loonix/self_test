@@ -1,0 +1,8 @@
+# Local monorepo wiring, see packages/self_test_gen/pubspec_overrides.yaml.
+# pubspec.yaml declares the same constraints a real consumer would write, so
+# it stays usable as the quickstart reference.
+dependency_overrides:
+  self_test:
+    path: ../
+  self_test_gen:
+    path: ../packages/self_test_gen

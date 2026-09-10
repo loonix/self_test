@@ -1,6 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:self_test/self_test.dart';
 
+// The annotations below drive self_test_gen:
+//   dart run build_runner build
+// generates lib/example.g.dart, a standalone library holding
+// ExampleStateTestController. Do NOT import it from here: importing a file
+// that does not exist yet leaves this library unresolvable, the analyzer then
+// sees no annotations, and the generator produces nothing. Import it from the
+// test instead, see test/controller_test.dart.
+
 class ExampleWidget extends StatefulWidget {
   const ExampleWidget({super.key});
 
@@ -11,10 +19,12 @@ class ExampleWidget extends StatefulWidget {
 class ExampleState extends State<ExampleWidget> {
   String username = '';
 
+  @SelfTestButton('login_btn')
   void onLoginPressed() {
     debugPrint('Login pressed with username: $username');
   }
 
+  @SelfTestInput('username_field')
   void onUsernameChanged(String value) {
     setState(() {
       username = value;
@@ -33,8 +43,7 @@ class ExampleState extends State<ExampleWidget> {
               id: 'username_field',
               onTextChange: onUsernameChanged,
               child: TextField(
-                decoration:
-                    const InputDecoration(labelText: 'Username'),
+                decoration: const InputDecoration(labelText: 'Username'),
                 onChanged: onUsernameChanged,
               ),
             ),

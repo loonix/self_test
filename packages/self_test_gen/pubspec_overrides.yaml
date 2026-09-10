@@ -1,0 +1,7 @@
+# Local monorepo wiring. Kept out of pubspec.yaml on purpose: dependency
+# overrides in a published pubspec are a pub.dev analysis penalty, and pub
+# reads this file only when this package is the root, so a consumer resolving
+# self_test_gen from pub.dev never sees it.
+dependency_overrides:
+  self_test:
+    path: ../..
