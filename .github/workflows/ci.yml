@@ -13,18 +13,32 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  FLUTTER_VERSION: 3.27.0
+  # The newest version the package is verified against. The floor lives in
+  # the matrix below, not here.
+  FLUTTER_VERSION: 3.47.2
 
 jobs:
   dart:
-    name: Analyze and test (Dart/Flutter)
+    name: Analyze and test (Flutter ${{ matrix.flutter }})
     runs-on: ubuntu-latest
+    strategy:
+      # Report both legs. Knowing a break is floor-only, or affects both, is
+      # most of the diagnosis.
+      fail-fast: false
+      matrix:
+        # Two ends of the supported range, and the lower one is the exact
+        # version pubspec.yaml advertises. That pairing is the point: the
+        # package claimed >=3.24.0 while using widget properties introduced
+        # in 3.35, so every consumer below 3.35 got compile errors inside a
+        # package they had just installed, and nothing here would have
+        # noticed. Bump the floor here and in pubspec.yaml together.
+        flutter: ['3.35.0', '3.47.2']
     steps:
       - uses: actions/checkout@v4
 
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
+          flutter-version: ${{ matrix.flutter }}
           cache: true
 
       # Dependencies are resolved PER PACKAGE. A root `flutter pub get`
@@ -117,6 +131,14 @@ jobs:
             exit 1
           }
           grep -q 'class ExampleStateTestController' lib/example.g.dart
+
+      # source_gen formats its output with the input library's language
+      # version, which lands one notch short of what `dart format` produces
+      # for the same file, so the raw output never matches the committed copy
+      # byte for byte. Formatting here makes the check about the generator's
+      # actual output rather than about whose formatter ran last.
+      - name: Format the regenerated file
+        run: dart format example/lib/example.g.dart
 
       # Committed generated code that no longer matches its source is worse
       # than none: it compiles, so nothing complains, and it lies.
