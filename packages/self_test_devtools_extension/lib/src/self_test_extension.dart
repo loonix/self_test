@@ -96,11 +96,14 @@ class _SelfTestExtensionState extends State<SelfTestExtension> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Control Panel', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const Text('Control Panel',
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      Text('Self-Test Mode: ${_isModeActive ? 'Active' : 'Inactive'}'),
+                      Text(
+                          'Self-Test Mode: ${_isModeActive ? 'Active' : 'Inactive'}'),
                       const SizedBox(width: 16),
                       ElevatedButton(
                         onPressed: () => _setMode(!_isModeActive),
@@ -126,7 +129,9 @@ class _SelfTestExtensionState extends State<SelfTestExtension> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Quick Actions', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const Text('Quick Actions',
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   Row(
                     children: [
@@ -137,7 +142,8 @@ class _SelfTestExtensionState extends State<SelfTestExtension> {
                           items: _nodes.map((node) {
                             return DropdownMenuItem<String>(
                               value: node['id'],
-                              child: Text('${node['id']} (${node['hasTap'] ? 'Tap' : ''}${node['hasTextChange'] ? 'Text' : ''})'),
+                              child: Text(
+                                  '${node['id']} (${node['hasTap'] ? 'Tap' : ''}${node['hasTextChange'] ? 'Text' : ''})'),
                             );
                           }).toList(),
                           onChanged: (value) {},
@@ -146,7 +152,8 @@ class _SelfTestExtensionState extends State<SelfTestExtension> {
                       const SizedBox(width: 16),
                       ElevatedButton(
                         onPressed: () {
-                          final selectedId = _nodes.isNotEmpty ? _nodes.first['id'] : null;
+                          final selectedId =
+                              _nodes.isNotEmpty ? _nodes.first['id'] : null;
                           if (selectedId != null) {
                             _runCommand('trigger', selectedId);
                           }
@@ -158,13 +165,15 @@ class _SelfTestExtensionState extends State<SelfTestExtension> {
                         width: 200,
                         child: TextField(
                           controller: _textController,
-                          decoration: const InputDecoration(labelText: 'Text to Enter'),
+                          decoration:
+                              const InputDecoration(labelText: 'Text to Enter'),
                         ),
                       ),
                       const SizedBox(width: 16),
                       ElevatedButton(
                         onPressed: () {
-                          final selectedId = _nodes.isNotEmpty ? _nodes.first['id'] : null;
+                          final selectedId =
+                              _nodes.isNotEmpty ? _nodes.first['id'] : null;
                           final text = _textController.text;
                           if (selectedId != null && text.isNotEmpty) {
                             _runCommand('enterText', selectedId, text);
@@ -188,7 +197,9 @@ class _SelfTestExtensionState extends State<SelfTestExtension> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Logs', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    const Text('Logs',
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
                     Expanded(
                       child: ListView.builder(

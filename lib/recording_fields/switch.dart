@@ -34,7 +34,8 @@ Widget buildRecordingSwitchListTile(SwitchListTile switchTile, widget) {
     hoverColor: switchTile.hoverColor,
     value: switchTile.value,
     onChanged: (value) async {
-      debugPrint('[SelfTest] Recording switch change for "${widget.id}": $value');
+      debugPrint(
+          '[SelfTest] Recording switch change for "${widget.id}": $value');
       await SelfTestManager().trigger(widget.id);
       switchTile.onChanged?.call(value);
       widget.onTap?.call();
@@ -47,7 +48,8 @@ Widget buildRecordingSwitch(Switch switchWidget, widget) {
     key: switchWidget.key,
     value: switchWidget.value,
     onChanged: (value) async {
-      debugPrint('[SelfTest] Recording switch change for "${widget.id}": $value');
+      debugPrint(
+          '[SelfTest] Recording switch change for "${widget.id}": $value');
       await SelfTestManager().trigger(widget.id);
       switchWidget.onChanged?.call(value);
       widget.onTap?.call();

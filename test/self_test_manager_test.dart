@@ -7,7 +7,8 @@ class MockCustomWidget extends StatelessWidget {
   final VoidCallback? onPressed;
   final Widget child;
 
-  const MockCustomWidget({Key? key, this.onPressed, required this.child}) : super(key: key);
+  const MockCustomWidget({Key? key, this.onPressed, required this.child})
+      : super(key: key);
 
   @override
   Widget build(BuildContext context) => child;
@@ -54,7 +55,8 @@ void main() {
     test('custom widget builder registration works', () {
       // Register a custom builder
       bool builderCalled = false;
-      manager.registerRecordingBuilder<MockCustomWidget>((widget, selfTestWidget) {
+      manager
+          .registerRecordingBuilder<MockCustomWidget>((widget, selfTestWidget) {
         builderCalled = true;
         final mockWidget = widget as MockCustomWidget;
         return MockCustomWidget(

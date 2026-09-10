@@ -1,6 +1,4 @@
-
 import '../core/manager.dart';
-
 
 /// A test scenario definition.
 class TestScenario {

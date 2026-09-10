@@ -635,7 +635,8 @@ class SelfTestBridge {
 
         if (submit) {
           // Simulate enter key press
-          await ServicesBinding.instance.defaultBinaryMessenger.handlePlatformMessage(
+          await ServicesBinding.instance.defaultBinaryMessenger
+              .handlePlatformMessage(
             'flutter/textinput',
             const JSONMessageCodec().encodeMessage(<String, dynamic>{
               'method': 'TextInputClient.performAction',
@@ -746,7 +747,8 @@ class SelfTestBridge {
       case 'reload':
         // Hot reload via VM service would be needed
         // For now, just refresh the current route
-        final currentLocation = router?.routeInformationProvider.value.uri.toString();
+        final currentLocation =
+            router?.routeInformationProvider.value.uri.toString();
         if (currentLocation != null) {
           router?.go(currentLocation);
         }
@@ -790,7 +792,8 @@ class SelfTestBridge {
         final threshold = (params['threshold'] as num?)?.toDouble() ?? 0.01;
         final updateBaseline = params['updateBaseline'] as bool? ?? false;
         final goldensDir = params['goldensDir'] as String?;
-        return await _expectScreenshot(name, widgetId, threshold, updateBaseline, goldensDir);
+        return await _expectScreenshot(
+            name, widgetId, threshold, updateBaseline, goldensDir);
 
       case 'updateGoldens':
         final names = (params['names'] as List?)?.cast<String>();
@@ -1061,7 +1064,8 @@ class SelfTestBridge {
         final widgetId = params['widgetId'] as String?;
         final actionParams = params['params'] as Map<String, dynamic>? ?? {};
         final budgetMs = (params['budgetMs'] as num?)?.toDouble() ?? 16.67;
-        return await _frameBudgetCheck(action, widgetId, actionParams, budgetMs);
+        return await _frameBudgetCheck(
+            action, widgetId, actionParams, budgetMs);
 
       case 'jankDetector':
         final enabled = params['enabled'] as bool;
@@ -1148,7 +1152,8 @@ class SelfTestBridge {
       // =====================================================================
 
       case 'timeTravelStart':
-        final captureOnInteraction = params['captureOnInteraction'] as bool? ?? false;
+        final captureOnInteraction =
+            params['captureOnInteraction'] as bool? ?? false;
         final intervalMs = params['intervalMs'] as int?;
         return _timeTravelStart(captureOnInteraction, intervalMs);
 
@@ -1331,8 +1336,7 @@ class SelfTestBridge {
         return _getRecordedSteps();
 
       case BridgeCommands.generateTestFromScenario:
-        final scenario =
-            params['scenario'] as Map<String, dynamic>;
+        final scenario = params['scenario'] as Map<String, dynamic>;
         final format = params['format'] as String? ?? 'widget_test';
         return _generateTestFromScenario(scenario, format);
 
@@ -1427,7 +1431,8 @@ class SelfTestBridge {
       case BridgeCommands.testDeepLinkRouting:
         final url = params['url'] as String;
         final expectedRoute = params['expectedRoute'] as String;
-        final expectedParams = params['expectedParams'] as Map<String, dynamic>?;
+        final expectedParams =
+            params['expectedParams'] as Map<String, dynamic>?;
         return _testDeepLinkRouting(url, expectedRoute, expectedParams);
 
       case BridgeCommands.clearDeepLinkHistory:
@@ -1460,7 +1465,8 @@ class SelfTestBridge {
       widgets.add({
         'id': entry.key,
         'type': _inferWidgetType(node),
-        'screen': node.context != null ? _inferScreen(node.context!) : 'unknown',
+        'screen':
+            node.context != null ? _inferScreen(node.context!) : 'unknown',
         'isStable': !entry.key.endsWith('_UNSTABLE'),
         'isEnabled': node.onTap != null || node.onTextChange != null,
         'isChecked': null, // TestNode doesn't track checked state
@@ -1719,7 +1725,8 @@ class SelfTestBridge {
     await manager.waitForAnimations();
   }
 
-  Future<void> _scrollToWidget(String widgetId, String? scrollableId, int timeout) async {
+  Future<void> _scrollToWidget(
+      String widgetId, String? scrollableId, int timeout) async {
     final manager = SelfTestManager();
     final deadline = DateTime.now().add(Duration(milliseconds: timeout));
 
@@ -1748,8 +1755,10 @@ class SelfTestBridge {
     final sourceNode = manager.activeTestNodes[sourceId];
     final targetNode = manager.activeTestNodes[targetId];
 
-    if (sourceNode == null) throw Exception('Source widget "$sourceId" not found');
-    if (targetNode == null) throw Exception('Target widget "$targetId" not found');
+    if (sourceNode == null)
+      throw Exception('Source widget "$sourceId" not found');
+    if (targetNode == null)
+      throw Exception('Target widget "$targetId" not found');
 
     if (sourceNode.context == null || targetNode.context == null) {
       throw Exception('Widget contexts not available');
@@ -1763,8 +1772,10 @@ class SelfTestBridge {
     }
 
     // Get global positions
-    final sourcePos = sourceBox.localToGlobal(sourceBox.size.center(Offset.zero));
-    final targetPos = targetBox.localToGlobal(targetBox.size.center(Offset.zero));
+    final sourcePos =
+        sourceBox.localToGlobal(sourceBox.size.center(Offset.zero));
+    final targetPos =
+        targetBox.localToGlobal(targetBox.size.center(Offset.zero));
 
     // Simulate drag using gesture binding
     final binding = WidgetsBinding.instance;
@@ -1876,7 +1887,8 @@ class SelfTestBridge {
     if (node.onTap != null) {
       manager.trigger(widgetId);
     } else {
-      throw Exception('Widget "$widgetId" is not toggleable (no onTap callback)');
+      throw Exception(
+          'Widget "$widgetId" is not toggleable (no onTap callback)');
     }
 
     await manager.waitForAnimations();
@@ -1939,7 +1951,8 @@ class SelfTestBridge {
         if (widgetId == null) throw Exception('widgetId required');
         while (DateTime.now().isBefore(deadline)) {
           final node = manager.activeTestNodes[widgetId];
-          if (node != null && (node.onTap != null || node.onTextChange != null)) {
+          if (node != null &&
+              (node.onTap != null || node.onTextChange != null)) {
             return {'success': true};
           }
           await Future.delayed(const Duration(milliseconds: 50));
@@ -2118,7 +2131,6 @@ class SelfTestBridge {
     }
   }
 
-
   Future<Map<String, dynamic>> _expectScreenshot(
     String name,
     String? widgetId,
@@ -2174,14 +2186,17 @@ class SelfTestBridge {
       return {
         'passed': false,
         'difference': 1.0,
-        'message': 'Size mismatch: ${baselineImage.width}x${baselineImage.height} vs ${currentImage.width}x${currentImage.height}',
+        'message':
+            'Size mismatch: ${baselineImage.width}x${baselineImage.height} vs ${currentImage.width}x${currentImage.height}',
         'baselinePath': relativeBaselinePath,
         'diffPath': '$relativeDir/${safeName}_diff.png',
       };
     }
 
-    final baselineData = await baselineImage.toByteData(format: ui.ImageByteFormat.rawRgba);
-    final currentData = await currentImage.toByteData(format: ui.ImageByteFormat.rawRgba);
+    final baselineData =
+        await baselineImage.toByteData(format: ui.ImageByteFormat.rawRgba);
+    final currentData =
+        await currentImage.toByteData(format: ui.ImageByteFormat.rawRgba);
 
     if (baselineData == null || currentData == null) {
       return {
@@ -2226,9 +2241,11 @@ class SelfTestBridge {
 
     if (!passed) {
       final diffPath = _getDiffPath(name, goldensDir);
-      final diffImage = await _createImageFromRgba(diffBuffer, baselineImage.width, baselineImage.height);
+      final diffImage = await _createImageFromRgba(
+          diffBuffer, baselineImage.width, baselineImage.height);
       if (diffImage != null) {
-        final diffPngBytes = await diffImage.toByteData(format: ui.ImageByteFormat.png);
+        final diffPngBytes =
+            await diffImage.toByteData(format: ui.ImageByteFormat.png);
         if (diffPngBytes != null) {
           await File(diffPath).writeAsBytes(diffPngBytes.buffer.asUint8List());
           diffImageBase64 = base64Encode(diffPngBytes.buffer.asUint8List());
@@ -2255,13 +2272,16 @@ class SelfTestBridge {
     }
   }
 
-  Future<ui.Image?> _createImageFromRgba(Uint8List rgba, int width, int height) async {
+  Future<ui.Image?> _createImageFromRgba(
+      Uint8List rgba, int width, int height) async {
     final completer = Completer<ui.Image>();
-    ui.decodeImageFromPixels(rgba, width, height, ui.PixelFormat.rgba8888, completer.complete);
+    ui.decodeImageFromPixels(
+        rgba, width, height, ui.PixelFormat.rgba8888, completer.complete);
     return await completer.future;
   }
 
-  Future<Map<String, dynamic>> _updateGoldens(List<String>? names, String? goldensDir) async {
+  Future<Map<String, dynamic>> _updateGoldens(
+      List<String>? names, String? goldensDir) async {
     await _ensureGoldensDirectory(goldensDir);
     final directory = Directory(_getGoldensDirectory(goldensDir));
     final updated = <String>[];
@@ -2276,7 +2296,9 @@ class SelfTestBridge {
     } else {
       if (await directory.exists()) {
         await for (final file in directory.list()) {
-          if (file is File && file.path.endsWith('.png') && !file.path.endsWith('_diff.png')) {
+          if (file is File &&
+              file.path.endsWith('.png') &&
+              !file.path.endsWith('_diff.png')) {
             final name = file.path.split('/').last.replaceAll('.png', '');
             final currentBytes = await _captureScreenshotBytes(null);
             await file.writeAsBytes(currentBytes);
@@ -2296,10 +2318,14 @@ class SelfTestBridge {
 
     if (await directory.exists()) {
       await for (final file in directory.list()) {
-        if (file is File && file.path.endsWith('.png') && !file.path.endsWith('_diff.png')) {
+        if (file is File &&
+            file.path.endsWith('.png') &&
+            !file.path.endsWith('_diff.png')) {
           final stat = await file.stat();
           final name = file.path.split('/').last.replaceAll('.png', '');
-          final sizeStr = stat.size < 1024 ? '${stat.size} B' : '${(stat.size / 1024).toStringAsFixed(1)} KB';
+          final sizeStr = stat.size < 1024
+              ? '${stat.size} B'
+              : '${(stat.size / 1024).toStringAsFixed(1)} KB';
           goldens.add({
             'name': name,
             'path': '$relativeDir/$name.png',
@@ -2339,7 +2365,8 @@ class SelfTestBridge {
             ? {'passed': true, 'message': 'Text matches'}
             : {
                 'passed': false,
-                'message': 'Expected "$expectedText" but got "${node.currentText}"',
+                'message':
+                    'Expected "$expectedText" but got "${node.currentText}"',
               };
 
       case 'is_enabled':
@@ -2457,7 +2484,8 @@ class SelfTestBridge {
   // NETWORK
   // ===========================================================================
 
-  Future<Map<String, dynamic>> _waitForNetwork(String urlPattern, int timeout) async {
+  Future<Map<String, dynamic>> _waitForNetwork(
+      String urlPattern, int timeout) async {
     final completer = Completer<Map<String, dynamic>>();
     _pendingNetworkWaits[urlPattern] = completer;
 
@@ -2510,7 +2538,8 @@ class SelfTestBridge {
   // DIALOGS & OVERLAYS
   // ===========================================================================
 
-  Future<Map<String, dynamic>> _handleDialog(String action, String? text) async {
+  Future<Map<String, dynamic>> _handleDialog(
+      String action, String? text) async {
     final manager = SelfTestManager();
     final nodes = manager.activeTestNodes;
 
@@ -2615,7 +2644,8 @@ class SelfTestBridge {
       state[key] = prefs.get(key);
     }
 
-    state['_currentRoute'] = router?.routeInformationProvider.value.uri.toString();
+    state['_currentRoute'] =
+        router?.routeInformationProvider.value.uri.toString();
 
     _savedStates[name] = state;
   }
@@ -2673,7 +2703,8 @@ class SelfTestBridge {
         await _executeCommand(command);
 
         String? screenshotPath;
-        screenshotPath = await manager.captureScreenshot('${name}_step_${i + 1}');
+        screenshotPath =
+            await manager.captureScreenshot('${name}_step_${i + 1}');
 
         results.add({
           'description': description,
@@ -2683,7 +2714,8 @@ class SelfTestBridge {
       } catch (e) {
         allPassed = false;
         String? screenshotPath;
-        screenshotPath = await manager.captureScreenshot('${name}_step_${i + 1}_FAILED');
+        screenshotPath =
+            await manager.captureScreenshot('${name}_step_${i + 1}_FAILED');
 
         results.add({
           'description': description,
@@ -2730,7 +2762,8 @@ class SelfTestBridge {
       }
 
       // Check buttons without accessible names
-      if (node.onTap != null && (node.currentText == null || node.currentText!.isEmpty)) {
+      if (node.onTap != null &&
+          (node.currentText == null || node.currentText!.isEmpty)) {
         issues.add({
           'severity': 'error',
           'widgetId': widgetId,
@@ -2740,7 +2773,8 @@ class SelfTestBridge {
       }
 
       // Check text inputs without labels
-      if (node.onTextChange != null && (node.currentText == null || node.currentText!.isEmpty)) {
+      if (node.onTextChange != null &&
+          (node.currentText == null || node.currentText!.isEmpty)) {
         issues.add({
           'severity': 'warning',
           'widgetId': widgetId,
@@ -2791,9 +2825,13 @@ class SelfTestBridge {
           'version': '2.0.0',
         },
         'entries': _networkLog.map((req) {
-          final startTime = DateTime.tryParse(req['timestamp'] as String? ?? '') ?? DateTime.now();
+          final startTime =
+              DateTime.tryParse(req['timestamp'] as String? ?? '') ??
+                  DateTime.now();
           final response = req['response'] as Map<String, dynamic>?;
-          final responseTime = DateTime.tryParse(response?['timestamp'] as String? ?? '') ?? startTime;
+          final responseTime =
+              DateTime.tryParse(response?['timestamp'] as String? ?? '') ??
+                  startTime;
           final waitTime = responseTime.difference(startTime).inMilliseconds;
 
           return {
@@ -2804,17 +2842,22 @@ class SelfTestBridge {
               'url': req['url'] ?? '',
               'httpVersion': 'HTTP/1.1',
               'cookies': <dynamic>[],
-              'headers': _convertHeadersToHar(req['headers'] as Map<String, dynamic>?),
+              'headers':
+                  _convertHeadersToHar(req['headers'] as Map<String, dynamic>?),
               'queryString': _parseQueryString(req['url'] as String?),
               'postData': req['body'] != null
                   ? {
                       'mimeType': req['contentType'] ?? 'application/json',
-                      'text': req['body'] is String ? req['body'] : jsonEncode(req['body']),
+                      'text': req['body'] is String
+                          ? req['body']
+                          : jsonEncode(req['body']),
                     }
                   : null,
               'headersSize': -1,
               'bodySize': req['body'] != null
-                  ? (req['body'] is String ? (req['body'] as String).length : jsonEncode(req['body']).length)
+                  ? (req['body'] is String
+                      ? (req['body'] as String).length
+                      : jsonEncode(req['body']).length)
                   : 0,
             },
             'response': {
@@ -2822,7 +2865,8 @@ class SelfTestBridge {
               'statusText': response?['statusText'] ?? '',
               'httpVersion': 'HTTP/1.1',
               'cookies': <dynamic>[],
-              'headers': _convertHeadersToHar(response?['headers'] as Map<String, dynamic>?),
+              'headers': _convertHeadersToHar(
+                  response?['headers'] as Map<String, dynamic>?),
               'content': {
                 'size': response?['body'] != null
                     ? (response!['body'] is String
@@ -2830,7 +2874,9 @@ class SelfTestBridge {
                         : jsonEncode(response['body']).length)
                     : 0,
                 'mimeType': response?['contentType'] ?? 'application/json',
-                'text': response != null && response['body'] is String ? response['body'] : jsonEncode(response?['body'] ?? {}),
+                'text': response != null && response['body'] is String
+                    ? response['body']
+                    : jsonEncode(response?['body'] ?? {}),
               },
               'redirectURL': response?['redirectUrl'] ?? '',
               'headersSize': -1,
@@ -2858,7 +2904,8 @@ class SelfTestBridge {
     return har;
   }
 
-  List<Map<String, dynamic>> _convertHeadersToHar(Map<String, dynamic>? headers) {
+  List<Map<String, dynamic>> _convertHeadersToHar(
+      Map<String, dynamic>? headers) {
     if (headers == null) return [];
     return headers.entries
         .map((e) => {
@@ -2899,7 +2946,8 @@ class SelfTestBridge {
       // speed 0.5 = timeDilation 2 (slower)
       timeDilation = 1.0 / speed;
     }
-    _logConsole('info', 'Animation speed set to $speed (timeDilation: $timeDilation)');
+    _logConsole(
+        'info', 'Animation speed set to $speed (timeDilation: $timeDilation)');
   }
 
   Future<void> _pump([int durationMs = 0]) async {
@@ -2964,7 +3012,8 @@ class SelfTestBridge {
     // Register the frame timings callback
     SchedulerBinding.instance.addTimingsCallback(_onFrameTimings);
 
-    _logConsole('info', 'Frame profiling started (budget: ${_frameBudgetMs}ms)');
+    _logConsole(
+        'info', 'Frame profiling started (budget: ${_frameBudgetMs}ms)');
   }
 
   /// Stop frame profiling and return results
@@ -2991,9 +3040,8 @@ class SelfTestBridge {
     }
 
     // Convert frame timings to durations in milliseconds
-    final durations = _frameTimings
-        .map((t) => t.totalSpan.inMicroseconds / 1000.0)
-        .toList();
+    final durations =
+        _frameTimings.map((t) => t.totalSpan.inMicroseconds / 1000.0).toList();
 
     // Sort for percentile calculations
     durations.sort();
@@ -3262,12 +3310,14 @@ class SelfTestBridge {
     // Simple leak detection: check if memory is monotonically increasing
     final leakSuspects = <String>[];
     if (_isMonotonicallyIncreasing(heapValues)) {
-      leakSuspects.add('Possible memory leak: heap usage continuously increasing');
+      leakSuspects
+          .add('Possible memory leak: heap usage continuously increasing');
     }
 
     // Check for significant growth (more than 20% increase from start to end)
     if (heapValues.length > 1 && heapValues.first > 0) {
-      final growthRate = (heapValues.last - heapValues.first) / heapValues.first;
+      final growthRate =
+          (heapValues.last - heapValues.first) / heapValues.first;
       if (growthRate > 0.2) {
         leakSuspects.add(
           'Significant memory growth: ${(growthRate * 100).toStringAsFixed(1)}% increase',
@@ -3275,7 +3325,8 @@ class SelfTestBridge {
       }
     }
 
-    _logConsole('info', 'Memory profiling stopped: ${_memorySamples.length} samples');
+    _logConsole(
+        'info', 'Memory profiling stopped: ${_memorySamples.length} samples');
 
     return {
       'samples': _memorySamples.map((s) => s.toJson()).toList(),
@@ -3329,7 +3380,8 @@ class SelfTestBridge {
     cache.clear();
     cache.clearLiveImages();
 
-    _logConsole('info', 'Image cache cleared: $countBefore images, $sizeBefore bytes');
+    _logConsole(
+        'info', 'Image cache cleared: $countBefore images, $sizeBefore bytes');
 
     return {
       'cleared': countBefore,
@@ -3391,7 +3443,8 @@ class SelfTestBridge {
     }
 
     return {
-      'potentialLeaks': potentialLeaks || (memoryBefore > 0 && memoryGrowth > memoryBefore * 0.1),
+      'potentialLeaks': potentialLeaks ||
+          (memoryBefore > 0 && memoryGrowth > memoryBefore * 0.1),
       'memoryGrowth': memoryGrowth,
       'memoryBefore': memoryBefore,
       'memoryAfter': memoryAfter,
@@ -3599,7 +3652,8 @@ class SelfTestBridge {
 
         // Check if we have a mock for this method
         final channelMocks = _channelMocks[channel];
-        if (channelMocks != null && channelMocks.containsKey(methodCall.method)) {
+        if (channelMocks != null &&
+            channelMocks.containsKey(methodCall.method)) {
           final config = channelMocks[methodCall.method]!;
 
           // Update the log entry with the result
@@ -3632,12 +3686,14 @@ class SelfTestBridge {
     if (channel != null) {
       // Clear mocks for specific channel
       _channelMocks.remove(channel);
-      ServicesBinding.instance.defaultBinaryMessenger.setMessageHandler(channel, null);
+      ServicesBinding.instance.defaultBinaryMessenger
+          .setMessageHandler(channel, null);
       _logConsole('info', 'Cleared mocks for channel: $channel');
     } else {
       // Clear all mocks
       for (final ch in _channelMocks.keys.toList()) {
-        ServicesBinding.instance.defaultBinaryMessenger.setMessageHandler(ch, null);
+        ServicesBinding.instance.defaultBinaryMessenger
+            .setMessageHandler(ch, null);
       }
       _channelMocks.clear();
       _logConsole('info', 'Cleared all channel mocks');
@@ -3798,8 +3854,8 @@ class SelfTestBridge {
     _logConsole(
       'info',
       'Biometric result configured: $_nextBiometricResult'
-      '${_nextBiometricErrorMessage != null ? ' (error: $_nextBiometricErrorMessage)' : ''}'
-      '${_nextBiometricDelay > 0 ? ' (delay: ${_nextBiometricDelay}ms)' : ''}',
+          '${_nextBiometricErrorMessage != null ? ' (error: $_nextBiometricErrorMessage)' : ''}'
+          '${_nextBiometricDelay > 0 ? ' (delay: ${_nextBiometricDelay}ms)' : ''}',
     );
 
     return {'configured': true};
@@ -4282,20 +4338,24 @@ class SelfTestBridge {
       if (!_isProfilingRebuilds) return;
 
       // Schedule next frame callback
-      SchedulerBinding.instance.addPostFrameCallback(_rebuildProfilingFrameCallback!);
+      SchedulerBinding.instance
+          .addPostFrameCallback(_rebuildProfilingFrameCallback!);
 
       // Sample elements by walking the tree
       _sampleWidgetTree();
     };
 
-    SchedulerBinding.instance.addPostFrameCallback(_rebuildProfilingFrameCallback!);
+    SchedulerBinding.instance
+        .addPostFrameCallback(_rebuildProfilingFrameCallback!);
 
-    _logConsole('info', 'Widget rebuild profiling started (using frame sampling)');
+    _logConsole(
+        'info', 'Widget rebuild profiling started (using frame sampling)');
 
     return {
       'success': true,
       'startTime': _rebuildProfilingStartTime?.toIso8601String(),
-      'note': 'Using frame-based sampling as debugOnRebuildDirtyWidget is not available',
+      'note':
+          'Using frame-based sampling as debugOnRebuildDirtyWidget is not available',
     };
   }
 
@@ -4314,7 +4374,8 @@ class SelfTestBridge {
         final widgetId = key.isNotEmpty ? '$widgetType($key)' : widgetType;
 
         // Track this widget - increment count each time we see it in a frame
-        final info = _rebuildProfile.putIfAbsent(widgetId, () => _RebuildInfo());
+        final info =
+            _rebuildProfile.putIfAbsent(widgetId, () => _RebuildInfo());
         info.count++;
         info.reasons.add('Frame sample');
 
@@ -4458,7 +4519,8 @@ class SelfTestBridge {
       for (final node in chain) {
         final nodeStr = node.toStringDeep();
         // Look for file:line patterns
-        final match = RegExp(r'package:[^\s]+\.dart:\d+:\d+').firstMatch(nodeStr);
+        final match =
+            RegExp(r'package:[^\s]+\.dart:\d+:\d+').firstMatch(nodeStr);
         if (match != null) {
           return match.group(0);
         }
@@ -4476,7 +4538,9 @@ class SelfTestBridge {
   /// Record a dependency between two providers.
   /// Call this when a provider reads from or depends on another provider.
   void recordStateDependency(String consumer, String dependency) {
-    _providerDependencies.putIfAbsent(consumer, () => <String>{}).add(dependency);
+    _providerDependencies
+        .putIfAbsent(consumer, () => <String>{})
+        .add(dependency);
     _providerDependents.putIfAbsent(dependency, () => <String>{}).add(consumer);
   }
 
@@ -4565,7 +4629,10 @@ class SelfTestBridge {
       for (final dependent in entry.value) {
         // Check if this edge doesn't already exist as a 'depends' edge
         final existsAsDependsEdge = edges.any(
-          (e) => e['from'] == dependent && e['to'] == provider && e['type'] == 'depends',
+          (e) =>
+              e['from'] == dependent &&
+              e['to'] == provider &&
+              e['type'] == 'depends',
         );
         if (!existsAsDependsEdge) {
           edges.add({
@@ -4611,7 +4678,8 @@ class SelfTestBridge {
 
     // Calculate impact score (0-100)
     final totalProviders = _stateProviders.length;
-    final totalDependents = directDependents.length + transitiveDependents.length;
+    final totalDependents =
+        directDependents.length + transitiveDependents.length;
     final totalWidgets = affectedWidgets.length;
 
     int impactScore = 0;
@@ -4647,7 +4715,9 @@ class SelfTestBridge {
     if (widgetId != null) {
       // Find path from provider to specific widget
       final visited = <String>{providerId};
-      final queue = <List<String>>[[providerId]];
+      final queue = <List<String>>[
+        [providerId]
+      ];
 
       while (queue.isNotEmpty) {
         final currentPath = queue.removeAt(0);
@@ -4781,7 +4851,8 @@ class SelfTestBridge {
     try {
       final binding = WidgetsBinding.instance;
       binding.handleAppLifecycleStateChanged(newState);
-      _logConsole('info', 'Lifecycle state changed: ${previousState.name} -> ${newState.name}');
+      _logConsole('info',
+          'Lifecycle state changed: ${previousState.name} -> ${newState.name}');
     } catch (e) {
       _logConsole('error', 'Failed to notify lifecycle observers: $e');
     }
@@ -4872,7 +4943,8 @@ class SelfTestBridge {
     try {
       // Force a rebuild of the widget tree by scheduling a frame
       WidgetsBinding.instance.scheduleFrame();
-      _logConsole('info', 'Locale changed: ${previousLocale.toString()} -> ${newLocale.toString()}');
+      _logConsole('info',
+          'Locale changed: ${previousLocale.toString()} -> ${newLocale.toString()}');
     } catch (e) {
       _logConsole('error', 'Failed to notify locale change: $e');
     }
@@ -4914,7 +4986,8 @@ class SelfTestBridge {
   }
 
   /// Simulate system brightness mode change.
-  Future<Map<String, dynamic>> _simulateBrightnessChange(String brightnessStr) async {
+  Future<Map<String, dynamic>> _simulateBrightnessChange(
+      String brightnessStr) async {
     final previousBrightness = _currentBrightness;
 
     // Parse brightness string
@@ -4927,7 +5000,8 @@ class SelfTestBridge {
         newBrightness = Brightness.dark;
         break;
       default:
-        throw Exception('Invalid brightness: $brightnessStr. Valid values: light, dark');
+        throw Exception(
+            'Invalid brightness: $brightnessStr. Valid values: light, dark');
     }
 
     _currentBrightness = newBrightness;
@@ -4938,7 +5012,8 @@ class SelfTestBridge {
     try {
       // Force a rebuild of the widget tree by scheduling a frame
       WidgetsBinding.instance.scheduleFrame();
-      _logConsole('info', 'Brightness changed: ${previousBrightness.name} -> ${newBrightness.name}');
+      _logConsole('info',
+          'Brightness changed: ${previousBrightness.name} -> ${newBrightness.name}');
     } catch (e) {
       _logConsole('error', 'Failed to notify brightness change: $e');
     }
@@ -4972,7 +5047,8 @@ class SelfTestBridge {
   // ===========================================================================
 
   /// Start recording time-travel snapshots
-  Map<String, dynamic> _timeTravelStart(bool captureOnInteraction, int? intervalMs) {
+  Map<String, dynamic> _timeTravelStart(
+      bool captureOnInteraction, int? intervalMs) {
     if (_isRecordingTimeline) {
       return {
         'success': false,
@@ -5011,7 +5087,8 @@ class SelfTestBridge {
   Future<Map<String, dynamic>> _timeTravelSnapshot(String? label) async {
     if (!_isRecordingTimeline) {
       return {
-        'error': 'Time-travel recording is not active. Call timeTravelStart first.',
+        'error':
+            'Time-travel recording is not active. Call timeTravelStart first.',
       };
     }
 
@@ -5041,7 +5118,8 @@ class SelfTestBridge {
   }
 
   /// Restore app to a previous snapshot state
-  Future<Map<String, dynamic>> _timeTravelGoto(String? snapshotId, int? index) async {
+  Future<Map<String, dynamic>> _timeTravelGoto(
+      String? snapshotId, int? index) async {
     _AppSnapshot? snapshot;
 
     if (snapshotId != null) {
@@ -5053,7 +5131,8 @@ class SelfTestBridge {
       if (index < 0 || index >= _timelineSnapshots.length) {
         return {
           'success': false,
-          'error': 'Invalid snapshot index: $index. Valid range: 0-${_timelineSnapshots.length - 1}',
+          'error':
+              'Invalid snapshot index: $index. Valid range: 0-${_timelineSnapshots.length - 1}',
         };
       }
       snapshot = _timelineSnapshots[index];
@@ -5216,7 +5295,8 @@ class SelfTestBridge {
     final timestamp = DateTime.now();
 
     // Capture current route
-    final currentRoute = router?.routeInformationProvider.value.uri.toString() ?? '/';
+    final currentRoute =
+        router?.routeInformationProvider.value.uri.toString() ?? '/';
 
     // Capture provider states from registered providers
     final providerStates = <String, Map<String, dynamic>>{};
@@ -5287,7 +5367,8 @@ class SelfTestBridge {
         try {
           config!.dispatchAction!('_restore', entry.value);
         } catch (e) {
-          debugPrint('[SelfTestBridge] Failed to restore provider ${entry.key}: $e');
+          debugPrint(
+              '[SelfTestBridge] Failed to restore provider ${entry.key}: $e');
         }
       }
     }
@@ -5384,7 +5465,8 @@ class SelfTestBridge {
     String? actionId,
   ) async {
     // Find the notification
-    final index = _notificationHistory.indexWhere((n) => n.id == notificationId);
+    final index =
+        _notificationHistory.indexWhere((n) => n.id == notificationId);
     if (index == -1) {
       return {
         'success': false,
@@ -5493,7 +5575,8 @@ class SelfTestBridge {
   ///
   /// Parses the URL and attempts to navigate using the configured router.
   /// Records the event in history for later inspection.
-  Future<Map<String, dynamic>> _simulateDeepLink(String url, String source) async {
+  Future<Map<String, dynamic>> _simulateDeepLink(
+      String url, String source) async {
     final uri = Uri.parse(url);
     final manager = SelfTestManager();
 
@@ -5514,7 +5597,8 @@ class SelfTestBridge {
         bool schemeAllowed = _registeredSchemes.isEmpty;
         if (!schemeAllowed) {
           // Check if scheme matches
-          if (uri.scheme.isNotEmpty && _registeredSchemes.contains(uri.scheme)) {
+          if (uri.scheme.isNotEmpty &&
+              _registeredSchemes.contains(uri.scheme)) {
             schemeAllowed = true;
           }
           // Check if host matches (for https/http links)
@@ -5745,8 +5829,7 @@ class SelfTestBridge {
   Map<String, dynamic> _getNavigationHistory(int limit) {
     _ensureNavigationObserver();
 
-    final history = _navigationHistory
-        .reversed
+    final history = _navigationHistory.reversed
         .take(limit)
         .map((e) => e.toJson())
         .toList()
@@ -5759,7 +5842,8 @@ class SelfTestBridge {
   }
 
   /// Pop routes until a condition is met
-  Future<Map<String, dynamic>> _popUntil(String? route, String? predicate) async {
+  Future<Map<String, dynamic>> _popUntil(
+      String? route, String? predicate) async {
     final manager = SelfTestManager();
     int poppedCount = 0;
 
@@ -5934,13 +6018,12 @@ class SelfTestBridge {
   /// Helper to serialize route arguments to JSON-compatible format
   dynamic _serializeNavigationArguments(dynamic arguments) {
     if (arguments == null) return null;
-    if (arguments is String ||
-        arguments is num ||
-        arguments is bool) {
+    if (arguments is String || arguments is num || arguments is bool) {
       return arguments;
     }
     if (arguments is Map) {
-      return arguments.map((k, v) => MapEntry(k.toString(), _serializeNavigationArguments(v)));
+      return arguments.map(
+          (k, v) => MapEntry(k.toString(), _serializeNavigationArguments(v)));
     }
     if (arguments is List) {
       return arguments.map(_serializeNavigationArguments).toList();
@@ -6188,28 +6271,42 @@ class SelfTestBridge {
     final text = _findTextInElementTree(element);
 
     if (t.contains('Button')) {
-      if (text != null && text.isNotEmpty) return _textToSnakeCase(text) + '_button';
+      if (text != null && text.isNotEmpty)
+        return _textToSnakeCase(text) + '_button';
       final icon = _findIconInElementTree(element);
       if (icon != null) return _textToSnakeCase(icon) + '_button';
       return 'action_button';
     }
     if (t.contains('TextField') || t.contains('TextFormField')) {
       final hint = _findTextFieldHintText(element);
-      if (hint != null && hint.isNotEmpty) return _textToSnakeCase(hint) + '_input';
+      if (hint != null && hint.isNotEmpty)
+        return _textToSnakeCase(hint) + '_input';
       return 'text_input';
     }
-    if (t.contains('Checkbox')) return text != null ? _textToSnakeCase(text) + '_checkbox' : 'option_checkbox';
-    if (t.contains('Switch')) return text != null ? _textToSnakeCase(text) + '_switch' : 'toggle_switch';
-    if (t.contains('Slider')) return text != null ? _textToSnakeCase(text) + '_slider' : 'value_slider';
+    if (t.contains('Checkbox'))
+      return text != null
+          ? _textToSnakeCase(text) + '_checkbox'
+          : 'option_checkbox';
+    if (t.contains('Switch'))
+      return text != null
+          ? _textToSnakeCase(text) + '_switch'
+          : 'toggle_switch';
+    if (t.contains('Slider'))
+      return text != null ? _textToSnakeCase(text) + '_slider' : 'value_slider';
     if (t.contains('IconButton')) {
       final icon = _findIconInElementTree(element);
       return icon != null ? _textToSnakeCase(icon) + '_button' : 'icon_button';
     }
-    if (t.contains('ListTile')) return text != null ? _textToSnakeCase(text) + '_item' : 'list_item';
+    if (t.contains('ListTile'))
+      return text != null ? _textToSnakeCase(text) + '_item' : 'list_item';
     if (t.contains('GestureDetector') || t.contains('InkWell')) {
-      return text != null ? _textToSnakeCase(text) + '_tap' : 'interactive_area';
+      return text != null
+          ? _textToSnakeCase(text) + '_tap'
+          : 'interactive_area';
     }
-    return text != null && text.isNotEmpty ? _textToSnakeCase(text) : _textToSnakeCase(t);
+    return text != null && text.isNotEmpty
+        ? _textToSnakeCase(text)
+        : _textToSnakeCase(t);
   }
 
   String? _findTextInElementTree(Element element) {
@@ -6233,8 +6330,10 @@ class SelfTestBridge {
       }
       el.visitChildren(search);
     }
+
     search(element);
-    if (foundText != null && foundText!.length > 50) foundText = foundText!.substring(0, 50);
+    if (foundText != null && foundText!.length > 50)
+      foundText = foundText!.substring(0, 50);
     return foundText;
   }
 
@@ -6248,17 +6347,33 @@ class SelfTestBridge {
       }
       el.visitChildren(search);
     }
+
     search(element);
     return iconName;
   }
 
   String _iconDataToName(IconData icon) {
     const icons = {
-      0xe5cd: 'close', 0xe5ca: 'check', 0xe145: 'add', 0xe15b: 'remove',
-      0xe872: 'settings', 0xe88a: 'home', 0xe8b8: 'menu', 0xe5d2: 'arrow_back',
-      0xe8b6: 'search', 0xe161: 'send', 0xe3c9: 'edit', 0xe92b: 'delete',
-      0xe7fb: 'person', 0xe0e1: 'email', 0xe0cd: 'phone', 0xe153: 'share',
-      0xe866: 'favorite', 0xe87d: 'star', 0xe8e5: 'notifications', 0xe8d3: 'refresh'
+      0xe5cd: 'close',
+      0xe5ca: 'check',
+      0xe145: 'add',
+      0xe15b: 'remove',
+      0xe872: 'settings',
+      0xe88a: 'home',
+      0xe8b8: 'menu',
+      0xe5d2: 'arrow_back',
+      0xe8b6: 'search',
+      0xe161: 'send',
+      0xe3c9: 'edit',
+      0xe92b: 'delete',
+      0xe7fb: 'person',
+      0xe0e1: 'email',
+      0xe0cd: 'phone',
+      0xe153: 'share',
+      0xe866: 'favorite',
+      0xe87d: 'star',
+      0xe8e5: 'notifications',
+      0xe8d3: 'refresh'
     };
     return icons[icon.codePoint] ?? 'icon_${icon.codePoint}';
   }
@@ -6273,15 +6388,20 @@ class SelfTestBridge {
       }
       el.visitChildren(search);
     }
+
     search(element);
     return hint;
   }
 
   double _calculateSemanticConfidence(Widget widget, String label) {
     double c = 0.5;
-    if (!label.contains('button') && !label.contains('input') && label.length > 5) c += 0.2;
+    if (!label.contains('button') &&
+        !label.contains('input') &&
+        label.length > 5) c += 0.2;
     final t = widget.runtimeType.toString();
-    if (t.contains('ElevatedButton') || t.contains('TextButton') || t.contains('TextField')) c += 0.2;
+    if (t.contains('ElevatedButton') ||
+        t.contains('TextButton') ||
+        t.contains('TextField')) c += 0.2;
     if (t.contains('GestureDetector') || t.contains('InkWell')) c -= 0.1;
     return c.clamp(0.0, 1.0);
   }
@@ -6295,17 +6415,27 @@ class SelfTestBridge {
 
   String _explainSemanticSuggestion(Widget widget) {
     final t = widget.runtimeType.toString();
-    if (t.contains('Button')) return 'Interactive button should have a semantic label for accessibility';
-    if (t.contains('TextField')) return 'Text input fields need labels for screen readers';
-    if (t.contains('Checkbox') || t.contains('Switch')) return 'Toggle controls should describe their purpose';
-    if (t.contains('GestureDetector') || t.contains('InkWell')) return 'Tappable area lacks semantic description';
-    if (t.contains('IconButton')) return 'Icon-only buttons need text labels for accessibility';
+    if (t.contains('Button'))
+      return 'Interactive button should have a semantic label for accessibility';
+    if (t.contains('TextField'))
+      return 'Text input fields need labels for screen readers';
+    if (t.contains('Checkbox') || t.contains('Switch'))
+      return 'Toggle controls should describe their purpose';
+    if (t.contains('GestureDetector') || t.contains('InkWell'))
+      return 'Tappable area lacks semantic description';
+    if (t.contains('IconButton'))
+      return 'Icon-only buttons need text labels for accessibility';
     return 'Interactive widget should have a semantic label';
   }
 
   String _textToSnakeCase(String text) {
-    var r = text.trim().replaceAll(RegExp(r'[^\w\s]'), '').replaceAll(RegExp(r'\s+'), '_').toLowerCase();
-    r = r.replaceAllMapped(RegExp(r'(?<!_)([A-Z])'), (m) => '_${m.group(1)!.toLowerCase()}');
+    var r = text
+        .trim()
+        .replaceAll(RegExp(r'[^\w\s]'), '')
+        .replaceAll(RegExp(r'\s+'), '_')
+        .toLowerCase();
+    r = r.replaceAllMapped(
+        RegExp(r'(?<!_)([A-Z])'), (m) => '_${m.group(1)!.toLowerCase()}');
     r = r.replaceAll(RegExp(r'^_+|_+$'), '').replaceAll(RegExp(r'_+'), '_');
     return r.isEmpty ? 'widget' : r;
   }
@@ -6330,26 +6460,26 @@ class SelfTestBridge {
   Map<String, dynamic> _extractSemanticsNodeData(SemanticsNode node) {
     final data = node.getSemanticsData();
     return {
-        'id': node.id,
-        'label': node.label,
-        'value': node.value,
-        'hint': node.hint,
-        'isButton': data.hasFlag(SemanticsFlag.isButton),
-        'isTextField': data.hasFlag(SemanticsFlag.isTextField),
-        'isCheckbox': data.hasFlag(SemanticsFlag.hasCheckedState),
-        'isChecked': data.hasFlag(SemanticsFlag.isChecked),
-        'isEnabled': data.hasFlag(SemanticsFlag.isEnabled),
-        'isFocused': data.hasFlag(SemanticsFlag.isFocused),
-        'isSelected': data.hasFlag(SemanticsFlag.isSelected),
-        'isHidden': data.hasFlag(SemanticsFlag.isHidden),
-        'rect': {
-          'left': node.rect.left,
-          'top': node.rect.top,
-          'width': node.rect.width,
-          'height': node.rect.height
-        },
-        'actions': _extractSemanticsActions(node),
-      };
+      'id': node.id,
+      'label': node.label,
+      'value': node.value,
+      'hint': node.hint,
+      'isButton': data.hasFlag(SemanticsFlag.isButton),
+      'isTextField': data.hasFlag(SemanticsFlag.isTextField),
+      'isCheckbox': data.hasFlag(SemanticsFlag.hasCheckedState),
+      'isChecked': data.hasFlag(SemanticsFlag.isChecked),
+      'isEnabled': data.hasFlag(SemanticsFlag.isEnabled),
+      'isFocused': data.hasFlag(SemanticsFlag.isFocused),
+      'isSelected': data.hasFlag(SemanticsFlag.isSelected),
+      'isHidden': data.hasFlag(SemanticsFlag.isHidden),
+      'rect': {
+        'left': node.rect.left,
+        'top': node.rect.top,
+        'width': node.rect.width,
+        'height': node.rect.height
+      },
+      'actions': _extractSemanticsActions(node),
+    };
   }
 
   String _inferSemanticsRole(SemanticsNode node) {
@@ -6389,16 +6519,21 @@ class SelfTestBridge {
 
     if (wt.contains('IconButton')) {
       before = 'IconButton(icon: Icon(Icons.xxx), onPressed: () {})';
-      after = 'IconButton(icon: Icon(Icons.xxx), onPressed: () {}, tooltip: \'${_snakeCaseToTitleCase(sl)}\')';
+      after =
+          'IconButton(icon: Icon(Icons.xxx), onPressed: () {}, tooltip: \'${_snakeCaseToTitleCase(sl)}\')';
     } else if (wt.contains('Button')) {
       before = '$wt(onPressed: () {}, child: Text(\'Label\'))';
-      after = 'Semantics(label: \'$sl\', child: $wt(onPressed: () {}, child: Text(\'Label\')))';
+      after =
+          'Semantics(label: \'$sl\', child: $wt(onPressed: () {}, child: Text(\'Label\')))';
     } else if (wt.contains('TextField')) {
-      before = 'TextField(decoration: InputDecoration(hintText: \'Enter value\'))';
-      after = 'TextField(decoration: InputDecoration(hintText: \'Enter value\', labelText: \'${_snakeCaseToTitleCase(sl)}\'))';
+      before =
+          'TextField(decoration: InputDecoration(hintText: \'Enter value\'))';
+      after =
+          'TextField(decoration: InputDecoration(hintText: \'Enter value\', labelText: \'${_snakeCaseToTitleCase(sl)}\'))';
     } else if (wt.contains('GestureDetector') || wt.contains('InkWell')) {
       before = '$wt(onTap: () {}, child: widget)';
-      after = 'Semantics(label: \'$sl\', button: true, child: $wt(onTap: () {}, child: widget))';
+      after =
+          'Semantics(label: \'$sl\', button: true, child: $wt(onTap: () {}, child: widget))';
     } else {
       before = '$wt(...)';
       after = 'Semantics(label: \'$sl\', child: $wt(...))';
@@ -6415,16 +6550,22 @@ class SelfTestBridge {
     };
   }
 
-  String _snakeCaseToTitleCase(String s) =>
-      s.split('_').map((w) => w.isEmpty ? '' : w[0].toUpperCase() + w.substring(1)).join(' ').trim();
+  String _snakeCaseToTitleCase(String s) => s
+      .split('_')
+      .map((w) => w.isEmpty ? '' : w[0].toUpperCase() + w.substring(1))
+      .join(' ')
+      .trim();
 
   // ===========================================================================
   // WIDGET TEST GENERATION IMPLEMENTATIONS
   // ===========================================================================
 
-  Map<String, dynamic> _startTestRecording(String testName, {String? description}) {
+  Map<String, dynamic> _startTestRecording(String testName,
+      {String? description}) {
     if (_isRecordingTest) {
-      return {'error': 'A test recording is already in progress. Stop it first.'};
+      return {
+        'error': 'A test recording is already in progress. Stop it first.'
+      };
     }
 
     _currentTestId = 'test_${DateTime.now().millisecondsSinceEpoch}';
@@ -6446,8 +6587,10 @@ class SelfTestBridge {
 
     final testCode = _generateTestCode(format);
     final imports = _getTestImports(format);
-    final interactionCount = _recordedSteps.where((s) => s.type == 'interaction').length;
-    final assertionCount = _recordedSteps.where((s) => s.type == 'assertion').length;
+    final interactionCount =
+        _recordedSteps.where((s) => s.type == 'interaction').length;
+    final assertionCount =
+        _recordedSteps.where((s) => s.type == 'assertion').length;
 
     _isRecordingTest = false;
     _currentTestId = null;
@@ -6464,9 +6607,13 @@ class SelfTestBridge {
     };
   }
 
-  Map<String, dynamic> _recordAssertion(String widgetId, String assertion, dynamic expected) {
+  Map<String, dynamic> _recordAssertion(
+      String widgetId, String assertion, dynamic expected) {
     if (!_isRecordingTest) {
-      return {'error': 'No test recording in progress. Start one with recordTestStart.'};
+      return {
+        'error':
+            'No test recording in progress. Start one with recordTestStart.'
+      };
     }
 
     _recordedSteps.add(_RecordedStep(
@@ -6478,13 +6625,17 @@ class SelfTestBridge {
 
     return {
       'added': true,
-      'assertionIndex': _recordedSteps.where((s) => s.type == 'assertion').length,
+      'assertionIndex':
+          _recordedSteps.where((s) => s.type == 'assertion').length,
     };
   }
 
   Map<String, dynamic> _recordComment(String comment) {
     if (!_isRecordingTest) {
-      return {'error': 'No test recording in progress. Start one with recordTestStart.'};
+      return {
+        'error':
+            'No test recording in progress. Start one with recordTestStart.'
+      };
     }
 
     _recordedSteps.add(_RecordedStep(
@@ -6520,10 +6671,12 @@ class SelfTestBridge {
     };
   }
 
-  Map<String, dynamic> _generateTestFromScenario(Map<String, dynamic> scenario, String format) {
+  Map<String, dynamic> _generateTestFromScenario(
+      Map<String, dynamic> scenario, String format) {
     final name = scenario['name'] as String? ?? 'test';
     final description = scenario['description'] as String?;
-    final steps = (scenario['steps'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+    final steps =
+        (scenario['steps'] as List?)?.cast<Map<String, dynamic>>() ?? [];
 
     final scenarioSteps = <_RecordedStep>[];
     for (final step in steps) {
@@ -6545,7 +6698,8 @@ class SelfTestBridge {
       ));
     }
 
-    final testCode = _generateTestCodeFromSteps(scenarioSteps, name, description, format);
+    final testCode =
+        _generateTestCodeFromSteps(scenarioSteps, name, description, format);
     final imports = _getTestImports(format);
 
     return {
@@ -6607,9 +6761,11 @@ class SelfTestBridge {
     switch (format) {
       case 'integration_test':
         buffer.writeln("void main() {");
-        buffer.writeln("  IntegrationTestWidgetsFlutterBinding.ensureInitialized();");
+        buffer.writeln(
+            "  IntegrationTestWidgetsFlutterBinding.ensureInitialized();");
         buffer.writeln();
-        buffer.writeln("  testWidgets('$testName', (WidgetTester tester) async {");
+        buffer.writeln(
+            "  testWidgets('$testName', (WidgetTester tester) async {");
         break;
       case 'patrol':
         buffer.writeln("void main() {");
@@ -6618,7 +6774,8 @@ class SelfTestBridge {
       case 'widget_test':
       default:
         buffer.writeln("void main() {");
-        buffer.writeln("  testWidgets('$testName', (WidgetTester tester) async {");
+        buffer.writeln(
+            "  testWidgets('$testName', (WidgetTester tester) async {");
     }
 
     if (description != null) {
@@ -6660,7 +6817,8 @@ class SelfTestBridge {
     }
   }
 
-  String _generateInteractionCode(String action, Map<String, dynamic> params, String tester, bool isPatrol) {
+  String _generateInteractionCode(String action, Map<String, dynamic> params,
+      String tester, bool isPatrol) {
     final widgetId = params['widgetId'] as String?;
 
     switch (action) {
@@ -6688,8 +6846,10 @@ class SelfTestBridge {
       case 'scroll':
         final direction = params['direction'] as String? ?? 'down';
         final delta = params['delta'] as num? ?? 300;
-        final dx = direction == 'left' ? delta : (direction == 'right' ? -delta : 0);
-        final dy = direction == 'up' ? delta : (direction == 'down' ? -delta : 0);
+        final dx =
+            direction == 'left' ? delta : (direction == 'right' ? -delta : 0);
+        final dy =
+            direction == 'up' ? delta : (direction == 'down' ? -delta : 0);
         if (widgetId != null) {
           return "    await $tester.drag(find.byKey(Key('$widgetId')), Offset($dx, $dy));\n    await $tester.pumpAndSettle();";
         }
@@ -6811,7 +6971,6 @@ class SelfTestBridge {
         return "    // ${assertion}: ${params.entries.map((e) => '${e.key}=${e.value}').join(', ')}";
     }
   }
-
 }
 
 /// Data class for semantic label suggestions

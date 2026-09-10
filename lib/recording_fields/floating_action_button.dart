@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:self_test/self_test.dart';
 
 /// Builds a recording-enabled FloatingActionButton.
-Widget buildRecordingFloatingActionButton(FloatingActionButton fab, SelfTestableWidget widget) {
+Widget buildRecordingFloatingActionButton(
+    FloatingActionButton fab, SelfTestableWidget widget) {
   return FloatingActionButton(
     key: fab.key,
     child: fab.child,
@@ -19,7 +20,8 @@ Widget buildRecordingFloatingActionButton(FloatingActionButton fab, SelfTestable
     disabledElevation: fab.disabledElevation,
     onPressed: fab.onPressed != null
         ? () async {
-            debugPrint('[SelfTest] Recording FloatingActionButton tap for "${widget.id}"');
+            debugPrint(
+                '[SelfTest] Recording FloatingActionButton tap for "${widget.id}"');
             await SelfTestManager().trigger(widget.id);
             fab.onPressed!();
             widget.onTap?.call();

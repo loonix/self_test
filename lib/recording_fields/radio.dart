@@ -30,7 +30,8 @@ Widget buildRecordingRadioListTile(RadioListTile radio, widget) {
     value: radio.value,
     groupValue: radio.groupValue,
     onChanged: (value) async {
-      debugPrint('[SelfTest] Recording radio change for "${widget.id}": $value');
+      debugPrint(
+          '[SelfTest] Recording radio change for "${widget.id}": $value');
       await SelfTestManager().trigger(widget.id);
       radio.onChanged?.call(value);
       widget.onTap?.call();
@@ -45,7 +46,8 @@ Widget buildRecordingRadio(Radio radio, widget) {
     value: radio.value,
     groupValue: radio.groupValue,
     onChanged: (value) async {
-      debugPrint('[SelfTest] Recording radio change for "${widget.id}": $value');
+      debugPrint(
+          '[SelfTest] Recording radio change for "${widget.id}": $value');
       await SelfTestManager().trigger(widget.id);
       radio.onChanged?.call(value);
       widget.onTap?.call();

@@ -52,8 +52,7 @@ void main() {
       expect(store.getSteps(script.id).single.value, 'daniel');
     });
 
-    test('deleting a script takes its steps and leaves others alone',
-        () async {
+    test('deleting a script takes its steps and leaves others alone', () async {
       final doomed = await store.createScript('doomed');
       final kept = await store.createScript('kept');
       await store.recordStep(

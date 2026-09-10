@@ -179,7 +179,8 @@ class SelfTestBridgeClient {
         // Navigation would need router access - return guidance
         return {
           'success': false,
-          'note': 'Direct navigation not supported in client mode. Use tap on navigation elements.'
+          'note':
+              'Direct navigation not supported in client mode. Use tap on navigation elements.'
         };
 
       default:
@@ -197,7 +198,8 @@ class SelfTestBridgeClient {
       return {
         'id': entry.key,
         'type': info?['type'] ?? 'unknown',
-        'hasCallback': entry.value['onTap'] != null || entry.value['onTextChange'] != null,
+        'hasCallback':
+            entry.value['onTap'] != null || entry.value['onTextChange'] != null,
         ...?info,
       };
     }).toList();
@@ -210,14 +212,16 @@ class SelfTestBridgeClient {
   }
 
   /// Take a screenshot
-  Future<Map<String, dynamic>> _takeScreenshot(Map<String, dynamic> params) async {
+  Future<Map<String, dynamic>> _takeScreenshot(
+      Map<String, dynamic> params) async {
     try {
       // For web, we use html2canvas or similar approach
       // For now, return a placeholder
       if (kIsWeb) {
         return {
           'success': false,
-          'note': 'Screenshots on web require additional setup. Use browser DevTools or Playwright for screenshots.',
+          'note':
+              'Screenshots on web require additional setup. Use browser DevTools or Playwright for screenshots.',
         };
       }
 

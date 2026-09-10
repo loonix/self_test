@@ -58,14 +58,14 @@ void _registerBuiltInBuilders() {
       (child, widget) => buildRecordingButton(child, widget));
   manager.registerRecordingBuilder<IconButton>(
       (child, widget) => buildRecordingButton(child, widget));
-  manager.registerRecordingBuilder<CheckboxListTile>(
-      (child, widget) => buildRecordingCheckboxListTile(child as CheckboxListTile, widget));
-  manager.registerRecordingBuilder<RadioListTile>(
-      (child, widget) => buildRecordingRadioListTile(child as RadioListTile, widget));
+  manager.registerRecordingBuilder<CheckboxListTile>((child, widget) =>
+      buildRecordingCheckboxListTile(child as CheckboxListTile, widget));
+  manager.registerRecordingBuilder<RadioListTile>((child, widget) =>
+      buildRecordingRadioListTile(child as RadioListTile, widget));
   manager.registerRecordingBuilder<Slider>(
       (child, widget) => buildRecordingSlider(child as Slider, widget));
-  manager.registerRecordingBuilder<SwitchListTile>(
-      (child, widget) => buildRecordingSwitchListTile(child as SwitchListTile, widget));
+  manager.registerRecordingBuilder<SwitchListTile>((child, widget) =>
+      buildRecordingSwitchListTile(child as SwitchListTile, widget));
   manager.registerRecordingBuilder<ListTile>(
       (child, widget) => buildRecordingListTile(child as ListTile, widget));
   manager.registerRecordingBuilder<Switch>(
@@ -74,10 +74,11 @@ void _registerBuiltInBuilders() {
       (child, widget) => buildRecordingCheckbox(child as Checkbox, widget));
   manager.registerRecordingBuilder<Radio>(
       (child, widget) => buildRecordingRadio(child as Radio, widget));
-  manager.registerRecordingBuilder<FloatingActionButton>(
-      (child, widget) => buildRecordingFloatingActionButton(child as FloatingActionButton, widget));
-  manager.registerRecordingBuilder<TextFormField>(
-      (child, widget) => buildRecordingTextFormField(child as TextFormField, widget));
+  manager.registerRecordingBuilder<FloatingActionButton>((child, widget) =>
+      buildRecordingFloatingActionButton(
+          child as FloatingActionButton, widget));
+  manager.registerRecordingBuilder<TextFormField>((child, widget) =>
+      buildRecordingTextFormField(child as TextFormField, widget));
 }
 
 // Auto-initialize when the library is imported

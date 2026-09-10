@@ -50,7 +50,9 @@ class _CustomRatingWidgetState extends State<CustomRatingWidget> {
           onTap: () => _onStarTap(index + 1),
           child: Icon(
             index < _currentRating ? Icons.star : Icons.star_border,
-            color: index < _currentRating ? widget.activeColor : widget.inactiveColor,
+            color: index < _currentRating
+                ? widget.activeColor
+                : widget.inactiveColor,
             size: widget.size,
           ),
         ),

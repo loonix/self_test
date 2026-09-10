@@ -4,7 +4,8 @@ import 'custom_rating_widget.dart';
 
 /// Recording builder for CustomRatingWidget.
 /// This demonstrates how to create custom recording builders for third-party or custom widgets.
-Widget buildRecordingCustomRatingWidget(Widget child, dynamic selfTestableWidgetDynamic) {
+Widget buildRecordingCustomRatingWidget(
+    Widget child, dynamic selfTestableWidgetDynamic) {
   final selfTestableWidget = selfTestableWidgetDynamic as SelfTestableWidget;
   final customRatingWidget = child as CustomRatingWidget;
 
@@ -27,10 +28,12 @@ class _RecordingCustomRatingWidget extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  _RecordingCustomRatingWidgetState createState() => _RecordingCustomRatingWidgetState();
+  _RecordingCustomRatingWidgetState createState() =>
+      _RecordingCustomRatingWidgetState();
 }
 
-class _RecordingCustomRatingWidgetState extends State<_RecordingCustomRatingWidget> {
+class _RecordingCustomRatingWidgetState
+    extends State<_RecordingCustomRatingWidget> {
   late int _currentRating;
 
   @override
@@ -43,7 +46,8 @@ class _RecordingCustomRatingWidgetState extends State<_RecordingCustomRatingWidg
   void didUpdateWidget(_RecordingCustomRatingWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
     // Update rating if the original widget's initial rating changed
-    if (oldWidget.originalWidget.initialRating != widget.originalWidget.initialRating) {
+    if (oldWidget.originalWidget.initialRating !=
+        widget.originalWidget.initialRating) {
       _currentRating = widget.originalWidget.initialRating;
     }
   }
@@ -75,7 +79,9 @@ class _RecordingCustomRatingWidgetState extends State<_RecordingCustomRatingWidg
               onTap: () => _onRatingChanged(starRating),
               child: Icon(
                 index < _currentRating ? Icons.star : Icons.star_border,
-                color: index < _currentRating ? widget.originalWidget.activeColor : widget.originalWidget.inactiveColor,
+                color: index < _currentRating
+                    ? widget.originalWidget.activeColor
+                    : widget.originalWidget.inactiveColor,
                 size: widget.originalWidget.size,
               ),
             ),

@@ -137,7 +137,8 @@ class SelfTestHttpInterceptor extends Interceptor {
     // Check if URL is blocked
     final blockedPattern = _findMatchingPattern(url, _blockedPatterns);
     if (blockedPattern != null) {
-      debugPrint('[SelfTestHttpInterceptor] Blocked by pattern: $blockedPattern');
+      debugPrint(
+          '[SelfTestHttpInterceptor] Blocked by pattern: $blockedPattern');
 
       final logEntry = NetworkLogEntry(
         method: options.method,
@@ -183,17 +184,18 @@ class SelfTestHttpInterceptor extends Interceptor {
     ResponseInterceptorHandler handler,
   ) {
     final startTime = _requestStartTimes.remove(response.requestOptions);
-    final duration = startTime != null
-        ? DateTime.now().difference(startTime)
-        : null;
+    final duration =
+        startTime != null ? DateTime.now().difference(startTime) : null;
 
     final logEntry = NetworkLogEntry(
       method: response.requestOptions.method,
       url: response.requestOptions.uri.toString(),
-      requestHeaders: response.requestOptions.headers.map((k, v) => MapEntry(k, v)),
+      requestHeaders:
+          response.requestOptions.headers.map((k, v) => MapEntry(k, v)),
       requestBody: response.requestOptions.data,
       statusCode: response.statusCode,
-      responseHeaders: response.headers.map.map((k, v) => MapEntry(k, v.join(', '))),
+      responseHeaders:
+          response.headers.map.map((k, v) => MapEntry(k, v.join(', '))),
       responseBody: response.data,
       timestamp: DateTime.now(),
       duration: duration,
@@ -209,9 +211,8 @@ class SelfTestHttpInterceptor extends Interceptor {
     ErrorInterceptorHandler handler,
   ) {
     final startTime = _requestStartTimes.remove(err.requestOptions);
-    final duration = startTime != null
-        ? DateTime.now().difference(startTime)
-        : null;
+    final duration =
+        startTime != null ? DateTime.now().difference(startTime) : null;
 
     final logEntry = NetworkLogEntry(
       method: err.requestOptions.method,
@@ -219,7 +220,8 @@ class SelfTestHttpInterceptor extends Interceptor {
       requestHeaders: err.requestOptions.headers.map((k, v) => MapEntry(k, v)),
       requestBody: err.requestOptions.data,
       statusCode: err.response?.statusCode,
-      responseHeaders: err.response?.headers.map.map((k, v) => MapEntry(k, v.join(', '))),
+      responseHeaders:
+          err.response?.headers.map.map((k, v) => MapEntry(k, v.join(', '))),
       responseBody: err.response?.data,
       error: err.message ?? err.error?.toString(),
       timestamp: DateTime.now(),
@@ -243,9 +245,8 @@ class SelfTestHttpInterceptor extends Interceptor {
     }
 
     final startTime = _requestStartTimes.remove(options);
-    final duration = startTime != null
-        ? DateTime.now().difference(startTime)
-        : null;
+    final duration =
+        startTime != null ? DateTime.now().difference(startTime) : null;
 
     // Build response headers
     final headers = Headers();

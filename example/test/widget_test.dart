@@ -125,7 +125,8 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('Navigation to ExampleWidget test', (WidgetTester tester) async {
+    testWidgets('Navigation to ExampleWidget test',
+        (WidgetTester tester) async {
       // Build the app
       await tester.pumpWidget(SelfTestRoot(child: MyApp()));
       await tester.pumpAndSettle();

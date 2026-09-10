@@ -19,10 +19,10 @@ class BridgeCommand {
   }
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'command': command,
-    'params': params,
-  };
+        'id': id,
+        'command': command,
+        'params': params,
+      };
 }
 
 /// Response sent from Flutter app to MCP server
@@ -752,7 +752,8 @@ class MockConnectivity {
     final state = MockConnectivityState.fromString(json['state'] as String);
     return MockConnectivity(
       state: state,
-      isConnected: json['isConnected'] as bool? ?? (state != MockConnectivityState.none),
+      isConnected:
+          json['isConnected'] as bool? ?? (state != MockConnectivityState.none),
     );
   }
 

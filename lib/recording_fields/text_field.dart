@@ -29,7 +29,8 @@ Widget buildRecordingTextField(TextField textField, widget) {
     maxLength: textField.maxLength,
     maxLengthEnforcement: textField.maxLengthEnforcement,
     onChanged: (value) async {
-      debugPrint('[SelfTest] Recording text change for "${widget.id}": "$value"');
+      debugPrint(
+          '[SelfTest] Recording text change for "${widget.id}": "$value"');
       await SelfTestManager().enterText(widget.id, value);
       textField.onChanged?.call(value);
       widget.onTextChange?.call(value);

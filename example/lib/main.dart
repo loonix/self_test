@@ -87,8 +87,7 @@ class _LoginPageState extends State<LoginPage> {
               onTextChange: _onUsernameChanged,
               child: TextField(
                 controller: _usernameController,
-                decoration:
-                    const InputDecoration(labelText: 'Username'),
+                decoration: const InputDecoration(labelText: 'Username'),
                 onChanged: _onUsernameChanged,
               ),
             ),
@@ -98,8 +97,7 @@ class _LoginPageState extends State<LoginPage> {
               onTextChange: _onPasswordChanged,
               child: TextField(
                 controller: _passwordController,
-                decoration:
-                    const InputDecoration(labelText: 'Password'),
+                decoration: const InputDecoration(labelText: 'Password'),
                 obscureText: true,
                 onChanged: _onPasswordChanged,
               ),
@@ -122,8 +120,7 @@ class _LoginPageState extends State<LoginPage> {
                 SelfTestManager().setSelfTestModeActive(true);
                 SelfTestManager().restartWidgetTree();
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                      content: Text('Self-test mode activated')),
+                  const SnackBar(content: Text('Self-test mode activated')),
                 );
               },
               child: const Text('Activate Self-Test Mode'),
@@ -131,10 +128,8 @@ class _LoginPageState extends State<LoginPage> {
             ElevatedButton(
               onPressed: () async {
                 debugPrint('[SelfTest] ===== STARTING TEST =====');
-                SelfTestManager()
-                    .enterText('username_field', 'testuser');
-                SelfTestManager()
-                    .enterText('password_field', 'testpass');
+                SelfTestManager().enterText('username_field', 'testuser');
+                SelfTestManager().enterText('password_field', 'testpass');
                 await SelfTestManager().waitForAnimations();
                 SelfTestManager().trigger('login_button');
                 await SelfTestManager().waitForAnimations();

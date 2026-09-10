@@ -54,7 +54,8 @@ class _ControlPanelState extends State<ControlPanel> {
         children: [
           Row(
             children: [
-              const Text('Recorded Tests', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const Text('Recorded Tests',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const Spacer(),
               IconButton(
                 onPressed: () => Navigator.of(context).pop(),
@@ -63,7 +64,8 @@ class _ControlPanelState extends State<ControlPanel> {
             ],
           ),
           const SizedBox(height: 8),
-          const Text('Tap a test to view/edit steps', style: TextStyle(fontSize: 14, color: Colors.grey)),
+          const Text('Tap a test to view/edit steps',
+              style: TextStyle(fontSize: 14, color: Colors.grey)),
           Expanded(
             child: isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -72,10 +74,14 @@ class _ControlPanelState extends State<ControlPanel> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.videocam_off, size: 48, color: Colors.grey),
+                            Icon(Icons.videocam_off,
+                                size: 48, color: Colors.grey),
                             SizedBox(height: 16),
-                            Text('No recorded tests yet', style: TextStyle(color: Colors.grey)),
-                            Text('Tap the play button to start recording', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                            Text('No recorded tests yet',
+                                style: TextStyle(color: Colors.grey)),
+                            Text('Tap the play button to start recording',
+                                style: TextStyle(
+                                    color: Colors.grey, fontSize: 12)),
                           ],
                         ),
                       )
@@ -85,8 +91,10 @@ class _ControlPanelState extends State<ControlPanel> {
                           final script = scripts[index];
                           return ListTile(
                             title: Text(script.name),
-                            subtitle: Text('Created: ${script.createdAt} • ${script.lastRunStatus}'),
-                            onTap: () => setState(() => selectedScript = script),
+                            subtitle: Text(
+                                'Created: ${script.createdAt} • ${script.lastRunStatus}'),
+                            onTap: () =>
+                                setState(() => selectedScript = script),
                             selected: selectedScript == script,
                             trailing: IconButton(
                               icon: const Icon(Icons.delete, color: Colors.red),
@@ -278,8 +286,8 @@ class _ControlPanelState extends State<ControlPanel> {
     BuildContext context, {
     required String label,
     required String extension,
-    required String Function(
-            TestCodeGenerator generator, TestScript script, List<RecordedStep> steps)
+    required String Function(TestCodeGenerator generator, TestScript script,
+            List<RecordedStep> steps)
         build,
   }) async {
     final script = selectedScript;
@@ -292,7 +300,8 @@ class _ControlPanelState extends State<ControlPanel> {
       final fileName = generator.fileNameFor(script, extension: extension);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$label copied to clipboard, save as $fileName')),
+          SnackBar(
+              content: Text('$label copied to clipboard, save as $fileName')),
         );
       }
     } catch (e, stackTrace) {

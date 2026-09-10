@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:self_test/self_test.dart';
 
 /// Builds a recording-enabled TextFormField.
-Widget buildRecordingTextFormField(TextFormField textField, SelfTestableWidget widget) {
+Widget buildRecordingTextFormField(
+    TextFormField textField, SelfTestableWidget widget) {
   return TextFormField(
     controller: textField.controller,
     initialValue: textField.initialValue,
     onChanged: (value) async {
-      debugPrint('[SelfTest] Recording text change for "${widget.id}": "$value"');
+      debugPrint(
+          '[SelfTest] Recording text change for "${widget.id}": "$value"');
       await SelfTestManager().enterText(widget.id, value);
       textField.onChanged?.call(value);
       widget.onTextChange?.call(value);
