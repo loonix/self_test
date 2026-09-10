@@ -1,18 +1,19 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:self_test/self_test.dart';
 import 'package:self_test_bridge/self_test_bridge.dart';
 
 /// Example of integrating self_test with MCP server.
 ///
-/// This shows the minimal setup required to enable AI-powered testing.
+/// This shows the minimal setup required to enable AI-powered testing. It uses
+/// the plain Navigator that every Flutter app already has, so nothing here
+/// depends on a routing package.
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Start the bridge in debug mode only
   if (kDebugMode) {
-    final bridge = SelfTestBridge(router: _router, port: 9999);
+    final bridge = SelfTestBridge(navigator: _bridgeNavigator, port: 9999);
     await bridge.start();
     debugPrint('SelfTestBridge started on port 9999');
   }
@@ -23,26 +24,11 @@ void main() async {
   runApp(const MyApp());
 }
 
-// GoRouter configuration
-final _router = GoRouter(
-  routes: [
-    GoRoute(
-      path: '/',
-      name: 'home',
-      builder: (context, state) => const HomeScreen(),
-    ),
-    GoRoute(
-      path: '/login',
-      name: 'login',
-      builder: (context, state) => const LoginScreen(),
-    ),
-    GoRoute(
-      path: '/settings',
-      name: 'settings',
-      builder: (context, state) => const SettingsScreen(),
-    ),
-  ],
-);
+/// The key the app hands to MaterialApp, and the bridge drives.
+final _navigatorKey = GlobalKey<NavigatorState>();
+
+/// The default BridgeNavigator: it needs nothing but the key above.
+final _bridgeNavigator = NavigatorStateBridgeNavigator(_navigatorKey);
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -51,9 +37,18 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return SelfTestRoot(
       child: ScreenshotBoundary(
-        child: MaterialApp.router(
+        child: MaterialApp(
           title: 'Self Test Example',
-          routerConfig: _router,
+          navigatorKey: _navigatorKey,
+          // Optional: lets the bridge report the whole route stack rather
+          // than just the route on top.
+          navigatorObservers: [_bridgeNavigator.observer],
+          initialRoute: '/',
+          routes: {
+            '/': (_) => const HomeScreen(),
+            '/login': (_) => const LoginScreen(),
+            '/settings': (_) => const SettingsScreen(),
+          },
         ),
       ),
     );
@@ -77,7 +72,7 @@ class HomeScreen extends StatelessWidget {
             Semantics(
               label: 'login_button',
               child: ElevatedButton(
-                onPressed: () => context.go('/login'),
+                onPressed: () => Navigator.pushNamed(context, '/login'),
                 child: const Text('Go to Login'),
               ),
             ),
@@ -85,7 +80,7 @@ class HomeScreen extends StatelessWidget {
             Semantics(
               label: 'settings_button',
               child: ElevatedButton(
-                onPressed: () => context.go('/settings'),
+                onPressed: () => Navigator.pushNamed(context, '/settings'),
                 child: const Text('Go to Settings'),
               ),
             ),
@@ -151,7 +146,7 @@ class _LoginScreenState extends State<LoginScreen> {
             Semantics(
               label: 'back_button',
               child: TextButton(
-                onPressed: () => context.go('/'),
+                onPressed: () => Navigator.pop(context),
                 child: const Text('Back to Home'),
               ),
             ),
@@ -204,7 +199,7 @@ class SettingsScreen extends StatelessWidget {
             child: ListTile(
               title: const Text('Logout'),
               leading: const Icon(Icons.logout),
-              onTap: () => context.go('/'),
+              onTap: () => Navigator.pop(context),
             ),
           ),
         ],

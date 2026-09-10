@@ -12,11 +12,11 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
-import 'package:go_router/go_router.dart';
 import 'package:self_test/self_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'bridge_commands.dart';
+import 'bridge_navigator.dart';
 import 'http_interceptor.dart';
 
 /// WebSocket bridge service that enables MCP server communication.
@@ -54,11 +54,24 @@ class SelfTestBridge {
   /// Whether this bridge may run in a release build.
   final bool allowInReleaseBuilds;
 
-  /// GoRouter instance for navigation
-  final GoRouter? router;
+  /// How this bridge navigates, or null when the app configured nothing.
+  ///
+  /// Null is honest rather than convenient: the navigation commands answer with
+  /// an error instead of reporting success for a move that never happened.
+  final BridgeNavigator? navigator;
 
   /// Whether the bridge is running
   bool get isRunning => _server != null;
+
+  /// What every navigation command answers when no [BridgeNavigator] was
+  /// configured. Reporting success for a move that never happened is how an
+  /// agent ends up asserting against the wrong screen.
+  static const Map<String, dynamic> _navigatorMissing = {
+    'error':
+        'No BridgeNavigator is configured, so the bridge cannot navigate. '
+        'Pass one to SelfTestBridge(navigator:) - '
+        'NavigatorStateBridgeNavigator(yourNavigatorKey) works for any app.',
+  };
 
   /// Console messages buffer
   final List<Map<String, dynamic>> _consoleMessages = [];
@@ -323,7 +336,7 @@ class SelfTestBridge {
   /// ```dart
   /// SelfTestBridge.onNotificationTap = (notification) {
   ///   // Navigate based on notification data
-  ///   router.go(notification.data['deep_link']);
+  ///   myBridgeNavigator.goTo(notification.data['deep_link']);
   /// };
   /// ```
   static void Function(MockNotification notification)? onNotificationTap;
@@ -438,7 +451,7 @@ class SelfTestBridge {
   ///
   /// [token] defaults to a fresh random secret, printed at startup.
   SelfTestBridge({
-    this.router,
+    this.navigator,
     this.port = 9999,
     String? projectRoot,
     InternetAddress? host,
@@ -734,10 +747,9 @@ class SelfTestBridge {
         return WidgetCatalog.exportCatalog();
 
       case 'getFlowGraph':
-        if (router != null) {
-          return FlowDiscovery.exportMetadata(router!);
-        }
-        return {'error': 'GoRouter not configured'};
+        final flowNavigator = navigator;
+        if (flowNavigator == null) return _navigatorMissing;
+        return {'routes': flowNavigator.describeRoutes()};
 
       case 'getScreens':
         return _getScreens();
@@ -873,39 +885,47 @@ class SelfTestBridge {
       case 'navigate':
         final route = params['route'] as String;
         final replace = params['replace'] as bool? ?? false;
-        if (replace) {
-          router?.go(route);
-        } else {
-          router?.push(route);
-        }
+        final navigateTarget = navigator;
+        if (navigateTarget == null) return _navigatorMissing;
+        await navigateTarget.goTo(route, replace: replace);
         await manager.waitForAnimations();
         return {'success': true};
 
       case 'goBack':
-        if (router?.canPop() ?? false) {
-          router?.pop();
+        final backTarget = navigator;
+        if (backTarget == null) return _navigatorMissing;
+        if (backTarget.canGoBack) {
+          await backTarget.goBack();
         } else {
-          // Try system back
+          // Nothing left in the app to pop, so ask the platform to leave it.
           SystemNavigator.pop();
         }
         await manager.waitForAnimations();
         return {'success': true};
 
       case 'reload':
-        // Hot reload via VM service would be needed
-        // For now, just refresh the current route
-        final currentLocation = router?.routeInformationProvider.value.uri
-            .toString();
-        if (currentLocation != null) {
-          router?.go(currentLocation);
+        // A real hot reload needs the VM service. This re-enters the current
+        // route, which is as close as the bridge can get on its own.
+        final reloadTarget = navigator;
+        if (reloadTarget == null) return _navigatorMissing;
+        final currentLocation = reloadTarget.currentLocation;
+        if (currentLocation == null) {
+          return {
+            'error':
+                'The configured BridgeNavigator cannot report where the app '
+                'is, so there is nothing to reload.',
+          };
         }
+        await reloadTarget.goTo(currentLocation, replace: true);
         await manager.waitForAnimations();
         return {'success': true};
 
       case 'restart':
-        // Hot restart would need VM service
-        // Simulate by going to root and clearing state
-        router?.go('/');
+        // A real hot restart needs the VM service. Going back to the root is
+        // the closest the bridge can get.
+        final restartTarget = navigator;
+        if (restartTarget == null) return _navigatorMissing;
+        await restartTarget.goTo('/', replace: true);
         await manager.waitForAnimations();
         return {'success': true};
 
@@ -2757,8 +2777,9 @@ class SelfTestBridge {
 
     // Try pressing back to dismiss
     if (action == 'dismiss') {
-      if (router?.canPop() ?? false) {
-        router?.pop();
+      final target = navigator;
+      if (target != null && target.canGoBack) {
+        await target.goBack();
       }
       return {'success': true};
     }
@@ -2768,8 +2789,9 @@ class SelfTestBridge {
 
   Future<Map<String, dynamic>> _dismissOverlay() async {
     // Try to pop any modal routes
-    if (router?.canPop() ?? false) {
-      router?.pop();
+    final target = navigator;
+    if (target != null && target.canGoBack) {
+      await target.goBack();
       await SelfTestManager().waitForAnimations();
       return {'success': true};
     }
@@ -2824,8 +2846,7 @@ class SelfTestBridge {
       state[key] = prefs.get(key);
     }
 
-    state['_currentRoute'] = router?.routeInformationProvider.value.uri
-        .toString();
+    state['_currentRoute'] = navigator?.currentLocation;
 
     _savedStates[name] = state;
   }
@@ -2846,7 +2867,7 @@ class SelfTestBridge {
 
     final route = state['_currentRoute'] as String?;
     if (route != null) {
-      router?.go(route);
+      await navigator?.goTo(route, replace: true);
     }
 
     await SelfTestManager().waitForAnimations();
@@ -3299,8 +3320,9 @@ class SelfTestBridge {
 
         case 'navigate':
           final route = actionParams['route'] as String?;
-          if (route != null && router != null) {
-            router!.go(route);
+          final target = navigator;
+          if (route != null && target != null) {
+            await target.goTo(route);
             await SelfTestManager().waitForAnimations();
           }
           break;
@@ -5422,8 +5444,7 @@ class SelfTestBridge {
     final timestamp = DateTime.now();
 
     // Capture current route
-    final currentRoute =
-        router?.routeInformationProvider.value.uri.toString() ?? '/';
+    final currentRoute = navigator?.currentLocation ?? '/';
 
     // Capture provider states from registered providers
     final providerStates = <String, Map<String, dynamic>>{};
@@ -5502,8 +5523,8 @@ class SelfTestBridge {
     }
 
     // 3. Navigate to the route
-    if (router != null && snapshot.currentRoute.isNotEmpty) {
-      router!.go(snapshot.currentRoute);
+    if (snapshot.currentRoute.isNotEmpty) {
+      await navigator?.goTo(snapshot.currentRoute, replace: true);
     }
 
     // 4. Wait for animations to complete
@@ -5566,8 +5587,8 @@ class SelfTestBridge {
         }
         // Handle deep link navigation if present
         final deepLink = data?['deep_link'] as String?;
-        if (deepLink != null && router != null) {
-          router!.go(deepLink);
+        if (deepLink != null) {
+          await navigator?.goTo(deepLink);
         }
         break;
       case 'dismiss':
@@ -5612,9 +5633,9 @@ class SelfTestBridge {
     // Handle deep link navigation
     String? navigatedTo;
     final deepLink = notification.data['deep_link'] as String?;
-    if (deepLink != null && router != null) {
+    if (deepLink != null && navigator != null) {
       navigatedTo = deepLink;
-      router!.go(deepLink);
+      await navigator!.goTo(deepLink);
       await SelfTestManager().waitForAnimations();
     }
 
@@ -5711,11 +5732,12 @@ class SelfTestBridge {
       source: source,
     );
 
-    // Try to handle via go_router or Navigator
+    // Handed to whatever BridgeNavigator the app configured.
     String? handledBy;
     String? navigatedTo;
 
-    if (router != null) {
+    final target = navigator;
+    if (target != null) {
       try {
         // Check if this URL scheme is registered (if schemes are registered)
         bool schemeAllowed = _registeredSchemes.isEmpty;
@@ -5743,14 +5765,15 @@ class SelfTestBridge {
             path = '/';
           }
 
-          // Navigate using go_router
-          if (uri.queryParameters.isNotEmpty) {
-            router!.go(path, extra: uri.queryParameters);
-          } else {
-            router!.go(path);
+          // The query string rides along in the location rather than in a
+          // router-specific "extra" bag, which is the only form every router
+          // understands.
+          if (uri.hasQuery) {
+            path = '$path?${uri.query}';
           }
+          await target.goTo(path);
 
-          handledBy = 'go_router';
+          handledBy = target.runtimeType.toString();
           navigatedTo = path;
           event.handled = true;
           event.route = path;
@@ -5908,22 +5931,24 @@ class SelfTestBridge {
     }
   }
 
-  /// Get the navigation observer to attach to Navigator/GoRouter
+  /// Get the navigation observer to attach to a Navigator
   NavigationInspectorObserver get navigationObserver {
     _ensureNavigationObserver();
     return _navigationObserver;
   }
 
+  /// Where the app is, preferring the configured navigator and falling back to
+  /// what the observer saw.
+  String get _currentRouteName =>
+      navigator?.currentLocation ??
+      (_routeStack.isNotEmpty ? _routeStack.last.settings.name : null) ??
+      'unknown';
+
   /// Get the full navigation stack
   Map<String, dynamic> _getNavigationStack() {
     _ensureNavigationObserver();
 
-    String currentRoute = 'unknown';
-    if (router != null) {
-      currentRoute = router!.routerDelegate.currentConfiguration.uri.toString();
-    } else if (_routeStack.isNotEmpty) {
-      currentRoute = _routeStack.last.settings.name ?? 'unknown';
-    }
+    final currentRoute = _currentRouteName;
 
     final stack = _routeStack.asMap().entries.map((e) {
       final route = e.value;
@@ -5972,37 +5997,24 @@ class SelfTestBridge {
     final manager = SelfTestManager();
     int poppedCount = 0;
 
-    if (router != null) {
-      // For go_router
-      if (route != null) {
-        router!.go(route);
-        await manager.waitForAnimations();
-        poppedCount = 1; // go_router doesn't give us exact count
-      } else if (predicate == 'isFirst') {
-        // Go to root
-        router!.go('/');
-        await manager.waitForAnimations();
-        poppedCount = _routeStack.length - 1;
-      }
-    } else {
-      // For traditional Navigator - would need NavigatorState access
-      if (predicate == 'isFirst') {
-        while (_routeStack.length > 1 && router?.canPop() == true) {
-          router?.pop();
-          poppedCount++;
-          await Future.delayed(const Duration(milliseconds: 50));
-        }
+    final target = navigator;
+    if (target == null) return _navigatorMissing;
+
+    if (route != null) {
+      // A router that addresses screens by location cannot report how many
+      // entries that dropped, so this counts the one move it made.
+      await target.goTo(route, replace: true);
+      poppedCount = 1;
+    } else if (predicate == 'isFirst') {
+      while (target.canGoBack) {
+        await target.goBack();
+        poppedCount++;
       }
     }
 
     await manager.waitForAnimations();
 
-    String currentRoute = 'unknown';
-    if (router != null) {
-      currentRoute = router!.routerDelegate.currentConfiguration.uri.toString();
-    } else if (_routeStack.isNotEmpty) {
-      currentRoute = _routeStack.last.settings.name ?? 'unknown';
-    }
+    final currentRoute = _currentRouteName;
 
     return {'poppedCount': poppedCount, 'currentRoute': currentRoute};
   }
@@ -6011,12 +6023,7 @@ class SelfTestBridge {
   Map<String, dynamic> _canPop() {
     _ensureNavigationObserver();
 
-    bool canPop = false;
-    if (router != null) {
-      canPop = router!.canPop();
-    } else {
-      canPop = _routeStack.length > 1;
-    }
+    final canPop = navigator?.canGoBack ?? _routeStack.length > 1;
 
     return {'canPop': canPop, 'stackDepth': _routeStack.length};
   }
@@ -6035,9 +6042,12 @@ class SelfTestBridge {
       });
     }
 
-    // Try to get observers from GoRouter if available
-    if (router != null) {
-      observers.add({'type': 'GoRouter', 'name': 'App Router'});
+    final target = navigator;
+    if (target != null) {
+      observers.add({
+        'type': target.runtimeType.toString(),
+        'name': 'App BridgeNavigator',
+      });
     }
 
     return {'observers': observers};
@@ -6048,35 +6058,23 @@ class SelfTestBridge {
     final manager = SelfTestManager();
     bool popped = false;
 
-    final canPopBefore = router?.canPop() ?? _routeStack.length > 1;
+    final target = navigator;
+    if (target == null) return _navigatorMissing;
 
-    if (canPopBefore) {
-      if (type == 'swipe') {
-        // Simulate iOS edge swipe - this would be a gesture simulation
-        // For now, we just pop like a back button
-        router?.pop();
-        popped = true;
-      } else {
-        // Button press - standard pop or system back
-        if (router?.canPop() ?? false) {
-          router?.pop();
-          popped = true;
-        } else {
-          // Try system back
-          SystemNavigator.pop();
-          popped = false; // System back might exit the app
-        }
-      }
+    if (target.canGoBack) {
+      // An edge swipe and a back button both end in the same pop; the bridge
+      // does not simulate the gesture itself.
+      await target.goBack();
+      popped = true;
+    } else {
+      // Nothing left in the app to pop, so ask the platform to leave it. That
+      // may close the app, which is not a pop.
+      SystemNavigator.pop();
     }
 
     await manager.waitForAnimations();
 
-    String currentRoute = 'unknown';
-    if (router != null) {
-      currentRoute = router!.routerDelegate.currentConfiguration.uri.toString();
-    } else if (_routeStack.isNotEmpty) {
-      currentRoute = _routeStack.last.settings.name ?? 'unknown';
-    }
+    final currentRoute = _currentRouteName;
 
     return {'popped': popped, 'currentRoute': currentRoute};
   }
@@ -7394,5 +7392,4 @@ class _AppSnapshot {
     'storageSnapshot': storageSnapshot,
     'widgetTreeDigest': widgetTreeDigest,
   };
-
 }

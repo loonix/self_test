@@ -98,6 +98,22 @@
   decides where generated code goes.
 - `WidgetCatalog` and `FlowDiscovery` are deprecated. Both only ever returned
   an empty map.
+- **The bridge no longer depends on go_router.** `SelfTestBridge` took a
+  `GoRouter? router`, so a testing bridge that was meant to drive any Flutter
+  app only navigated in apps that had picked one particular routing package.
+  The parameter is now `BridgeNavigator? navigator`, an interface this package
+  owns, with four members the bridge actually needs. Pass
+  `NavigatorStateBridgeNavigator(yourNavigatorKey)` and it works in any app;
+  a go_router app implements the interface in ten lines, and
+  `BridgeNavigator`'s doc comment gives that adapter in full.
+
+  The parameter was renamed rather than kept as `router`, because it no longer
+  takes a router. `bridge.router` is now `bridge.navigator`.
+
+  Navigation commands that used to report `{"success": true}` while doing
+  nothing, because no router was configured, now return an error saying so.
+  `getFlowGraph` returns the routes the navigator reports rather than the empty
+  map deprecated `FlowDiscovery` handed back.
 
 ### Fixed
 

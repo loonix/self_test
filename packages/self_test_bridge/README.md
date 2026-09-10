@@ -33,8 +33,12 @@ In your `main.dart`:
 
 ```dart
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:self_test/self_test.dart';
 import 'package:self_test_bridge/self_test_bridge.dart';
+
+final navigatorKey = GlobalKey<NavigatorState>();
+final bridgeNavigator = NavigatorStateBridgeNavigator(navigatorKey);
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -42,20 +46,14 @@ void main() async {
   // Start bridge in debug mode only
   if (kDebugMode) {
     final bridge = SelfTestBridge(
-      router: yourGoRouter,  // Pass your GoRouter instance
-      port: 9999,            // WebSocket port
+      navigator: bridgeNavigator,  // How the bridge navigates
+      port: 9999,                  // WebSocket port
     );
     await bridge.start();
   }
 
   // Enable self-test mode
   SelfTestManager().setSelfTestModeActive(kDebugMode);
-
-  // Set navigation callback
-  SelfTestManager().setNavigationCallback((route) async {
-    yourGoRouter.go(route);
-    await Future.delayed(const Duration(milliseconds: 500));
-  });
 
   runApp(const MyApp());
 }
@@ -70,14 +68,49 @@ class MyApp extends StatelessWidget {
     return SelfTestRoot(
       enableAutoDetection: true,  // Auto-detect interactive widgets
       child: ScreenshotBoundary(
-        child: MaterialApp.router(
-          routerConfig: yourGoRouter,
+        child: MaterialApp(
+          navigatorKey: navigatorKey,
+          // Optional: lets the bridge see the whole route stack.
+          navigatorObservers: [bridgeNavigator.observer],
+          routes: {'/': (_) => const HomeScreen()},
         ),
       ),
     );
   }
 }
 ```
+
+### Using a routing package
+
+`BridgeNavigator` is a four-member interface, so any router can drive the
+bridge. For go_router:
+
+```dart
+class GoRouterBridgeNavigator implements BridgeNavigator {
+  GoRouterBridgeNavigator(this.router);
+  final GoRouter router;
+
+  @override
+  Future<void> goTo(String location, {bool replace = false}) async =>
+      replace ? router.go(location) : router.push(location);
+
+  @override
+  Future<void> goBack() async => router.pop();
+
+  @override
+  bool get canGoBack => router.canPop();
+
+  @override
+  String? get currentLocation =>
+      router.routerDelegate.currentConfiguration.uri.toString();
+
+  @override
+  List<Map<String, dynamic>> describeRoutes() => const [];
+}
+```
+
+With no navigator configured, the navigation commands return an error rather
+than reporting a success for a move that never happened.
 
 ### 3. Add Semantic Labels
 

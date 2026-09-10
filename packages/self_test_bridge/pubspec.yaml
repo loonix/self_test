@@ -13,7 +13,6 @@ dependencies:
   self_test:
     path: ../..
   web_socket_channel: ^2.4.0
-  go_router: ^14.0.0
   shared_preferences: ^2.2.2
   dio: ^5.4.0
 
