@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../core/manager.dart';
 import '../core/recording_mode.dart';
+import '../core/test_binding.dart';
 import 'control_panel.dart';
 
 /// A wrapper widget for the root of the app to enable programmatic restart.
@@ -50,7 +51,7 @@ class _SelfTestRootState extends State<SelfTestRoot> {
 
   /// Clamps the FAB position to keep it within screen bounds
   Offset _clampFabPosition(Offset position, Size screenSize) {
-    final minX = _fabPadding;
+    const minX = _fabPadding;
     final maxX = screenSize.width - _fabSize - _fabPadding;
     final minY = _fabPadding + MediaQuery.of(context).padding.top;
     final maxY = screenSize.height -
@@ -97,7 +98,7 @@ class _SelfTestRootState extends State<SelfTestRoot> {
   bool get _shouldShowControls {
     final explicit = widget.showControls;
     if (explicit != null) return explicit;
-    return kDebugMode && WidgetsBinding.instance is WidgetsFlutterBinding;
+    return kDebugMode && !isRunningUnderTest;
   }
 
   @override

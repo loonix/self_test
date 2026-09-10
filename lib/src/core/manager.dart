@@ -9,6 +9,7 @@ import '../models.dart';
 import '../persistence/recording_store.dart';
 import '../screenshot/screenshot_writer.dart';
 import 'recording_mode.dart';
+import 'test_binding.dart';
 import 'test_node.dart';
 
 // Forward declaration for SelfTestableWidget to avoid circular imports
@@ -426,9 +427,16 @@ class SelfTestManager {
     }
   }
 
-  /// Waits for animations to complete (simulates pumpAndSettle).
+  /// Gives the UI a moment to settle after an action.
+  ///
+  /// Under `flutter_test` this returns without waiting. A real
+  /// `Future.delayed` never completes inside a `testWidgets` body: the test
+  /// owns the clock and only `pump` advances it, so awaiting one deadlocks
+  /// until the ten-minute timeout. Three tests in the example app died that
+  /// way. In a test, pump yourself after the action; that is the point of
+  /// having the clock.
   Future<void> waitForAnimations() async {
-    // Simple delay; in real implementation, might need more sophisticated logic
+    if (isRunningUnderTest) return;
     await Future.delayed(const Duration(milliseconds: 100));
   }
 

@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:self_test/self_test.dart';
 
 void main() {
+  _waitForAnimations();
+
   // Every one of these calls pumpAndSettle. That is the point: the recording
   // controls are a live overlay, and while they were drawn into every debug
   // tree, pumpAndSettle on a widget wrapped in SelfTestRoot never returned.
@@ -79,5 +81,41 @@ void main() {
 
     expect(find.text('hello'), findsOneWidget);
     expect(SelfTestManager().activeTestNodes.containsKey('greet_btn'), isTrue);
+  });
+}
+
+void _waitForAnimations() {
+  group('waitForAnimations', () {
+    testWidgets('returns under the test binding instead of deadlocking',
+        (tester) async {
+      await tester.pumpWidget(const MaterialApp(home: SizedBox()));
+
+      // A real Future.delayed never completes here: the test owns the clock
+      // and only pump advances it. Awaiting one used to hang until the
+      // ten-minute timeout. If this test times out, the guard is gone.
+      await SelfTestManager().waitForAnimations();
+
+      expect(SelfTestManager().isTestMode, isTrue);
+    });
+
+    testWidgets('an action followed by waitForAnimations completes',
+        (tester) async {
+      var tapped = false;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: SelfTestableWidget(
+            id: 'go_btn',
+            onTap: () => tapped = true,
+            child: const Text('go'),
+          ),
+        ),
+      );
+
+      await SelfTestManager().trigger('go_btn');
+      await SelfTestManager().waitForAnimations();
+      await tester.pump();
+
+      expect(tapped, isTrue);
+    });
   });
 }
