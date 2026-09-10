@@ -1,5 +1,47 @@
 ## 0.2.0
 
+### Added
+
+- **Universal locators.** `SelfTestLocator` finds a widget by the text it
+  paints, its `ValueKey`, its tooltip, its semantics label, its type, or a
+  `SelfTestableWidget` id, with `.at(n)` to pick between duplicates. Resolution
+  walks the element tree, so an app needs no wrapper, no annotation and no
+  generated code to be driven. Locators are JSON in both directions, which is
+  how the bridge and the MCP server will carry them.
+- **Real pointer events.** `tap`, `doubleTap`, `longPress`, `dragFrom` and
+  `scrollBy` dispatch through `GestureBinding.handlePointerEvent`, the same
+  entry point the engine uses. Hit testing runs, so a widget behind a dialog is
+  not reachable and a disabled button swallows the tap. Before this, a driven
+  tap invoked the app's callback directly and therefore passed on buttons the
+  user could not even reach.
+- **Real text entry.** `typeInto` goes through
+  `EditableTextState.updateEditingValue`, the method the soft keyboard calls,
+  so input formatters run, `onChanged` fires and a `TextFormField` validates
+  what was actually typed. It also resolves a field from the label beside it,
+  which is how a person describes it.
+- `describeScreen()` returns every actionable widget on screen with its type,
+  text, tooltip, rect and enabled state, for an agent deciding what to do next.
+- `exists` and `isVisible` are separate questions. A list keeps items built
+  after they scroll away, and tapping one of those would land on whatever is
+  drawn at those coordinates now, so a driven gesture refuses instead.
+- `useClock` lets a widget test hand the driver `tester.pump`, which is what a
+  long press needs to be held rather than silently degrading to a tap.
+
+### Fixed
+
+- A recorded tap fired the app's handler twice. The recording wrappers called
+  the driving API to record the action, which invoked the wrapper's callback,
+  and then called the child's callback as well. Recording now records, and the
+  child's own handler runs once; `SelfTestableWidget.onTap` is a fallback for a
+  child that carries none.
+- Driving a widget wrapped in `SelfTestableWidget` with no matching recording
+  builder recursed until the stack ran out, because the fallback wrapper called
+  `trigger` from inside the tap it was handling.
+- Under `integration_test`, driven gestures did nothing at all and said
+  nothing: that binding drops pointer events that did not come from a
+  `WidgetTester`. The driver now detects it and names the one line that fixes
+  it, `binding.shouldPropagateDevicePointerEvents = true`.
+
 ### Breaking
 
 - Minimum Flutter is now 3.35.0 (Dart 3.9.0), raised from a declared 3.24.0

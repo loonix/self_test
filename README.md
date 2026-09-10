@@ -2,7 +2,10 @@
 
 [![pub package](https://img.shields.io/pub/v/self_test.svg)](https://pub.dev/packages/self_test)
 
-Automated regression testing for Flutter through **direct callback invocation**. Unlike traditional testing frameworks that simulate UI interactions, `self_test` invokes widget callbacks directly, providing fast and reliable testing for development and pre-production environments.
+Automated regression testing for Flutter, driven from outside the app with
+**real pointer events**. Widgets are found by what is on screen (their text,
+key, tooltip or semantics label), so an app does not have to be modified,
+wrapped or annotated before it can be tested.
 
 **🤖 AI-Powered Testing:** Pair with [self_test_mcp](packages/self_test_mcp) to enable Claude and other AI agents to test your Flutter apps with Playwright feature parity - works on iOS, Android, Web, and Desktop!
 
@@ -85,6 +88,64 @@ See [Architecture](#architecture) section below for details.
 
 ## Quick Start
 
+### Drive an app that has never heard of this package
+
+```dart
+final app = SelfTestManager();
+
+await app.typeInto(SelfTestLocator.text('Username'), 'ada');
+await app.typeInto(SelfTestLocator.text('Password'), 'correct horse');
+await app.tap(SelfTestLocator.text('Sign in'));
+await tester.pump();
+
+expect(app.exists(SelfTestLocator.text('Welcome, ada')), isTrue);
+```
+
+Nothing above needs a change to the app. The locator is resolved against the
+element tree at the moment it is used, and the tap is a real
+`PointerDownEvent` and `PointerUpEvent` through `GestureBinding`, so hit
+testing runs: a button under a dialog is not reachable, a disabled button
+swallows the tap, and typing goes through the field's input formatters.
+
+Locators, in the order you will reach for them:
+
+| Locator | Finds |
+|---|---|
+| `SelfTestLocator.text('Sign in')` | the text a widget paints (`exact: false` for a substring) |
+| `SelfTestLocator.key('submit')` | a `ValueKey<String>` |
+| `SelfTestLocator.tooltip('Delete')` | an icon-only button |
+| `SelfTestLocator.semantics('Avatar')` | what a screen reader would read |
+| `SelfTestLocator.type('Switch')` | a widget type by name |
+| `SelfTestLocator.id('login_button')` | a `SelfTestableWidget` id |
+
+Add `.at(2)` to any of them to pick between duplicates, in tree order.
+
+`describeScreen()` answers "what can I do here?" without a locator at all: it
+returns every actionable widget on screen with its type, text, tooltip, rect
+and enabled state. That is what the MCP server hands an agent.
+
+Two questions that look the same and are not: `exists` asks whether a widget
+is in the tree, `isVisible` asks whether the user can see it. A list keeps
+items built for a while after they scroll away, so a driven tap on one refuses
+rather than landing on whatever is drawn at those coordinates now.
+
+Under `integration_test`, add one line to `main()` before your tests:
+
+```dart
+final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+binding.shouldPropagateDevicePointerEvents = true;
+```
+
+That binding drops every pointer event that did not come from a
+`WidgetTester`. Without the line the taps do nothing and say nothing; with
+self_test you get an error that tells you this instead.
+
+### Optional: give widgets an id
+
+Wrapping is no longer required. It is still useful when a widget has no text,
+no key and no label to find it by, or when you want a recorded script to keep
+working after the copy changes.
+
 ### 1. Wrap Your App Root
 
 ```dart
@@ -122,10 +183,14 @@ SelfTestableWidget(
 ### 3. Run Tests
 
 ```dart
-SelfTestManager().enterText('username_field', 'john_doe');
-SelfTestManager().trigger('login_button');
+await SelfTestManager().enterText('username_field', 'john_doe');
+await SelfTestManager().trigger('login_button');
 await SelfTestManager().waitForAnimations();
 ```
+
+`trigger` and `enterText` still take an id and still work. They now
+send a real pointer event when the widget is on screen, and fall back to the
+registered callback only when it is not.
 
 ## Usage
 
