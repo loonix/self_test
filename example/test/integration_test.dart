@@ -8,6 +8,14 @@ void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   group('Self-Test End-to-End Tests', () {
+    setUp(() {
+      // SelfTestManager is a singleton, so without this the mode a previous
+      // test switched on is still on when the next one asserts it is off.
+      SelfTestManager().setTestMode(false);
+      SelfTestManager().setSelfTestModeActive(false);
+      SelfTestManager().activeTestNodes.clear();
+    });
+
     testWidgets('Complete user flow with self-test activation',
         (WidgetTester tester) async {
       // Build the app
@@ -56,15 +64,16 @@ void main() {
       // Note: Manual interaction might not work in test mode,
       // but we can verify the widgets are present
       expect(find.byType(TextField), findsOneWidget);
-      expect(find.text('Login'), findsOneWidget);
+      expect(find.widgetWithText(ElevatedButton, 'Login'), findsOneWidget);
       expect(find.text('Current username: '), findsOneWidget);
 
       // Go back to main page
       await tester.pageBack();
       await tester.pumpAndSettle();
 
-      // Verify we're back on the main page
-      expect(find.text('Login'), findsOneWidget);
+      // Verify we're back on the main page. 'Login' is both the AppBar
+      // title and the button label here, so match the button.
+      expect(find.widgetWithText(ElevatedButton, 'Login'), findsOneWidget);
       expect(find.text('Activate Self-Test Mode'), findsOneWidget);
     });
 
@@ -103,7 +112,7 @@ void main() {
       // Try to trigger a non-existent widget (should not crash the app)
       bool threwException = false;
       try {
-        SelfTestManager().trigger('nonexistent_widget');
+        await SelfTestManager().trigger('nonexistent_widget');
       } catch (e) {
         threwException = true;
         expect(e.toString(), contains('not found'));
@@ -111,12 +120,12 @@ void main() {
       expect(threwException, isTrue);
 
       // Verify the app is still functional after the error
-      expect(find.text('Login'), findsOneWidget);
+      expect(find.widgetWithText(ElevatedButton, 'Login'), findsOneWidget);
 
       // Normal operations should still work
-      SelfTestManager().enterText('username_field', 'test');
-      SelfTestManager().enterText('password_field', 'pass');
-      SelfTestManager().trigger('login_button');
+      await SelfTestManager().enterText('username_field', 'test');
+      await SelfTestManager().enterText('password_field', 'pass');
+      await SelfTestManager().trigger('login_button');
       await tester.pump();
 
       expect(find.text('Login successful!'), findsOneWidget);

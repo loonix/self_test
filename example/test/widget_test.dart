@@ -25,10 +25,10 @@ void main() {
       expect(find.text('Login successful!'), findsNothing);
 
       // Run self-test - enter valid credentials
-      SelfTestManager().enterText('username_field', 'testuser');
-      SelfTestManager().enterText('password_field', 'testpass');
+      await SelfTestManager().enterText('username_field', 'testuser');
+      await SelfTestManager().enterText('password_field', 'testpass');
       await SelfTestManager().waitForAnimations();
-      SelfTestManager().trigger('login_button');
+      await SelfTestManager().trigger('login_button');
 
       // Pump to update UI
       await tester.pump();
@@ -46,7 +46,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Try to login with empty fields
-      SelfTestManager().trigger('login_button');
+      await SelfTestManager().trigger('login_button');
 
       // Pump to update UI
       await tester.pump();
@@ -65,8 +65,8 @@ void main() {
       await tester.pumpAndSettle();
 
       // Enter only username
-      SelfTestManager().enterText('username_field', 'testuser');
-      SelfTestManager().trigger('login_button');
+      await SelfTestManager().enterText('username_field', 'testuser');
+      await SelfTestManager().trigger('login_button');
 
       // Pump to update UI
       await tester.pump();
@@ -87,7 +87,8 @@ void main() {
       // Verify mode is activated
       expect(SelfTestManager().isSelfTestModeActive, isTrue);
 
-      // Verify snackbar appears
+      // The status text is derived from the manager, so it survives the
+      // widget-tree restart that activation performs. A snackbar did not.
       expect(find.text('Self-test mode activated'), findsOneWidget);
     });
 
@@ -109,7 +110,7 @@ void main() {
       expect(find.text('Current username: '), findsOneWidget);
 
       // Test text input
-      SelfTestManager().enterText('username_field', 'example_user');
+      await SelfTestManager().enterText('username_field', 'example_user');
       await SelfTestManager().waitForAnimations();
       await tester.pump();
 
@@ -117,7 +118,7 @@ void main() {
       expect(find.text('Current username: example_user'), findsOneWidget);
 
       // Test button press
-      SelfTestManager().trigger('login_btn');
+      await SelfTestManager().trigger('login_btn');
       await tester.pump();
 
       // Note: Since onLoginPressed only prints to debug console,

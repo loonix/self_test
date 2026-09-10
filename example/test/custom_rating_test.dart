@@ -50,7 +50,7 @@ void main() {
         true);
 
     // Test triggering a star tap
-    SelfTestManager().trigger('test_rating_star_4');
+    await SelfTestManager().trigger('test_rating_star_4');
     await tester.pumpAndSettle();
 
     // Verify the rating changed (this would be reflected in the widget state)
