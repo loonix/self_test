@@ -57,3 +57,6 @@ package-lock.json
 # canvaskit is 31 of the bundle's 38 MB and DevTools already serves its own,
 # so shipping a second copy costs every consumer that download for nothing.
 extension/devtools/build/canvaskit/
+
+# Agent worktrees, created per delegated task and thrown away after.
+.claude/
