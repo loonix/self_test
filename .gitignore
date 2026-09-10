@@ -38,6 +38,10 @@ node_modules/
 **/dist/
 package-lock.json
 **/package-lock.json
+# ...except the MCP server's. That package is an application, not a published
+# library, and npm's convention is that an application commits its lockfile so
+# installs are reproducible. CI runs `npm ci`, which requires it.
+!packages/self_test_mcp/package-lock.json
 
 # Codex task specs: orchestration scaffolding, not shipped source.
 .tasks/

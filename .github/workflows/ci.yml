@@ -139,11 +139,12 @@ jobs:
           cache: npm
           cache-dependency-path: packages/self_test_mcp/package-lock.json
 
+      # --ignore-scripts skips the postinstall, which downloads a Chromium
+      # for Playwright. CI only builds the server here, so that is a browser
+      # download and a couple of minutes bought for nothing.
       - name: Install
         working-directory: packages/self_test_mcp
-        # No lockfile is committed yet, so `npm ci` cannot be used. Switch to
-        # it once one is.
-        run: npm install --ignore-scripts
+        run: npm ci --ignore-scripts
 
       - name: Build
         working-directory: packages/self_test_mcp
