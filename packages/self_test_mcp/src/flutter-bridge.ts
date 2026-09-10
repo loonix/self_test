@@ -176,7 +176,7 @@ export class FlutterBridge {
       });
 
       this.wss.on("listening", () => {
-        console.error(`WebSocket server listening on ${this.getUrl()}`);
+        console.error(`WebSocket server listening on ${redactToken(this.getUrl())}`);
         if (!requiredToken) {
           console.error(
             "No token configured. Pass --token or set SELF_TEST_TOKEN to match the app."
