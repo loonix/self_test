@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../core/manager.dart';
+import '../devtools/service_extensions.dart';
 import '../core/recording_mode.dart';
 import '../core/test_binding.dart';
 import 'control_panel.dart';
@@ -70,6 +71,10 @@ class _SelfTestRootState extends State<SelfTestRoot> {
   @override
   void initState() {
     super.initState();
+    // Wiring the DevTools panel up costs one call and nothing at runtime when
+    // no one is listening. Without it the panel loads and every button in it
+    // reports an error, which is what it did until now.
+    registerSelfTestServiceExtensions();
     debugPrint('[SelfTest] SelfTestRoot initState called');
     debugPrint(
       '[SelfTest] SelfTestRoot key: ${widget.key}, manager rootKey: ${SelfTestManager().rootKey}',

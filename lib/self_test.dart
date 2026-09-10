@@ -10,6 +10,8 @@ export 'src/catalog.dart';
 export 'src/core/manager.dart';
 export 'src/core/recording_mode.dart';
 export 'src/core/test_node.dart';
+export 'src/devtools/service_extensions.dart'
+    show registerSelfTestServiceExtensions;
 export 'src/gestures/pointer_driver.dart' show PointerDriver, ClockAdvance;
 export 'src/gestures/text_input_driver.dart' show TextInputDriver;
 export 'src/locator/element_scanner.dart' show ElementScanner, WidgetSnapshot;
