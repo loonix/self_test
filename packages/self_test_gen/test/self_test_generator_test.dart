@@ -6,13 +6,14 @@ import 'package:test/test.dart';
 /// Runs the builder over [source] and returns the generated library, or null
 /// when the generator produced nothing.
 Future<String?> generate(String source) async {
-  final writer = InMemoryAssetWriter();
-  await testBuilder(
-    selfTestBuilder(BuilderOptions.empty),
+  final result = await testBuilders(
+    [selfTestBuilder(BuilderOptions.empty)],
     {
       'a|lib/input.dart': source,
-      // The annotations the generator matches on have to be resolvable, so
-      // the fake package needs a real copy of them.
+      // The generator matches on these annotations, so they have to resolve.
+      // Stubbed rather than read from the real package: it keeps the test
+      // hermetic, and the generator only ever looks at the annotation's name
+      // and its single id argument.
       'self_test|lib/annotations.dart': '''
 class SelfTestButton {
   final String id;
@@ -26,12 +27,23 @@ class SelfTestInput {
 ''',
       'self_test|lib/self_test.dart': "export 'annotations.dart';",
     },
-    writer: writer,
-    reader: await PackageAssetReader.currentIsolate(),
+    // Without this build_test picks the root from an unordered set of the
+    // packages it was handed, so the builder sometimes ran against
+    // `self_test` and wrote its output there instead.
+    rootPackage: 'a',
+    generateFor: {'a|lib/input.dart'},
   );
 
-  final output = writer.assets[AssetId('a', 'lib/input.g.dart')];
-  return output == null ? null : String.fromCharCodes(output);
+  final readerWriter = result.readerWriter;
+  final id = AssetId('a', 'lib/input.g.dart');
+  if (!readerWriter.testing.assetsWritten.contains(id)) return null;
+
+  // build_test reports the output under its logical id but stores it beneath
+  // the build's generated directory, so reading the logical id directly finds
+  // nothing.
+  return readerWriter.readAsString(
+    AssetId('a', '.dart_tool/build/generated/a/lib/input.g.dart'),
+  );
 }
 
 void main() {
@@ -61,8 +73,10 @@ class LoginForm {
     // same lints the rest of the project is held to.
     expect(generated, contains('void tapLoginBtn()'));
     expect(generated, contains('void enterUsernameField(String text)'));
-    expect(generated,
-        contains('void expectUsernameFieldText(String expectedText)'));
+    expect(
+      generated,
+      contains('void expectUsernameFieldText(String expectedText)'),
+    );
     expect(generated, contains('void expectLoginBtnExists()'));
     expect(generated, contains('void expectLoginBtnDoesNotExist()'));
     // The id itself must survive verbatim: it is the registration key.
@@ -95,9 +109,10 @@ class Screen {
     expect(generated, contains("trigger('save--now button')"));
   });
 
-  test('prefixes an id starting with a digit so the method name is legal',
-      () async {
-    final generated = await generate('''
+  test(
+    'prefixes an id starting with a digit so the method name is legal',
+    () async {
+      final generated = await generate('''
 import 'package:self_test/annotations.dart';
 
 class Screen {
@@ -106,8 +121,9 @@ class Screen {
 }
 ''');
 
-    expect(generated, contains('void tapN2faSubmit()'));
-  });
+      expect(generated, contains('void tapN2faSubmit()'));
+    },
+  );
 
   test('generates one method per id when two handlers share an id', () async {
     final generated = await generate('''
@@ -142,13 +158,16 @@ class Alpha {
 
     expect(generated, contains('class AlphaTestController'));
     expect(generated, contains('class ZetaTestController'));
-    expect(generated!.indexOf('AlphaTestController'),
-        lessThan(generated.indexOf('ZetaTestController')));
+    expect(
+      generated!.indexOf('AlphaTestController'),
+      lessThan(generated.indexOf('ZetaTestController')),
+    );
   });
 
-  test('emits the self_test import so the output is a standalone library',
-      () async {
-    final generated = await generate('''
+  test(
+    'emits the self_test import so the output is a standalone library',
+    () async {
+      final generated = await generate('''
 import 'package:self_test/annotations.dart';
 
 class Screen {
@@ -157,11 +176,12 @@ class Screen {
 }
 ''');
 
-    expect(generated, contains("import 'package:self_test/self_test.dart';"));
-    // Not a part file: a `part` directive pointing at a library is a compile
-    // error, and the README used to tell people to write one.
-    expect(generated, isNot(contains('part of')));
-  });
+      expect(generated, contains("import 'package:self_test/self_test.dart';"));
+      // Not a part file: a `part` directive pointing at a library is a compile
+      // error, and the README used to tell people to write one.
+      expect(generated, isNot(contains('part of')));
+    },
+  );
 }
 
 void _privateClassNames() {
