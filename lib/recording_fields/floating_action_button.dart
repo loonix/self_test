@@ -6,7 +6,6 @@ Widget buildRecordingFloatingActionButton(
     FloatingActionButton fab, SelfTestableWidget widget) {
   return FloatingActionButton(
     key: fab.key,
-    child: fab.child,
     tooltip: fab.tooltip,
     foregroundColor: fab.foregroundColor,
     backgroundColor: fab.backgroundColor,
@@ -36,5 +35,6 @@ Widget buildRecordingFloatingActionButton(
     materialTapTargetSize: fab.materialTapTargetSize,
     isExtended: fab.isExtended,
     enableFeedback: fab.enableFeedback,
+    child: fab.child,
   );
 }
