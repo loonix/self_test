@@ -9,8 +9,27 @@ class SelfTestRoot extends StatefulWidget {
   final Widget child;
   final GlobalKey<NavigatorState>? navigatorKey;
 
-  SelfTestRoot({Key? key, required this.child, this.navigatorKey})
-      : super(key: key ?? (SelfTestManager().rootKey ?? GlobalKey<State>(debugLabel: 'SelfTestRoot'))) {
+  /// Whether to draw the floating recording controls over the app.
+  ///
+  /// Leave it null for the default: shown in a debug build of a real app,
+  /// hidden under the widget-test binding. That second half matters, because
+  /// the controls are a live overlay and `pumpAndSettle` on a tree containing
+  /// them never returns. Every widget test that wrapped its app in a
+  /// [SelfTestRoot] hung for the full timeout.
+  ///
+  /// Pass false to keep the app clean in a debug build, or true to force the
+  /// controls on, including in a test that means to exercise them.
+  final bool? showControls;
+
+  SelfTestRoot({
+    Key? key,
+    required this.child,
+    this.navigatorKey,
+    this.showControls,
+  }) : super(
+            key: key ??
+                (SelfTestManager().rootKey ??
+                    GlobalKey<State>(debugLabel: 'SelfTestRoot'))) {
     // Ensure the manager has a root key
     SelfTestManager().rootKey ??= GlobalKey<State>(debugLabel: 'SelfTestRoot');
   }
@@ -21,7 +40,8 @@ class SelfTestRoot extends StatefulWidget {
 
 class _SelfTestRootState extends State<SelfTestRoot> {
   bool _isFabExpanded = false;
-  Offset _fabPosition = const Offset(300, 300); // Default position, will be updated
+  Offset _fabPosition =
+      const Offset(300, 300); // Default position, will be updated
 
   // FAB dimensions for bounds calculation
   static const double _fabSize = 72.0;
@@ -33,7 +53,10 @@ class _SelfTestRootState extends State<SelfTestRoot> {
     final minX = _fabPadding;
     final maxX = screenSize.width - _fabSize - _fabPadding;
     final minY = _fabPadding + MediaQuery.of(context).padding.top;
-    final maxY = screenSize.height - _fabTotalHeight - _fabPadding - MediaQuery.of(context).padding.bottom;
+    final maxY = screenSize.height -
+        _fabTotalHeight -
+        _fabPadding -
+        MediaQuery.of(context).padding.bottom;
 
     return Offset(
       position.dx.clamp(minX, maxX),
@@ -45,15 +68,18 @@ class _SelfTestRootState extends State<SelfTestRoot> {
   void initState() {
     super.initState();
     debugPrint('[SelfTest] SelfTestRoot initState called');
-    debugPrint('[SelfTest] SelfTestRoot key: ${widget.key}, manager rootKey: ${SelfTestManager().rootKey}');
+    debugPrint(
+        '[SelfTest] SelfTestRoot key: ${widget.key}, manager rootKey: ${SelfTestManager().rootKey}');
     // Ensure the manager's rootKey points to this state
     SelfTestManager().rootKey = widget.key as GlobalKey<State>?;
     // Initialize FAB position to middle-right, fully visible
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         final screenSize = MediaQuery.of(context).size;
-        final newPosition = Offset(screenSize.width - 88, screenSize.height / 2 - 36);
-        debugPrint('[SelfTest] Setting FAB position to: $newPosition, screen size: $screenSize');
+        final newPosition =
+            Offset(screenSize.width - 88, screenSize.height / 2 - 36);
+        debugPrint(
+            '[SelfTest] Setting FAB position to: $newPosition, screen size: $screenSize');
         setState(() {
           _fabPosition = newPosition;
         });
@@ -61,17 +87,32 @@ class _SelfTestRootState extends State<SelfTestRoot> {
     });
   }
 
+  /// Resolves [SelfTestRoot.showControls].
+  ///
+  /// The automatic case deliberately excludes the test binding. A widget test
+  /// runs in debug mode, so a plain `kDebugMode` check drew the overlay into
+  /// every test tree. `WidgetsBinding.instance` is a [WidgetsFlutterBinding]
+  /// in a real app and a `TestWidgetsFlutterBinding` under `flutter_test`,
+  /// which lets the core tell them apart without depending on `flutter_test`.
+  bool get _shouldShowControls {
+    final explicit = widget.showControls;
+    if (explicit != null) return explicit;
+    return kDebugMode && WidgetsBinding.instance is WidgetsFlutterBinding;
+  }
+
   @override
   Widget build(BuildContext context) {
     // Force rebuild when self-test mode changes or restart is called
     final manager = SelfTestManager();
-    debugPrint('[SelfTest] SelfTestRoot building with key: ${manager.isSelfTestModeActive}_${manager.isTestMode}_${manager.rebuildCounter}');
+    debugPrint(
+        '[SelfTest] SelfTestRoot building with key: ${manager.isSelfTestModeActive}_${manager.isTestMode}_${manager.rebuildCounter}');
     final child = KeyedSubtree(
-      key: ValueKey('${manager.isSelfTestModeActive}_${manager.isTestMode}_${manager.rebuildCounter}'),
+      key: ValueKey(
+          '${manager.isSelfTestModeActive}_${manager.isTestMode}_${manager.rebuildCounter}'),
       child: widget.child,
     );
 
-    if (!kDebugMode) return child;
+    if (!_shouldShowControls) return child;
 
     return Directionality(
       textDirection: TextDirection.ltr,
@@ -100,7 +141,8 @@ class _SelfTestRootState extends State<SelfTestRoot> {
               opacity: 0.8,
               duration: const Duration(milliseconds: 500),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: Colors.red,
                   borderRadius: BorderRadius.circular(20),
@@ -116,14 +158,21 @@ class _SelfTestRootState extends State<SelfTestRoot> {
                   children: [
                     Icon(Icons.circle, color: Colors.white, size: 12),
                     SizedBox(width: 4),
-                    Text('RECORDING', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                    Text('RECORDING',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold)),
                   ],
                 ),
               ),
             ),
           ),
         // Expandable FAB or Stop FAB
-        if (!isRecording) _buildExpandableFab(context, manager) else _buildStopFab(context, manager),
+        if (!isRecording)
+          _buildExpandableFab(context, manager)
+        else
+          _buildStopFab(context, manager),
       ],
     );
   }
@@ -133,7 +182,8 @@ class _SelfTestRootState extends State<SelfTestRoot> {
       onPanUpdate: (details) {
         setState(() {
           final screenSize = MediaQuery.of(context).size;
-          _fabPosition = _clampFabPosition(_fabPosition + details.delta, screenSize);
+          _fabPosition =
+              _clampFabPosition(_fabPosition + details.delta, screenSize);
         });
       },
       child: Column(
@@ -192,32 +242,38 @@ class _SelfTestRootState extends State<SelfTestRoot> {
                   backgroundColor: Colors.green,
                   onPressed: () async {
                     setState(() => _isFabExpanded = false);
-                    final name = await _showNameDialog(widget.navigatorKey?.currentContext ?? context);
+                    final name = await _showNameDialog(
+                        widget.navigatorKey?.currentContext ?? context);
                     if (name != null && name.isNotEmpty) {
                       await manager.startRecording(name);
                       manager.setRecordingMode(RecordingMode.recording);
-                      if ((widget.navigatorKey?.currentContext ?? context).mounted) {
-                        ScaffoldMessenger.of(widget.navigatorKey?.currentContext ?? context).showSnackBar(
+                      if ((widget.navigatorKey?.currentContext ?? context)
+                          .mounted) {
+                        ScaffoldMessenger.of(
+                                widget.navigatorKey?.currentContext ?? context)
+                            .showSnackBar(
                           SnackBar(content: Text('Started recording: "$name"')),
                         );
                       }
                     }
                   },
-                  child: const Icon(Icons.play_circle_fill, color: Colors.white),
+                  child:
+                      const Icon(Icons.play_circle_fill, color: Colors.white),
                 ),
                 const SizedBox(height: 4),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
                     color: Colors.black.withAlpha(179),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Text('START', style: TextStyle(color: Colors.white, fontSize: 8)),
+                  child: const Text('START',
+                      style: TextStyle(color: Colors.white, fontSize: 8)),
                 ),
               ],
             ),
           ),
-
           Positioned(
             left: _fabPosition.dx,
             top: _fabPosition.dy - 150,
@@ -229,18 +285,22 @@ class _SelfTestRootState extends State<SelfTestRoot> {
                   backgroundColor: Colors.blue,
                   onPressed: () {
                     setState(() => _isFabExpanded = false);
-                    _showControlPanel(widget.navigatorKey?.currentContext ?? context, manager);
+                    _showControlPanel(
+                        widget.navigatorKey?.currentContext ?? context,
+                        manager);
                   },
                   child: const Icon(Icons.list, color: Colors.white),
                 ),
                 const SizedBox(height: 4),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
                     color: Colors.black.withAlpha(179),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Text('VIEW', style: TextStyle(color: Colors.white, fontSize: 8)),
+                  child: const Text('VIEW',
+                      style: TextStyle(color: Colors.white, fontSize: 8)),
                 ),
               ],
             ),
@@ -264,7 +324,8 @@ class _SelfTestRootState extends State<SelfTestRoot> {
         onPanUpdate: (details) {
           setState(() {
             final screenSize = MediaQuery.of(context).size;
-            _fabPosition = _clampFabPosition(_fabPosition + details.delta, screenSize);
+            _fabPosition =
+                _clampFabPosition(_fabPosition + details.delta, screenSize);
           });
         },
         child: Column(
@@ -279,9 +340,13 @@ class _SelfTestRootState extends State<SelfTestRoot> {
                 onPressed: () {
                   manager.stopRecording();
                   manager.setRecordingMode(RecordingMode.viewing);
-                  _showControlPanel(widget.navigatorKey?.currentContext ?? context, manager);
-                  if ((widget.navigatorKey?.currentContext ?? context).mounted) {
-                    ScaffoldMessenger.of(widget.navigatorKey?.currentContext ?? context).showSnackBar(
+                  _showControlPanel(
+                      widget.navigatorKey?.currentContext ?? context, manager);
+                  if ((widget.navigatorKey?.currentContext ?? context)
+                      .mounted) {
+                    ScaffoldMessenger.of(
+                            widget.navigatorKey?.currentContext ?? context)
+                        .showSnackBar(
                       const SnackBar(content: Text('Recording stopped')),
                     );
                   }
@@ -296,7 +361,8 @@ class _SelfTestRootState extends State<SelfTestRoot> {
                 color: Colors.black.withAlpha(179),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Text('STOP', style: TextStyle(color: Colors.white, fontSize: 10)),
+              child: const Text('STOP',
+                  style: TextStyle(color: Colors.white, fontSize: 10)),
             ),
           ],
         ),
@@ -328,7 +394,8 @@ class _SelfTestRootState extends State<SelfTestRoot> {
     );
   }
 
-  Future<void> _showControlPanel(BuildContext ctx, SelfTestManager manager) async {
+  Future<void> _showControlPanel(
+      BuildContext ctx, SelfTestManager manager) async {
     // Initialize database if needed
     await manager.initializeRecordingStore();
 
