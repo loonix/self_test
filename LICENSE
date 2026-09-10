@@ -1,40 +1,16 @@
-Self-Test Package License
+MIT License
 
-Copyright (c) 2025-2026 Ari Silva, Daniel Carneiro. All rights reserved.
+Copyright (c) 2025-2026 Daniel Carneiro, Ari Silva
 
-This license grants you the following rights, subject to the conditions below.
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-1. USE AND MODIFICATION
-
-You may use, copy, modify, merge, and create derivative works of this
-software ("Software") for any purpose, including in commercial products and
-services, provided that:
-
-  (a) You do not sell, license, sublicense, or distribute the Software or
-      any derivative works thereof as a standalone product, library, or
-      SDK. The Software must be used as an integral part of your own
-      application or service, not offered as a product itself.
-
-  (b) You retain all original copyright notices and this license in all
-      copies or substantial portions of the Software.
-
-2. REDISTRIBUTION
-
-You may redistribute the Software in source or object form, including as
-part of a larger product, provided that:
-
-  (a) The redistribution is not primarily intended to provide the Software
-      itself as a standalone offering.
-
-  (b) All original copyright notices and this license are included.
-
-3. PATENT LICENSE
-
-Subject to the terms and conditions of this license, each copyright holder
-hereby grants to you a non-exclusive, worldwide, royalty-free patent license
-under the copyright holder's essential patent claims to use the Software.
-
-4. DISCLAIMER
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
