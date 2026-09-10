@@ -17,7 +17,8 @@ Widget buildRecordingCheckboxListTile(CheckboxListTile checkbox, widget) {
     value: checkbox.value,
     onChanged: (value) async {
       debugPrint(
-          '[SelfTest] Recording checkbox change for "${widget.id}": $value');
+        '[SelfTest] Recording checkbox change for "${widget.id}": $value',
+      );
       await SelfTestManager().trigger(widget.id);
       checkbox.onChanged?.call(value);
       widget.onTap?.call();
@@ -42,7 +43,8 @@ Widget buildRecordingCheckbox(Checkbox checkbox, widget) {
     value: checkbox.value,
     onChanged: (value) async {
       debugPrint(
-          '[SelfTest] Recording checkbox change for "${widget.id}": $value');
+        '[SelfTest] Recording checkbox change for "${widget.id}": $value',
+      );
       await SelfTestManager().trigger(widget.id);
       checkbox.onChanged?.call(value);
       widget.onTap?.call();

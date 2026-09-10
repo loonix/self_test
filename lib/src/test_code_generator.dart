@@ -46,20 +46,24 @@ class TestCodeGenerator {
         case 'enterText':
           buffer
             ..writeln(
-                '    await manager.enterText($target, ${_literal(step.value ?? '')});')
+              '    await manager.enterText($target, ${_literal(step.value ?? '')});',
+            )
             ..writeln('    await manager.waitForAnimations();');
         case 'assertText':
           final local = 'node${localIndex++}';
           buffer
             ..writeln('    final $local = manager.activeTestNodes[$target];')
             ..writeln(
-                '    expect($local?.currentText, ${_literal(step.value ?? '')});');
+              '    expect($local?.currentText, ${_literal(step.value ?? '')});',
+            );
         case 'assertExists':
           buffer.writeln(
-              '    expect(manager.activeTestNodes.containsKey($target), isTrue);');
+            '    expect(manager.activeTestNodes.containsKey($target), isTrue);',
+          );
         default:
           buffer.writeln(
-              '    // Unsupported recorded action ${_literal(step.action)}, skipped.');
+            '    // Unsupported recorded action ${_literal(step.action)}, skipped.',
+          );
       }
     }
 

@@ -98,11 +98,7 @@ void main() {
 
       // Build ExampleWidget directly
       await tester.pumpWidget(
-        SelfTestRoot(
-          child: MaterialApp(
-            home: ExampleWidget(),
-          ),
-        ),
+        SelfTestRoot(child: MaterialApp(home: ExampleWidget())),
       );
       await tester.pumpAndSettle();
 
@@ -126,8 +122,9 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('Navigation to ExampleWidget test',
-        (WidgetTester tester) async {
+    testWidgets('Navigation to ExampleWidget test', (
+      WidgetTester tester,
+    ) async {
       // Build the app
       await tester.pumpWidget(SelfTestRoot(child: MyApp()));
       await tester.pumpAndSettle();

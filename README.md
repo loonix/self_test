@@ -36,6 +36,9 @@ dependencies:
   self_test: ^0.2.0
 ```
 
+Requires **Flutter 3.35.0** or newer (Dart 3.9.0). That is the oldest version
+the test suite runs against in CI, not a guess.
+
 Then run:
 
 ```bash

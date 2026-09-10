@@ -54,8 +54,10 @@ class _ControlPanelState extends State<ControlPanel> {
         children: [
           Row(
             children: [
-              const Text('Recorded Tests',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const Text(
+                'Recorded Tests',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
               const Spacer(),
               IconButton(
                 onPressed: () => Navigator.of(context).pop(),
@@ -64,51 +66,53 @@ class _ControlPanelState extends State<ControlPanel> {
             ],
           ),
           const SizedBox(height: 8),
-          const Text('Tap a test to view/edit steps',
-              style: TextStyle(fontSize: 14, color: Colors.grey)),
+          const Text(
+            'Tap a test to view/edit steps',
+            style: TextStyle(fontSize: 14, color: Colors.grey),
+          ),
           Expanded(
             child: isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : scripts.isEmpty
-                    ? const Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.videocam_off,
-                                size: 48, color: Colors.grey),
-                            SizedBox(height: 16),
-                            Text('No recorded tests yet',
-                                style: TextStyle(color: Colors.grey)),
-                            Text('Tap the play button to start recording',
-                                style: TextStyle(
-                                    color: Colors.grey, fontSize: 12)),
-                          ],
+                ? const Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.videocam_off, size: 48, color: Colors.grey),
+                        SizedBox(height: 16),
+                        Text(
+                          'No recorded tests yet',
+                          style: TextStyle(color: Colors.grey),
                         ),
-                      )
-                    : ListView.builder(
-                        itemCount: scripts.length,
-                        itemBuilder: (context, index) {
-                          final script = scripts[index];
-                          return ListTile(
-                            title: Text(script.name),
-                            subtitle: Text(
-                                'Created: ${script.createdAt} • ${script.lastRunStatus}'),
-                            onTap: () =>
-                                setState(() => selectedScript = script),
-                            selected: selectedScript == script,
-                            trailing: IconButton(
-                              icon: const Icon(Icons.delete, color: Colors.red),
-                              onPressed: () => _confirmDelete(script),
-                            ),
-                          );
-                        },
-                      ),
+                        Text(
+                          'Tap the play button to start recording',
+                          style: TextStyle(color: Colors.grey, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    itemCount: scripts.length,
+                    itemBuilder: (context, index) {
+                      final script = scripts[index];
+                      return ListTile(
+                        title: Text(script.name),
+                        subtitle: Text(
+                          'Created: ${script.createdAt} • ${script.lastRunStatus}',
+                        ),
+                        onTap: () => setState(() => selectedScript = script),
+                        selected: selectedScript == script,
+                        trailing: IconButton(
+                          icon: const Icon(Icons.delete, color: Colors.red),
+                          onPressed: () => _confirmDelete(script),
+                        ),
+                      );
+                    },
+                  ),
           ),
           if (selectedScript != null) ...[
             const Divider(),
-            Expanded(
-              child: _buildStepsList(selectedScript!),
-            ),
+            Expanded(child: _buildStepsList(selectedScript!)),
             _buildActionButtons(context),
           ],
         ],
@@ -142,15 +146,15 @@ class _ControlPanelState extends State<ControlPanel> {
           setState(() => selectedScript = null);
         }
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Deleted "${script.name}"')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Deleted "${script.name}"')));
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to delete: $e')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Failed to delete: $e')));
         }
       }
     }
@@ -250,9 +254,9 @@ class _ControlPanelState extends State<ControlPanel> {
       debugPrint('[SelfTest] ERROR running test: $e');
       debugPrint('[SelfTest] Stack trace: $stackTrace');
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Test failed: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Test failed: $e')));
       }
     }
   }
@@ -286,9 +290,12 @@ class _ControlPanelState extends State<ControlPanel> {
     BuildContext context, {
     required String label,
     required String extension,
-    required String Function(TestCodeGenerator generator, TestScript script,
-            List<RecordedStep> steps)
-        build,
+    required String Function(
+      TestCodeGenerator generator,
+      TestScript script,
+      List<RecordedStep> steps,
+    )
+    build,
   }) async {
     final script = selectedScript;
     if (script == null) return;
@@ -301,16 +308,17 @@ class _ControlPanelState extends State<ControlPanel> {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text('$label copied to clipboard, save as $fileName')),
+            content: Text('$label copied to clipboard, save as $fileName'),
+          ),
         );
       }
     } catch (e, stackTrace) {
       debugPrint('[SelfTest] ERROR generating $label: $e');
       debugPrint('[SelfTest] Stack trace: $stackTrace');
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$label failed: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('$label failed: $e')));
       }
     }
   }

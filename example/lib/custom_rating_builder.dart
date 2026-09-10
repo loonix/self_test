@@ -5,7 +5,9 @@ import 'custom_rating_widget.dart';
 /// Recording builder for CustomRatingWidget.
 /// This demonstrates how to create custom recording builders for third-party or custom widgets.
 Widget buildRecordingCustomRatingWidget(
-    Widget child, dynamic selfTestableWidgetDynamic) {
+  Widget child,
+  dynamic selfTestableWidgetDynamic,
+) {
   final selfTestableWidget = selfTestableWidgetDynamic as SelfTestableWidget;
   final customRatingWidget = child as CustomRatingWidget;
 
@@ -66,28 +68,25 @@ class _RecordingCustomRatingWidgetState
   Widget build(BuildContext context) {
     return Row(
       mainAxisSize: MainAxisSize.min,
-      children: List.generate(
-        widget.originalWidget.maxRating,
-        (index) {
-          final starRating = index + 1;
-          final starId = '${widget.selfTestableWidget.id}_star_$starRating';
+      children: List.generate(widget.originalWidget.maxRating, (index) {
+        final starRating = index + 1;
+        final starId = '${widget.selfTestableWidget.id}_star_$starRating';
 
-          return SelfTestableWidget(
-            id: starId,
+        return SelfTestableWidget(
+          id: starId,
+          onTap: () => _onRatingChanged(starRating),
+          child: GestureDetector(
             onTap: () => _onRatingChanged(starRating),
-            child: GestureDetector(
-              onTap: () => _onRatingChanged(starRating),
-              child: Icon(
-                index < _currentRating ? Icons.star : Icons.star_border,
-                color: index < _currentRating
-                    ? widget.originalWidget.activeColor
-                    : widget.originalWidget.inactiveColor,
-                size: widget.originalWidget.size,
-              ),
+            child: Icon(
+              index < _currentRating ? Icons.star : Icons.star_border,
+              color: index < _currentRating
+                  ? widget.originalWidget.activeColor
+                  : widget.originalWidget.inactiveColor,
+              size: widget.originalWidget.size,
             ),
-          );
-        },
-      ),
+          ),
+        );
+      }),
     );
   }
 }

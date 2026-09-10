@@ -19,10 +19,10 @@ class BridgeCommand {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'command': command,
-        'params': params,
-      };
+    'id': id,
+    'command': command,
+    'params': params,
+  };
 }
 
 /// Response sent from Flutter app to MCP server
@@ -31,11 +31,7 @@ class BridgeResponse {
   final dynamic result;
   final String? error;
 
-  BridgeResponse({
-    required this.id,
-    this.result,
-    this.error,
-  });
+  BridgeResponse({required this.id, this.result, this.error});
 
   factory BridgeResponse.fromJson(Map<String, dynamic> json) {
     return BridgeResponse(
@@ -505,8 +501,8 @@ class MockNotification {
     Map<String, dynamic>? data,
     DateTime? timestamp,
     this.action = 'received',
-  })  : data = data ?? {},
-        timestamp = timestamp ?? DateTime.now();
+  }) : data = data ?? {},
+       timestamp = timestamp ?? DateTime.now();
 
   factory MockNotification.fromJson(Map<String, dynamic> json) {
     return MockNotification(
@@ -522,13 +518,13 @@ class MockNotification {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'title': title,
-        'body': body,
-        'data': data,
-        'timestamp': timestamp.millisecondsSinceEpoch,
-        'action': action,
-      };
+    'id': id,
+    'title': title,
+    'body': body,
+    'data': data,
+    'timestamp': timestamp.millisecondsSinceEpoch,
+    'action': action,
+  };
 
   @override
   String toString() =>
@@ -589,14 +585,14 @@ class MockLocation {
   }
 
   Map<String, dynamic> toJson() => {
-        'latitude': latitude,
-        'longitude': longitude,
-        'accuracy': accuracy,
-        if (altitude != null) 'altitude': altitude,
-        if (speed != null) 'speed': speed,
-        if (heading != null) 'heading': heading,
-        'timestamp': timestamp.millisecondsSinceEpoch,
-      };
+    'latitude': latitude,
+    'longitude': longitude,
+    'accuracy': accuracy,
+    if (altitude != null) 'altitude': altitude,
+    if (speed != null) 'speed': speed,
+    if (heading != null) 'heading': heading,
+    'timestamp': timestamp.millisecondsSinceEpoch,
+  };
 
   @override
   String toString() =>
@@ -743,10 +739,7 @@ class MockConnectivity {
   final MockConnectivityState state;
   final bool isConnected;
 
-  const MockConnectivity({
-    required this.state,
-    required this.isConnected,
-  });
+  const MockConnectivity({required this.state, required this.isConnected});
 
   factory MockConnectivity.fromJson(Map<String, dynamic> json) {
     final state = MockConnectivityState.fromString(json['state'] as String);
@@ -758,9 +751,9 @@ class MockConnectivity {
   }
 
   Map<String, dynamic> toJson() => {
-        'state': state.name,
-        'isConnected': isConnected,
-      };
+    'state': state.name,
+    'isConnected': isConnected,
+  };
 
   @override
   String toString() => 'MockConnectivity($state, connected: $isConnected)';
@@ -840,11 +833,11 @@ class BiometricAttempt {
   });
 
   Map<String, dynamic> toJson() => {
-        'timestamp': timestamp.millisecondsSinceEpoch,
-        'type': type,
-        'result': result,
-        if (reason != null) 'reason': reason,
-      };
+    'timestamp': timestamp.millisecondsSinceEpoch,
+    'type': type,
+    'result': result,
+    if (reason != null) 'reason': reason,
+  };
 
   factory BiometricAttempt.fromJson(Map<String, dynamic> json) {
     return BiometricAttempt(

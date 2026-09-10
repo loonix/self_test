@@ -4,8 +4,8 @@ publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.5.0
-  flutter: ">=1.17.0"
+  sdk: ^3.9.0
+  flutter: ">=3.35.0"
 
 # Declared exactly as a real consumer would, with the paths supplied by
 # dependency_overrides below. That keeps this pubspec usable as the quickstart

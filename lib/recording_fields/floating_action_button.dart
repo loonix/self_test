@@ -3,7 +3,9 @@ import 'package:self_test/self_test.dart';
 
 /// Builds a recording-enabled FloatingActionButton.
 Widget buildRecordingFloatingActionButton(
-    FloatingActionButton fab, SelfTestableWidget widget) {
+  FloatingActionButton fab,
+  SelfTestableWidget widget,
+) {
   return FloatingActionButton(
     key: fab.key,
     tooltip: fab.tooltip,
@@ -20,7 +22,8 @@ Widget buildRecordingFloatingActionButton(
     onPressed: fab.onPressed != null
         ? () async {
             debugPrint(
-                '[SelfTest] Recording FloatingActionButton tap for "${widget.id}"');
+              '[SelfTest] Recording FloatingActionButton tap for "${widget.id}"',
+            );
             await SelfTestManager().trigger(widget.id);
             fab.onPressed!();
             widget.onTap?.call();

@@ -53,12 +53,13 @@ class _SelfTestableWidgetState extends State<SelfTestableWidget> {
       final manager = SelfTestManager();
       final shouldBeRegistered =
           ((kDebugMode || kProfileMode) && manager.isSelfTestModeActive) ||
-              manager.isTestMode;
+          manager.isTestMode;
 
       if (shouldBeRegistered && !_wasRegistered) {
         if (SelfTestManager.verboseLogging) {
           debugPrint(
-              '[SelfTest] SelfTestableWidget "${widget.id}" registering (mode active: ${manager.isSelfTestModeActive}, test mode: ${manager.isTestMode})');
+            '[SelfTest] SelfTestableWidget "${widget.id}" registering (mode active: ${manager.isSelfTestModeActive}, test mode: ${manager.isTestMode})',
+          );
         }
         final node = TestNode(
           id: widget.id,
@@ -71,14 +72,16 @@ class _SelfTestableWidgetState extends State<SelfTestableWidget> {
       } else if (!shouldBeRegistered && _wasRegistered) {
         if (SelfTestManager.verboseLogging) {
           debugPrint(
-              '[SelfTest] SelfTestableWidget "${widget.id}" unregistering due to mode change');
+            '[SelfTest] SelfTestableWidget "${widget.id}" unregistering due to mode change',
+          );
         }
         manager.unregisterTestNode(widget.id);
         _wasRegistered = false;
       }
     } catch (e, stackTrace) {
       debugPrint(
-          '[SelfTest] ERROR in _updateRegistration for "${widget.id}": $e');
+        '[SelfTest] ERROR in _updateRegistration for "${widget.id}": $e',
+      );
       debugPrint('[SelfTest] Stack trace: $stackTrace');
     }
   }
@@ -108,7 +111,8 @@ class _SelfTestableWidgetState extends State<SelfTestableWidget> {
 
     if (isAsserting) {
       debugPrint(
-          '[SelfTest] Building SelfTestableWidget "${widget.id}" with assertion highlight');
+        '[SelfTest] Building SelfTestableWidget "${widget.id}" with assertion highlight',
+      );
       return GestureDetector(
         onTap: () => manager.addAssertion(widget.id),
         child: Container(
@@ -131,7 +135,8 @@ class _SelfTestableWidgetState extends State<SelfTestableWidget> {
       // Final fallback: wrap in GestureDetector if onTap is provided, otherwise return as-is with warning
       if (widget.onTap != null) {
         SelfTestManager.printWarning(
-            'No recording builder found for ${child.runtimeType}, wrapping in GestureDetector for tap recording');
+          'No recording builder found for ${child.runtimeType}, wrapping in GestureDetector for tap recording',
+        );
         return GestureDetector(
           onTap: () async {
             await manager.trigger(widget.id);
@@ -141,7 +146,8 @@ class _SelfTestableWidgetState extends State<SelfTestableWidget> {
         );
       } else {
         SelfTestManager.printWarning(
-            'No recording builder found for ${child.runtimeType} and no onTap provided - interactions will not be recorded');
+          'No recording builder found for ${child.runtimeType} and no onTap provided - interactions will not be recorded',
+        );
         return child;
       }
     }

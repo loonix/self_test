@@ -9,9 +9,16 @@ topics:
   - regression
   - automation
 
+# Verified floor, not an aspiration. Flutter 3.35.0 / Dart 3.9.0 is the
+# oldest pair on which this package analyzes clean and its tests pass, and
+# CI runs the whole suite against it on every push so the claim stays true.
+# It used to say >=3.24.0 while lib/recording_fields wrapped widget
+# properties that only exist from 3.35 (Switch.activeThumbColor and
+# friends), so a consumer on 3.24 got eight compile errors inside the
+# package they had just installed.
 environment:
-  sdk: ^3.5.0
-  flutter: ">=3.24.0"
+  sdk: ^3.9.0
+  flutter: ">=3.35.0"
 
 dependencies:
   flutter:

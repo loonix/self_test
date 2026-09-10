@@ -5,10 +5,7 @@ void main() {
   test('Text assertions work through SelfTestManager', () {
     SelfTestManager().setTestMode(true);
 
-    final node = TestNode(
-      id: 'username_field',
-      onTextChange: (text) {},
-    );
+    final node = TestNode(id: 'username_field', onTextChange: (text) {});
     SelfTestManager().registerTestNode(node);
 
     SelfTestManager().enterText('username_field', 'testuser');

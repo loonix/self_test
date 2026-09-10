@@ -55,8 +55,10 @@ void main() {
       final code = generator.generateTestCode(script, steps);
 
       expect(code, contains("test('Login Test'"));
-      expect(code,
-          contains("await manager.enterText('username', 'user@example.com');"));
+      expect(
+        code,
+        contains("await manager.enterText('username', 'user@example.com');"),
+      );
       expect(code, contains("await manager.trigger('login_button');"));
       // node0, not node: assertion locals are numbered so two assertText
       // steps in one body cannot redeclare the same name.
@@ -74,16 +76,19 @@ void _regressionTests() {
       createdAt: DateTime.utc(2026, 9, 10),
     );
 
-    RecordedStep step(String action, String targetId,
-            {String? value, int id = 0}) =>
-        RecordedStep(
-          id: id,
-          scriptId: 1,
-          order: id,
-          action: action,
-          targetId: targetId,
-          value: value,
-        );
+    RecordedStep step(
+      String action,
+      String targetId, {
+      String? value,
+      int id = 0,
+    }) => RecordedStep(
+      id: id,
+      scriptId: 1,
+      order: id,
+      action: action,
+      targetId: targetId,
+      value: value,
+    );
 
     test('numbers assertion locals so two assertText steps do not collide', () {
       final source = generator.generateTestCode(script, [
@@ -123,15 +128,17 @@ void _regressionTests() {
       expect(source.split('\n').where((l) => l.contains('line one')).length, 1);
     });
 
-    test('a null recorded value becomes an empty literal, not the word null',
-        () {
-      final source = generator.generateTestCode(script, [
-        step('enterText', 'username'),
-      ]);
+    test(
+      'a null recorded value becomes an empty literal, not the word null',
+      () {
+        final source = generator.generateTestCode(script, [
+          step('enterText', 'username'),
+        ]);
 
-      expect(source.contains("enterText('username', '')"), isTrue);
-      expect(source.contains('null'), isFalse);
-    });
+        expect(source.contains("enterText('username', '')"), isTrue);
+        expect(source.contains('null'), isFalse);
+      },
+    );
 
     test('an unknown action is commented, not silently dropped', () {
       final source = generator.generateTestCode(script, [
@@ -151,7 +158,10 @@ void _regressionTests() {
     test('a script name with a quote does not break the test declaration', () {
       final source = generator.generateTestCode(
         TestScript(
-            id: 2, name: "user's login", createdAt: DateTime.utc(2026, 9, 10)),
+          id: 2,
+          name: "user's login",
+          createdAt: DateTime.utc(2026, 9, 10),
+        ),
         const [],
       );
 

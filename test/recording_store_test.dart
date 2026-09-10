@@ -21,8 +21,10 @@ void main() {
 
       expect(first.id, 0);
       expect(second.id, 1);
-      expect(store.getScripts().map((s) => s.name),
-          containsAll(['login', 'checkout']));
+      expect(
+        store.getScripts().map((s) => s.name),
+        containsAll(['login', 'checkout']),
+      );
     });
 
     test('orders steps per script, not globally', () async {
@@ -56,9 +58,15 @@ void main() {
       final doomed = await store.createScript('doomed');
       final kept = await store.createScript('kept');
       await store.recordStep(
-          scriptId: doomed.id, action: 'trigger', targetId: 'x');
+        scriptId: doomed.id,
+        action: 'trigger',
+        targetId: 'x',
+      );
       await store.recordStep(
-          scriptId: kept.id, action: 'trigger', targetId: 'y');
+        scriptId: kept.id,
+        action: 'trigger',
+        targetId: 'y',
+      );
 
       await store.deleteScript(doomed.id);
 

@@ -8,7 +8,7 @@ class MockCustomWidget extends StatelessWidget {
   final Widget child;
 
   const MockCustomWidget({Key? key, this.onPressed, required this.child})
-      : super(key: key);
+    : super(key: key);
 
   @override
   Widget build(BuildContext context) => child;
@@ -27,10 +27,7 @@ void main() {
 
     test('registers and triggers test node', () async {
       bool tapped = false;
-      final node = TestNode(
-        id: 'test_button',
-        onTap: () => tapped = true,
-      );
+      final node = TestNode(id: 'test_button', onTap: () => tapped = true);
 
       manager.registerTestNode(node);
       await manager.trigger('test_button');
@@ -55,8 +52,10 @@ void main() {
     test('custom widget builder registration works', () {
       // Register a custom builder
       bool builderCalled = false;
-      manager
-          .registerRecordingBuilder<MockCustomWidget>((widget, selfTestWidget) {
+      manager.registerRecordingBuilder<MockCustomWidget>((
+        widget,
+        selfTestWidget,
+      ) {
         builderCalled = true;
         final mockWidget = widget as MockCustomWidget;
         return MockCustomWidget(
@@ -77,10 +76,7 @@ void main() {
       SelfTestableWidget(
         id: 'custom_widget',
         onTap: () {},
-        child: MockCustomWidget(
-          onPressed: () {},
-          child: const SizedBox(),
-        ),
+        child: MockCustomWidget(onPressed: () {}, child: const SizedBox()),
       );
 
       // The builder should be called during build (simulated)

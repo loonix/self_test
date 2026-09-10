@@ -11,8 +11,6 @@ class SelfTestDevToolsExtension extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DevToolsExtension(
-      child: SelfTestExtension(),
-    );
+    return DevToolsExtension(child: SelfTestExtension());
   }
 }

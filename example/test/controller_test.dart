@@ -39,22 +39,27 @@ void main() {
 
     expect(controller.expectLoginBtnExists, throwsStateError);
     expect(
-        () => controller.expectUsernameFieldText('daniel'), throwsStateError);
+      () => controller.expectUsernameFieldText('daniel'),
+      throwsStateError,
+    );
   });
 
-  testWidgets('a wrong expected text reports the value it actually found',
-      (tester) async {
+  testWidgets('a wrong expected text reports the value it actually found', (
+    tester,
+  ) async {
     await tester.pumpWidget(const MaterialApp(home: ExampleWidget()));
     controller.enterUsernameField('daniel');
     await tester.pump();
 
     expect(
       () => controller.expectUsernameFieldText('someone else'),
-      throwsA(isA<StateError>().having(
-        (e) => e.message,
-        'message',
-        allOf(contains('someone else'), contains('daniel')),
-      )),
+      throwsA(
+        isA<StateError>().having(
+          (e) => e.message,
+          'message',
+          allOf(contains('someone else'), contains('daniel')),
+        ),
+      ),
     );
   });
 }

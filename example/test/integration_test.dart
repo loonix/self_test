@@ -16,8 +16,9 @@ void main() {
       SelfTestManager().activeTestNodes.clear();
     });
 
-    testWidgets('Complete user flow with self-test activation',
-        (WidgetTester tester) async {
+    testWidgets('Complete user flow with self-test activation', (
+      WidgetTester tester,
+    ) async {
       // Build the app
       await tester.pumpWidget(SelfTestRoot(child: MyApp()));
       await tester.pumpAndSettle();
@@ -43,8 +44,9 @@ void main() {
       expect(find.text('Login successful!'), findsOneWidget);
     });
 
-    testWidgets('Test ExampleWidget navigation and functionality',
-        (WidgetTester tester) async {
+    testWidgets('Test ExampleWidget navigation and functionality', (
+      WidgetTester tester,
+    ) async {
       // Build the app
       await tester.pumpWidget(SelfTestRoot(child: MyApp()));
       await tester.pumpAndSettle();
@@ -77,8 +79,9 @@ void main() {
       expect(find.text('Activate Self-Test Mode'), findsOneWidget);
     });
 
-    testWidgets('Test self-test mode toggle behavior',
-        (WidgetTester tester) async {
+    testWidgets('Test self-test mode toggle behavior', (
+      WidgetTester tester,
+    ) async {
       // Build the app
       await tester.pumpWidget(SelfTestRoot(child: MyApp()));
       await tester.pumpAndSettle();
@@ -102,8 +105,9 @@ void main() {
       expect(find.text('Login successful!'), findsOneWidget);
     });
 
-    testWidgets('Test error handling with invalid operations',
-        (WidgetTester tester) async {
+    testWidgets('Test error handling with invalid operations', (
+      WidgetTester tester,
+    ) async {
       // Build the app with test mode active
       SelfTestManager().setTestMode(true);
       await tester.pumpWidget(SelfTestRoot(child: MyApp()));

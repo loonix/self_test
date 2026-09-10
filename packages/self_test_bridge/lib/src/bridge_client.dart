@@ -180,7 +180,7 @@ class SelfTestBridgeClient {
         return {
           'success': false,
           'note':
-              'Direct navigation not supported in client mode. Use tap on navigation elements.'
+              'Direct navigation not supported in client mode. Use tap on navigation elements.',
         };
 
       default:
@@ -213,7 +213,8 @@ class SelfTestBridgeClient {
 
   /// Take a screenshot
   Future<Map<String, dynamic>> _takeScreenshot(
-      Map<String, dynamic> params) async {
+    Map<String, dynamic> params,
+  ) async {
     try {
       // For web, we use html2canvas or similar approach
       // For now, return a placeholder
@@ -296,7 +297,8 @@ class SelfTestBridgeClient {
     if (_shouldReconnect && _reconnectAttempts < maxReconnectAttempts) {
       _reconnectAttempts++;
       debugPrint(
-          '[SelfTestBridge] Reconnecting in ${reconnectDelay.inSeconds}s (attempt $_reconnectAttempts/$maxReconnectAttempts)...');
+        '[SelfTestBridge] Reconnecting in ${reconnectDelay.inSeconds}s (attempt $_reconnectAttempts/$maxReconnectAttempts)...',
+      );
 
       _reconnectTimer = Timer(reconnectDelay, () {
         _connect();

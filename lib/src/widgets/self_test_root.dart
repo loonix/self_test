@@ -28,9 +28,11 @@ class SelfTestRoot extends StatefulWidget {
     this.navigatorKey,
     this.showControls,
   }) : super(
-            key: key ??
-                (SelfTestManager().rootKey ??
-                    GlobalKey<State>(debugLabel: 'SelfTestRoot'))) {
+         key:
+             key ??
+             (SelfTestManager().rootKey ??
+                 GlobalKey<State>(debugLabel: 'SelfTestRoot')),
+       ) {
     // Ensure the manager has a root key
     SelfTestManager().rootKey ??= GlobalKey<State>(debugLabel: 'SelfTestRoot');
   }
@@ -41,8 +43,10 @@ class SelfTestRoot extends StatefulWidget {
 
 class _SelfTestRootState extends State<SelfTestRoot> {
   bool _isFabExpanded = false;
-  Offset _fabPosition =
-      const Offset(300, 300); // Default position, will be updated
+  Offset _fabPosition = const Offset(
+    300,
+    300,
+  ); // Default position, will be updated
 
   // FAB dimensions for bounds calculation
   static const double _fabSize = 72.0;
@@ -54,15 +58,13 @@ class _SelfTestRootState extends State<SelfTestRoot> {
     const minX = _fabPadding;
     final maxX = screenSize.width - _fabSize - _fabPadding;
     final minY = _fabPadding + MediaQuery.of(context).padding.top;
-    final maxY = screenSize.height -
+    final maxY =
+        screenSize.height -
         _fabTotalHeight -
         _fabPadding -
         MediaQuery.of(context).padding.bottom;
 
-    return Offset(
-      position.dx.clamp(minX, maxX),
-      position.dy.clamp(minY, maxY),
-    );
+    return Offset(position.dx.clamp(minX, maxX), position.dy.clamp(minY, maxY));
   }
 
   @override
@@ -70,17 +72,21 @@ class _SelfTestRootState extends State<SelfTestRoot> {
     super.initState();
     debugPrint('[SelfTest] SelfTestRoot initState called');
     debugPrint(
-        '[SelfTest] SelfTestRoot key: ${widget.key}, manager rootKey: ${SelfTestManager().rootKey}');
+      '[SelfTest] SelfTestRoot key: ${widget.key}, manager rootKey: ${SelfTestManager().rootKey}',
+    );
     // Ensure the manager's rootKey points to this state
     SelfTestManager().rootKey = widget.key as GlobalKey<State>?;
     // Initialize FAB position to middle-right, fully visible
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         final screenSize = MediaQuery.of(context).size;
-        final newPosition =
-            Offset(screenSize.width - 88, screenSize.height / 2 - 36);
+        final newPosition = Offset(
+          screenSize.width - 88,
+          screenSize.height / 2 - 36,
+        );
         debugPrint(
-            '[SelfTest] Setting FAB position to: $newPosition, screen size: $screenSize');
+          '[SelfTest] Setting FAB position to: $newPosition, screen size: $screenSize',
+        );
         setState(() {
           _fabPosition = newPosition;
         });
@@ -106,10 +112,12 @@ class _SelfTestRootState extends State<SelfTestRoot> {
     // Force rebuild when self-test mode changes or restart is called
     final manager = SelfTestManager();
     debugPrint(
-        '[SelfTest] SelfTestRoot building with key: ${manager.isSelfTestModeActive}_${manager.isTestMode}_${manager.rebuildCounter}');
+      '[SelfTest] SelfTestRoot building with key: ${manager.isSelfTestModeActive}_${manager.isTestMode}_${manager.rebuildCounter}',
+    );
     final child = KeyedSubtree(
       key: ValueKey(
-          '${manager.isSelfTestModeActive}_${manager.isTestMode}_${manager.rebuildCounter}'),
+        '${manager.isSelfTestModeActive}_${manager.isTestMode}_${manager.rebuildCounter}',
+      ),
       child: widget.child,
     );
 
@@ -120,9 +128,7 @@ class _SelfTestRootState extends State<SelfTestRoot> {
       child: Stack(
         children: [
           child,
-          Positioned.fill(
-            child: _buildOverlay(context, manager),
-          ),
+          Positioned.fill(child: _buildOverlay(context, manager)),
         ],
       ),
     );
@@ -142,8 +148,10 @@ class _SelfTestRootState extends State<SelfTestRoot> {
               opacity: 0.8,
               duration: const Duration(milliseconds: 500),
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.red,
                   borderRadius: BorderRadius.circular(20),
@@ -159,11 +167,14 @@ class _SelfTestRootState extends State<SelfTestRoot> {
                   children: [
                     Icon(Icons.circle, color: Colors.white, size: 12),
                     SizedBox(width: 4),
-                    Text('RECORDING',
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold)),
+                    Text(
+                      'RECORDING',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -183,8 +194,10 @@ class _SelfTestRootState extends State<SelfTestRoot> {
       onPanUpdate: (details) {
         setState(() {
           final screenSize = MediaQuery.of(context).size;
-          _fabPosition =
-              _clampFabPosition(_fabPosition + details.delta, screenSize);
+          _fabPosition = _clampFabPosition(
+            _fabPosition + details.delta,
+            screenSize,
+          );
         });
       },
       child: Column(
@@ -244,33 +257,40 @@ class _SelfTestRootState extends State<SelfTestRoot> {
                   onPressed: () async {
                     setState(() => _isFabExpanded = false);
                     final name = await _showNameDialog(
-                        widget.navigatorKey?.currentContext ?? context);
+                      widget.navigatorKey?.currentContext ?? context,
+                    );
                     if (name != null && name.isNotEmpty) {
                       await manager.startRecording(name);
                       manager.setRecordingMode(RecordingMode.recording);
                       if ((widget.navigatorKey?.currentContext ?? context)
                           .mounted) {
                         ScaffoldMessenger.of(
-                                widget.navigatorKey?.currentContext ?? context)
-                            .showSnackBar(
+                          widget.navigatorKey?.currentContext ?? context,
+                        ).showSnackBar(
                           SnackBar(content: Text('Started recording: "$name"')),
                         );
                       }
                     }
                   },
-                  child:
-                      const Icon(Icons.play_circle_fill, color: Colors.white),
+                  child: const Icon(
+                    Icons.play_circle_fill,
+                    color: Colors.white,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.black.withAlpha(179),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Text('START',
-                      style: TextStyle(color: Colors.white, fontSize: 8)),
+                  child: const Text(
+                    'START',
+                    style: TextStyle(color: Colors.white, fontSize: 8),
+                  ),
                 ),
               ],
             ),
@@ -287,21 +307,26 @@ class _SelfTestRootState extends State<SelfTestRoot> {
                   onPressed: () {
                     setState(() => _isFabExpanded = false);
                     _showControlPanel(
-                        widget.navigatorKey?.currentContext ?? context,
-                        manager);
+                      widget.navigatorKey?.currentContext ?? context,
+                      manager,
+                    );
                   },
                   child: const Icon(Icons.list, color: Colors.white),
                 ),
                 const SizedBox(height: 4),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.black.withAlpha(179),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Text('VIEW',
-                      style: TextStyle(color: Colors.white, fontSize: 8)),
+                  child: const Text(
+                    'VIEW',
+                    style: TextStyle(color: Colors.white, fontSize: 8),
+                  ),
                 ),
               ],
             ),
@@ -325,8 +350,10 @@ class _SelfTestRootState extends State<SelfTestRoot> {
         onPanUpdate: (details) {
           setState(() {
             final screenSize = MediaQuery.of(context).size;
-            _fabPosition =
-                _clampFabPosition(_fabPosition + details.delta, screenSize);
+            _fabPosition = _clampFabPosition(
+              _fabPosition + details.delta,
+              screenSize,
+            );
           });
         },
         child: Column(
@@ -342,12 +369,14 @@ class _SelfTestRootState extends State<SelfTestRoot> {
                   manager.stopRecording();
                   manager.setRecordingMode(RecordingMode.viewing);
                   _showControlPanel(
-                      widget.navigatorKey?.currentContext ?? context, manager);
+                    widget.navigatorKey?.currentContext ?? context,
+                    manager,
+                  );
                   if ((widget.navigatorKey?.currentContext ?? context)
                       .mounted) {
                     ScaffoldMessenger.of(
-                            widget.navigatorKey?.currentContext ?? context)
-                        .showSnackBar(
+                      widget.navigatorKey?.currentContext ?? context,
+                    ).showSnackBar(
                       const SnackBar(content: Text('Recording stopped')),
                     );
                   }
@@ -362,8 +391,10 @@ class _SelfTestRootState extends State<SelfTestRoot> {
                 color: Colors.black.withAlpha(179),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Text('STOP',
-                  style: TextStyle(color: Colors.white, fontSize: 10)),
+              child: const Text(
+                'STOP',
+                style: TextStyle(color: Colors.white, fontSize: 10),
+              ),
             ),
           ],
         ),
@@ -396,7 +427,9 @@ class _SelfTestRootState extends State<SelfTestRoot> {
   }
 
   Future<void> _showControlPanel(
-      BuildContext ctx, SelfTestManager manager) async {
+    BuildContext ctx,
+    SelfTestManager manager,
+  ) async {
     // Initialize database if needed
     await manager.initializeRecordingStore();
 

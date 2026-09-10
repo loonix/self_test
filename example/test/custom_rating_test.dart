@@ -5,11 +5,13 @@ import '../lib/custom_rating_widget.dart';
 import '../lib/custom_rating_builder.dart';
 
 void main() {
-  testWidgets('Custom rating widget builder registration works',
-      (WidgetTester tester) async {
+  testWidgets('Custom rating widget builder registration works', (
+    WidgetTester tester,
+  ) async {
     // Register the custom builder
     SelfTestManager().registerRecordingBuilder<CustomRatingWidget>(
-        buildRecordingCustomRatingWidget);
+      buildRecordingCustomRatingWidget,
+    );
 
     // Activate test mode BEFORE building widgets
     SelfTestManager().setTestMode(true);
@@ -21,10 +23,7 @@ void main() {
           home: Scaffold(
             body: SelfTestableWidget(
               id: 'test_rating',
-              child: CustomRatingWidget(
-                initialRating: 2,
-                maxRating: 5,
-              ),
+              child: CustomRatingWidget(initialRating: 2, maxRating: 5),
             ),
           ),
         ),
@@ -35,19 +34,30 @@ void main() {
 
     // Debug: print all active nodes
     debugPrint(
-        'Active nodes: ${SelfTestManager().activeTestNodes.keys.toList()}');
+      'Active nodes: ${SelfTestManager().activeTestNodes.keys.toList()}',
+    );
 
     // Check that individual star elements are registered
-    expect(SelfTestManager().activeTestNodes.containsKey('test_rating_star_1'),
-        true);
-    expect(SelfTestManager().activeTestNodes.containsKey('test_rating_star_2'),
-        true);
-    expect(SelfTestManager().activeTestNodes.containsKey('test_rating_star_3'),
-        true);
-    expect(SelfTestManager().activeTestNodes.containsKey('test_rating_star_4'),
-        true);
-    expect(SelfTestManager().activeTestNodes.containsKey('test_rating_star_5'),
-        true);
+    expect(
+      SelfTestManager().activeTestNodes.containsKey('test_rating_star_1'),
+      true,
+    );
+    expect(
+      SelfTestManager().activeTestNodes.containsKey('test_rating_star_2'),
+      true,
+    );
+    expect(
+      SelfTestManager().activeTestNodes.containsKey('test_rating_star_3'),
+      true,
+    );
+    expect(
+      SelfTestManager().activeTestNodes.containsKey('test_rating_star_4'),
+      true,
+    );
+    expect(
+      SelfTestManager().activeTestNodes.containsKey('test_rating_star_5'),
+      true,
+    );
 
     // Test triggering a star tap
     await SelfTestManager().trigger('test_rating_star_4');

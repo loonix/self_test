@@ -377,7 +377,7 @@ class SelfTestBridge {
   /// };
   /// ```
   static MockPermissionState? Function(MockPermissionType permission)?
-      onPermissionRequested;
+  onPermissionRequested;
 
   /// Callback invoked when connectivity state changes.
   /// Register this to receive mock connectivity updates.
@@ -405,11 +405,8 @@ class SelfTestBridge {
   MockConnectivity? get mockConnectivity => _mockConnectivity;
 
   /// Create a new bridge instance
-  SelfTestBridge({
-    this.router,
-    this.port = 9999,
-    String? projectRoot,
-  }) : _projectRoot = projectRoot;
+  SelfTestBridge({this.router, this.port = 9999, String? projectRoot})
+    : _projectRoot = projectRoot;
 
   /// Set the project root directory for golden file storage.
   /// This should be the root directory of your Flutter project.
@@ -490,12 +487,14 @@ class SelfTestBridge {
         FlutterError.presentError(details);
       };
 
-      _server!.transform(WebSocketTransformer()).listen(
-        _handleConnection,
-        onError: (error) {
-          debugPrint('[SelfTestBridge] Server error: $error');
-        },
-      );
+      _server!
+          .transform(WebSocketTransformer())
+          .listen(
+            _handleConnection,
+            onError: (error) {
+              debugPrint('[SelfTestBridge] Server error: $error');
+            },
+          );
     } catch (e) {
       debugPrint('[SelfTestBridge] Failed to start server: $e');
       rethrow;
@@ -529,10 +528,7 @@ class SelfTestBridge {
         } catch (e, stackTrace) {
           debugPrint('[SelfTestBridge] Error handling command: $e');
           debugPrint(stackTrace.toString());
-          socket.add(jsonEncode({
-            'id': 0,
-            'error': e.toString(),
-          }));
+          socket.add(jsonEncode({'id': 0, 'error': e.toString()}));
         }
       },
       onDone: () {
@@ -596,10 +592,7 @@ class SelfTestBridge {
         return _getCurrentState();
 
       case 'getByRole':
-        return _getByRole(
-          params['role'] as String,
-          params['name'] as String?,
-        );
+        return _getByRole(params['role'] as String, params['name'] as String?);
 
       case 'getByText':
         return _getByText(
@@ -637,13 +630,13 @@ class SelfTestBridge {
           // Simulate enter key press
           await ServicesBinding.instance.defaultBinaryMessenger
               .handlePlatformMessage(
-            'flutter/textinput',
-            const JSONMessageCodec().encodeMessage(<String, dynamic>{
-              'method': 'TextInputClient.performAction',
-              'args': <dynamic>[0, 'TextInputAction.done'],
-            }),
-            (ByteData? data) {},
-          );
+                'flutter/textinput',
+                const JSONMessageCodec().encodeMessage(<String, dynamic>{
+                  'method': 'TextInputClient.performAction',
+                  'args': <dynamic>[0, 'TextInputAction.done'],
+                }),
+                (ByteData? data) {},
+              );
         }
 
         await manager.waitForAnimations();
@@ -747,8 +740,8 @@ class SelfTestBridge {
       case 'reload':
         // Hot reload via VM service would be needed
         // For now, just refresh the current route
-        final currentLocation =
-            router?.routeInformationProvider.value.uri.toString();
+        final currentLocation = router?.routeInformationProvider.value.uri
+            .toString();
         if (currentLocation != null) {
           router?.go(currentLocation);
         }
@@ -793,7 +786,12 @@ class SelfTestBridge {
         final updateBaseline = params['updateBaseline'] as bool? ?? false;
         final goldensDir = params['goldensDir'] as String?;
         return await _expectScreenshot(
-            name, widgetId, threshold, updateBaseline, goldensDir);
+          name,
+          widgetId,
+          threshold,
+          updateBaseline,
+          goldensDir,
+        );
 
       case 'updateGoldens':
         final names = (params['names'] as List?)?.cast<String>();
@@ -851,9 +849,7 @@ class SelfTestBridge {
 
       case 'networkLog':
         final limit = params['limit'] as int? ?? 50;
-        return {
-          'requests': _networkLog.take(limit).toList(),
-        };
+        return {'requests': _networkLog.take(limit).toList()};
 
       case 'waitNetwork':
         final urlPattern = params['urlPattern'] as String;
@@ -1065,7 +1061,11 @@ class SelfTestBridge {
         final actionParams = params['params'] as Map<String, dynamic>? ?? {};
         final budgetMs = (params['budgetMs'] as num?)?.toDouble() ?? 16.67;
         return await _frameBudgetCheck(
-            action, widgetId, actionParams, budgetMs);
+          action,
+          widgetId,
+          actionParams,
+          budgetMs,
+        );
 
       case 'jankDetector':
         final enabled = params['enabled'] as bool;
@@ -1465,8 +1465,9 @@ class SelfTestBridge {
       widgets.add({
         'id': entry.key,
         'type': _inferWidgetType(node),
-        'screen':
-            node.context != null ? _inferScreen(node.context!) : 'unknown',
+        'screen': node.context != null
+            ? _inferScreen(node.context!)
+            : 'unknown',
         'isStable': !entry.key.endsWith('_UNSTABLE'),
         'isEnabled': node.onTap != null || node.onTextChange != null,
         'isChecked': null, // TestNode doesn't track checked state
@@ -1726,7 +1727,10 @@ class SelfTestBridge {
   }
 
   Future<void> _scrollToWidget(
-      String widgetId, String? scrollableId, int timeout) async {
+    String widgetId,
+    String? scrollableId,
+    int timeout,
+  ) async {
     final manager = SelfTestManager();
     final deadline = DateTime.now().add(Duration(milliseconds: timeout));
 
@@ -1772,10 +1776,12 @@ class SelfTestBridge {
     }
 
     // Get global positions
-    final sourcePos =
-        sourceBox.localToGlobal(sourceBox.size.center(Offset.zero));
-    final targetPos =
-        targetBox.localToGlobal(targetBox.size.center(Offset.zero));
+    final sourcePos = sourceBox.localToGlobal(
+      sourceBox.size.center(Offset.zero),
+    );
+    final targetPos = targetBox.localToGlobal(
+      targetBox.size.center(Offset.zero),
+    );
 
     // Simulate drag using gesture binding
     final binding = WidgetsBinding.instance;
@@ -1888,7 +1894,8 @@ class SelfTestBridge {
       manager.trigger(widgetId);
     } else {
       throw Exception(
-          'Widget "$widgetId" is not toggleable (no onTap callback)');
+        'Widget "$widgetId" is not toggleable (no onTap callback)',
+      );
     }
 
     await manager.waitForAnimations();
@@ -2054,7 +2061,8 @@ class SelfTestBridge {
 
       case 'toBeChecked':
         // TestNode doesn't track checked state; check currentText for 'true'/'checked'
-        final isChecked = node?.currentText?.toLowerCase() == 'true' ||
+        final isChecked =
+            node?.currentText?.toLowerCase() == 'true' ||
             node?.currentText?.toLowerCase() == 'checked';
         return {
           'passed': isChecked,
@@ -2063,7 +2071,8 @@ class SelfTestBridge {
 
       case 'toBeUnchecked':
         // TestNode doesn't track checked state; check currentText for 'false'/'unchecked'
-        final isUnchecked = node?.currentText?.toLowerCase() != 'true' &&
+        final isUnchecked =
+            node?.currentText?.toLowerCase() != 'true' &&
             node?.currentText?.toLowerCase() != 'checked';
         return {
           'passed': isUnchecked,
@@ -2116,7 +2125,8 @@ class SelfTestBridge {
 
       case 'toBeFocused':
         // Check if widget has focus
-        final hasFocus = node?.context != null &&
+        final hasFocus =
+            node?.context != null &&
             Focus.maybeOf(node!.context!)?.hasFocus == true;
         return {
           'passed': hasFocus,
@@ -2124,10 +2134,7 @@ class SelfTestBridge {
         };
 
       default:
-        return {
-          'passed': false,
-          'message': 'Unknown assertion: $assertion',
-        };
+        return {'passed': false, 'message': 'Unknown assertion: $assertion'};
     }
   }
 
@@ -2193,10 +2200,12 @@ class SelfTestBridge {
       };
     }
 
-    final baselineData =
-        await baselineImage.toByteData(format: ui.ImageByteFormat.rawRgba);
-    final currentData =
-        await currentImage.toByteData(format: ui.ImageByteFormat.rawRgba);
+    final baselineData = await baselineImage.toByteData(
+      format: ui.ImageByteFormat.rawRgba,
+    );
+    final currentData = await currentImage.toByteData(
+      format: ui.ImageByteFormat.rawRgba,
+    );
 
     if (baselineData == null || currentData == null) {
       return {
@@ -2242,10 +2251,14 @@ class SelfTestBridge {
     if (!passed) {
       final diffPath = _getDiffPath(name, goldensDir);
       final diffImage = await _createImageFromRgba(
-          diffBuffer, baselineImage.width, baselineImage.height);
+        diffBuffer,
+        baselineImage.width,
+        baselineImage.height,
+      );
       if (diffImage != null) {
-        final diffPngBytes =
-            await diffImage.toByteData(format: ui.ImageByteFormat.png);
+        final diffPngBytes = await diffImage.toByteData(
+          format: ui.ImageByteFormat.png,
+        );
         if (diffPngBytes != null) {
           await File(diffPath).writeAsBytes(diffPngBytes.buffer.asUint8List());
           diffImageBase64 = base64Encode(diffPngBytes.buffer.asUint8List());
@@ -2273,15 +2286,25 @@ class SelfTestBridge {
   }
 
   Future<ui.Image?> _createImageFromRgba(
-      Uint8List rgba, int width, int height) async {
+    Uint8List rgba,
+    int width,
+    int height,
+  ) async {
     final completer = Completer<ui.Image>();
     ui.decodeImageFromPixels(
-        rgba, width, height, ui.PixelFormat.rgba8888, completer.complete);
+      rgba,
+      width,
+      height,
+      ui.PixelFormat.rgba8888,
+      completer.complete,
+    );
     return await completer.future;
   }
 
   Future<Map<String, dynamic>> _updateGoldens(
-      List<String>? names, String? goldensDir) async {
+    List<String>? names,
+    String? goldensDir,
+  ) async {
     await _ensureGoldensDirectory(goldensDir);
     final directory = Directory(_getGoldensDirectory(goldensDir));
     final updated = <String>[];
@@ -2436,15 +2459,14 @@ class SelfTestBridge {
     _recordingName = name;
     _recordingFrames.clear();
 
-    _recordingTimer = Timer.periodic(
-      const Duration(milliseconds: 100),
-      (_) async {
-        if (_isRecording) {
-          final bytes = await _captureScreenshotBytes(null);
-          _recordingFrames.add(bytes);
-        }
-      },
-    );
+    _recordingTimer = Timer.periodic(const Duration(milliseconds: 100), (
+      _,
+    ) async {
+      if (_isRecording) {
+        final bytes = await _captureScreenshotBytes(null);
+        _recordingFrames.add(bytes);
+      }
+    });
   }
 
   Future<Map<String, dynamic>> _stopRecording() async {
@@ -2485,7 +2507,9 @@ class SelfTestBridge {
   // ===========================================================================
 
   Future<Map<String, dynamic>> _waitForNetwork(
-      String urlPattern, int timeout) async {
+    String urlPattern,
+    int timeout,
+  ) async {
     final completer = Completer<Map<String, dynamic>>();
     _pendingNetworkWaits[urlPattern] = completer;
 
@@ -2539,7 +2563,9 @@ class SelfTestBridge {
   // ===========================================================================
 
   Future<Map<String, dynamic>> _handleDialog(
-      String action, String? text) async {
+    String action,
+    String? text,
+  ) async {
     final manager = SelfTestManager();
     final nodes = manager.activeTestNodes;
 
@@ -2644,8 +2670,8 @@ class SelfTestBridge {
       state[key] = prefs.get(key);
     }
 
-    state['_currentRoute'] =
-        router?.routeInformationProvider.value.uri.toString();
+    state['_currentRoute'] = router?.routeInformationProvider.value.uri
+        .toString();
 
     _savedStates[name] = state;
   }
@@ -2703,8 +2729,9 @@ class SelfTestBridge {
         await _executeCommand(command);
 
         String? screenshotPath;
-        screenshotPath =
-            await manager.captureScreenshot('${name}_step_${i + 1}');
+        screenshotPath = await manager.captureScreenshot(
+          '${name}_step_${i + 1}',
+        );
 
         results.add({
           'description': description,
@@ -2714,8 +2741,9 @@ class SelfTestBridge {
       } catch (e) {
         allPassed = false;
         String? screenshotPath;
-        screenshotPath =
-            await manager.captureScreenshot('${name}_step_${i + 1}_FAILED');
+        screenshotPath = await manager.captureScreenshot(
+          '${name}_step_${i + 1}_FAILED',
+        );
 
         results.add({
           'description': description,
@@ -2799,11 +2827,7 @@ class SelfTestBridge {
         'hasData': data != null && data.text != null,
       };
     } catch (e) {
-      return {
-        'text': '',
-        'hasData': false,
-        'error': e.toString(),
-      };
+      return {'text': '', 'hasData': false, 'error': e.toString()};
     }
   }
 
@@ -2820,18 +2844,15 @@ class SelfTestBridge {
     final har = <String, dynamic>{
       'log': {
         'version': '1.2',
-        'creator': {
-          'name': 'SelfTestBridge',
-          'version': '2.0.0',
-        },
+        'creator': {'name': 'SelfTestBridge', 'version': '2.0.0'},
         'entries': _networkLog.map((req) {
           final startTime =
               DateTime.tryParse(req['timestamp'] as String? ?? '') ??
-                  DateTime.now();
+              DateTime.now();
           final response = req['response'] as Map<String, dynamic>?;
           final responseTime =
               DateTime.tryParse(response?['timestamp'] as String? ?? '') ??
-                  startTime;
+              startTime;
           final waitTime = responseTime.difference(startTime).inMilliseconds;
 
           return {
@@ -2842,8 +2863,9 @@ class SelfTestBridge {
               'url': req['url'] ?? '',
               'httpVersion': 'HTTP/1.1',
               'cookies': <dynamic>[],
-              'headers':
-                  _convertHeadersToHar(req['headers'] as Map<String, dynamic>?),
+              'headers': _convertHeadersToHar(
+                req['headers'] as Map<String, dynamic>?,
+              ),
               'queryString': _parseQueryString(req['url'] as String?),
               'postData': req['body'] != null
                   ? {
@@ -2856,8 +2878,8 @@ class SelfTestBridge {
               'headersSize': -1,
               'bodySize': req['body'] != null
                   ? (req['body'] is String
-                      ? (req['body'] as String).length
-                      : jsonEncode(req['body']).length)
+                        ? (req['body'] as String).length
+                        : jsonEncode(req['body']).length)
                   : 0,
             },
             'response': {
@@ -2866,12 +2888,13 @@ class SelfTestBridge {
               'httpVersion': 'HTTP/1.1',
               'cookies': <dynamic>[],
               'headers': _convertHeadersToHar(
-                  response?['headers'] as Map<String, dynamic>?),
+                response?['headers'] as Map<String, dynamic>?,
+              ),
               'content': {
                 'size': response?['body'] != null
                     ? (response!['body'] is String
-                        ? (response['body'] as String).length
-                        : jsonEncode(response['body']).length)
+                          ? (response['body'] as String).length
+                          : jsonEncode(response['body']).length)
                     : 0,
                 'mimeType': response?['contentType'] ?? 'application/json',
                 'text': response != null && response['body'] is String
@@ -2882,8 +2905,8 @@ class SelfTestBridge {
               'headersSize': -1,
               'bodySize': response?['body'] != null
                   ? (response!['body'] is String
-                      ? (response['body'] as String).length
-                      : jsonEncode(response['body']).length)
+                        ? (response['body'] as String).length
+                        : jsonEncode(response['body']).length)
                   : 0,
             },
             'cache': <String, dynamic>{},
@@ -2905,13 +2928,11 @@ class SelfTestBridge {
   }
 
   List<Map<String, dynamic>> _convertHeadersToHar(
-      Map<String, dynamic>? headers) {
+    Map<String, dynamic>? headers,
+  ) {
     if (headers == null) return [];
     return headers.entries
-        .map((e) => {
-              'name': e.key,
-              'value': e.value?.toString() ?? '',
-            })
+        .map((e) => {'name': e.key, 'value': e.value?.toString() ?? ''})
         .toList();
   }
 
@@ -2920,10 +2941,7 @@ class SelfTestBridge {
     final uri = Uri.tryParse(url);
     if (uri == null) return [];
     return uri.queryParameters.entries
-        .map((e) => {
-              'name': e.key,
-              'value': e.value,
-            })
+        .map((e) => {'name': e.key, 'value': e.value})
         .toList();
   }
 
@@ -2947,7 +2965,9 @@ class SelfTestBridge {
       timeDilation = 1.0 / speed;
     }
     _logConsole(
-        'info', 'Animation speed set to $speed (timeDilation: $timeDilation)');
+      'info',
+      'Animation speed set to $speed (timeDilation: $timeDilation)',
+    );
   }
 
   Future<void> _pump([int durationMs = 0]) async {
@@ -3013,7 +3033,9 @@ class SelfTestBridge {
     SchedulerBinding.instance.addTimingsCallback(_onFrameTimings);
 
     _logConsole(
-        'info', 'Frame profiling started (budget: ${_frameBudgetMs}ms)');
+      'info',
+      'Frame profiling started (budget: ${_frameBudgetMs}ms)',
+    );
   }
 
   /// Stop frame profiling and return results
@@ -3030,18 +3052,14 @@ class SelfTestBridge {
         'p95Ms': 0.0,
         'p99Ms': 0.0,
         'worstFrame': null,
-        'histogram': {
-          '0-8ms': 0,
-          '8-16ms': 0,
-          '16-32ms': 0,
-          '32ms+': 0,
-        },
+        'histogram': {'0-8ms': 0, '8-16ms': 0, '16-32ms': 0, '32ms+': 0},
       };
     }
 
     // Convert frame timings to durations in milliseconds
-    final durations =
-        _frameTimings.map((t) => t.totalSpan.inMicroseconds / 1000.0).toList();
+    final durations = _frameTimings
+        .map((t) => t.totalSpan.inMicroseconds / 1000.0)
+        .toList();
 
     // Sort for percentile calculations
     durations.sort();
@@ -3082,10 +3100,7 @@ class SelfTestBridge {
       'p50Ms': _percentile(durations, 50),
       'p95Ms': _percentile(durations, 95),
       'p99Ms': _percentile(durations, 99),
-      'worstFrame': {
-        'index': worstIndex,
-        'durationMs': worstDuration,
-      },
+      'worstFrame': {'index': worstIndex, 'durationMs': worstDuration},
       'histogram': histogram,
     };
   }
@@ -3201,11 +3216,7 @@ class SelfTestBridge {
       return {
         'enabled': true,
         'threshold': threshold,
-        'statistics': {
-          'totalFrames': 0,
-          'jankyFrames': 0,
-          'jankRate': 0.0,
-        },
+        'statistics': {'totalFrames': 0, 'jankyFrames': 0, 'jankRate': 0.0},
       };
     } else if (!enabled && previousState) {
       // Disable jank detection
@@ -3275,15 +3286,13 @@ class SelfTestBridge {
     _memorySamples.clear();
     _isProfilingMemory = true;
 
-    _memoryProfilingTimer = Timer.periodic(
-      Duration(milliseconds: intervalMs),
-      (_) {
-        _memorySamples.add(_MemorySample(
-          timestamp: DateTime.now(),
-          heapUsed: _getHeapUsage(),
-        ));
-      },
-    );
+    _memoryProfilingTimer = Timer.periodic(Duration(milliseconds: intervalMs), (
+      _,
+    ) {
+      _memorySamples.add(
+        _MemorySample(timestamp: DateTime.now(), heapUsed: _getHeapUsage()),
+      );
+    });
 
     _logConsole('info', 'Memory profiling started (interval: ${intervalMs}ms)');
   }
@@ -3310,8 +3319,9 @@ class SelfTestBridge {
     // Simple leak detection: check if memory is monotonically increasing
     final leakSuspects = <String>[];
     if (_isMonotonicallyIncreasing(heapValues)) {
-      leakSuspects
-          .add('Possible memory leak: heap usage continuously increasing');
+      leakSuspects.add(
+        'Possible memory leak: heap usage continuously increasing',
+      );
     }
 
     // Check for significant growth (more than 20% increase from start to end)
@@ -3326,7 +3336,9 @@ class SelfTestBridge {
     }
 
     _logConsole(
-        'info', 'Memory profiling stopped: ${_memorySamples.length} samples');
+      'info',
+      'Memory profiling stopped: ${_memorySamples.length} samples',
+    );
 
     return {
       'samples': _memorySamples.map((s) => s.toJson()).toList(),
@@ -3381,12 +3393,11 @@ class SelfTestBridge {
     cache.clearLiveImages();
 
     _logConsole(
-        'info', 'Image cache cleared: $countBefore images, $sizeBefore bytes');
+      'info',
+      'Image cache cleared: $countBefore images, $sizeBefore bytes',
+    );
 
-    return {
-      'cleared': countBefore,
-      'freedBytes': sizeBefore,
-    };
+    return {'cleared': countBefore, 'freedBytes': sizeBefore};
   }
 
   /// Run heuristic leak detection by repeating an action
@@ -3401,11 +3412,7 @@ class SelfTestBridge {
     for (int i = 0; i < iterations; i++) {
       // Execute the action
       try {
-        final command = BridgeCommand(
-          id: 0,
-          command: action,
-          params: {},
-        );
+        final command = BridgeCommand(id: 0, command: action, params: {});
         await _executeCommand(command);
       } catch (e) {
         // Continue even if action fails
@@ -3443,7 +3450,8 @@ class SelfTestBridge {
     }
 
     return {
-      'potentialLeaks': potentialLeaks ||
+      'potentialLeaks':
+          potentialLeaks ||
           (memoryBefore > 0 && memoryGrowth > memoryBefore * 0.1),
       'memoryGrowth': memoryGrowth,
       'memoryBefore': memoryBefore,
@@ -3561,10 +3569,7 @@ class SelfTestBridge {
           return typeName
               .replaceAll('Screen', '')
               .replaceAll('Page', '')
-              .replaceAllMapped(
-                RegExp(r'(?<!^)(?=[A-Z])'),
-                (m) => '_',
-              )
+              .replaceAllMapped(RegExp(r'(?<!^)(?=[A-Z])'), (m) => '_')
               .toLowerCase();
         }
 
@@ -3634,51 +3639,49 @@ class SelfTestBridge {
     const codec = StandardMethodCodec();
 
     // Set the message handler on the binary messenger
-    ServicesBinding.instance.defaultBinaryMessenger.setMessageHandler(
-      channel,
-      (ByteData? message) async {
-        if (message == null) return null;
+    ServicesBinding.instance.defaultBinaryMessenger.setMessageHandler(channel, (
+      ByteData? message,
+    ) async {
+      if (message == null) return null;
 
-        final methodCall = codec.decodeMethodCall(message);
-        final timestamp = DateTime.now().toIso8601String();
+      final methodCall = codec.decodeMethodCall(message);
+      final timestamp = DateTime.now().toIso8601String();
 
-        // Log the call
-        _channelCallLog.add({
-          'channel': channel,
-          'method': methodCall.method,
-          'arguments': methodCall.arguments,
-          'timestamp': timestamp,
-        });
+      // Log the call
+      _channelCallLog.add({
+        'channel': channel,
+        'method': methodCall.method,
+        'arguments': methodCall.arguments,
+        'timestamp': timestamp,
+      });
 
-        // Check if we have a mock for this method
-        final channelMocks = _channelMocks[channel];
-        if (channelMocks != null &&
-            channelMocks.containsKey(methodCall.method)) {
-          final config = channelMocks[methodCall.method]!;
+      // Check if we have a mock for this method
+      final channelMocks = _channelMocks[channel];
+      if (channelMocks != null && channelMocks.containsKey(methodCall.method)) {
+        final config = channelMocks[methodCall.method]!;
 
-          // Update the log entry with the result
-          _channelCallLog.last['mocked'] = true;
+        // Update the log entry with the result
+        _channelCallLog.last['mocked'] = true;
 
-          // If error is configured, encode PlatformException
-          if (config.errorCode != null) {
-            _channelCallLog.last['error'] = config.errorCode;
-            return codec.encodeErrorEnvelope(
-              code: config.errorCode!,
-              message: config.errorMessage,
-            );
-          }
-
-          // Return the mocked response
-          _channelCallLog.last['result'] = config.response;
-          return codec.encodeSuccessEnvelope(config.response);
+        // If error is configured, encode PlatformException
+        if (config.errorCode != null) {
+          _channelCallLog.last['error'] = config.errorCode;
+          return codec.encodeErrorEnvelope(
+            code: config.errorCode!,
+            message: config.errorMessage,
+          );
         }
 
-        // No mock found, mark as passthrough and return null
-        // This allows the original handler to be called
-        _channelCallLog.last['mocked'] = false;
-        return null;
-      },
-    );
+        // Return the mocked response
+        _channelCallLog.last['result'] = config.response;
+        return codec.encodeSuccessEnvelope(config.response);
+      }
+
+      // No mock found, mark as passthrough and return null
+      // This allows the original handler to be called
+      _channelCallLog.last['mocked'] = false;
+      return null;
+    });
   }
 
   /// Clear all channel mocks or mocks for a specific channel
@@ -3686,14 +3689,18 @@ class SelfTestBridge {
     if (channel != null) {
       // Clear mocks for specific channel
       _channelMocks.remove(channel);
-      ServicesBinding.instance.defaultBinaryMessenger
-          .setMessageHandler(channel, null);
+      ServicesBinding.instance.defaultBinaryMessenger.setMessageHandler(
+        channel,
+        null,
+      );
       _logConsole('info', 'Cleared mocks for channel: $channel');
     } else {
       // Clear all mocks
       for (final ch in _channelMocks.keys.toList()) {
-        ServicesBinding.instance.defaultBinaryMessenger
-            .setMessageHandler(ch, null);
+        ServicesBinding.instance.defaultBinaryMessenger.setMessageHandler(
+          ch,
+          null,
+        );
       }
       _channelMocks.clear();
       _logConsole('info', 'Cleared all channel mocks');
@@ -3742,10 +3749,7 @@ class SelfTestBridge {
       'Mock location set: (${location.latitude}, ${location.longitude})',
     );
 
-    return {
-      'success': true,
-      'location': location.toJson(),
-    };
+    return {'success': true, 'location': location.toJson()};
   }
 
   /// Set mock permission state
@@ -3760,11 +3764,7 @@ class SelfTestBridge {
 
     _logConsole('info', 'Mock permission set: $permissionStr = $stateStr');
 
-    return {
-      'success': true,
-      'permission': permissionStr,
-      'state': stateStr,
-    };
+    return {'success': true, 'permission': permissionStr, 'state': stateStr};
   }
 
   /// Set mock connectivity state
@@ -3782,10 +3782,7 @@ class SelfTestBridge {
       'Mock connectivity set: ${connectivity.state.name} (connected: ${connectivity.isConnected})',
     );
 
-    return {
-      'success': true,
-      'connectivity': connectivity.toJson(),
-    };
+    return {'success': true, 'connectivity': connectivity.toJson()};
   }
 
   /// Clear all mock states
@@ -3863,9 +3860,7 @@ class SelfTestBridge {
 
   /// Get history of biometric authentication attempts
   Map<String, dynamic> _getBiometricAuthHistory() {
-    return {
-      'attempts': _biometricHistory.map((a) => a.toJson()).toList(),
-    };
+    return {'attempts': _biometricHistory.map((a) => a.toJson()).toList()};
   }
 
   /// Simulate a biometric prompt and get the configured result
@@ -4319,10 +4314,7 @@ class SelfTestBridge {
   /// This implementation uses frame callbacks and element tree sampling instead.
   Map<String, dynamic> _startRebuildProfiling() {
     if (_isProfilingRebuilds) {
-      return {
-        'success': false,
-        'error': 'Rebuild profiling is already active',
-      };
+      return {'success': false, 'error': 'Rebuild profiling is already active'};
     }
 
     // Clear previous profiling data
@@ -4338,18 +4330,22 @@ class SelfTestBridge {
       if (!_isProfilingRebuilds) return;
 
       // Schedule next frame callback
-      SchedulerBinding.instance
-          .addPostFrameCallback(_rebuildProfilingFrameCallback!);
+      SchedulerBinding.instance.addPostFrameCallback(
+        _rebuildProfilingFrameCallback!,
+      );
 
       // Sample elements by walking the tree
       _sampleWidgetTree();
     };
 
-    SchedulerBinding.instance
-        .addPostFrameCallback(_rebuildProfilingFrameCallback!);
+    SchedulerBinding.instance.addPostFrameCallback(
+      _rebuildProfilingFrameCallback!,
+    );
 
     _logConsole(
-        'info', 'Widget rebuild profiling started (using frame sampling)');
+      'info',
+      'Widget rebuild profiling started (using frame sampling)',
+    );
 
     return {
       'success': true,
@@ -4374,8 +4370,10 @@ class SelfTestBridge {
         final widgetId = key.isNotEmpty ? '$widgetType($key)' : widgetType;
 
         // Track this widget - increment count each time we see it in a frame
-        final info =
-            _rebuildProfile.putIfAbsent(widgetId, () => _RebuildInfo());
+        final info = _rebuildProfile.putIfAbsent(
+          widgetId,
+          () => _RebuildInfo(),
+        );
         info.count++;
         info.reasons.add('Frame sample');
 
@@ -4396,9 +4394,7 @@ class SelfTestBridge {
   /// Stop profiling widget rebuilds and return results.
   Map<String, dynamic> _stopRebuildProfiling() {
     if (!_isProfilingRebuilds) {
-      return {
-        'error': 'Rebuild profiling is not active',
-      };
+      return {'error': 'Rebuild profiling is not active'};
     }
 
     _isProfilingRebuilds = false;
@@ -4519,8 +4515,9 @@ class SelfTestBridge {
       for (final node in chain) {
         final nodeStr = node.toStringDeep();
         // Look for file:line patterns
-        final match =
-            RegExp(r'package:[^\s]+\.dart:\d+:\d+').firstMatch(nodeStr);
+        final match = RegExp(
+          r'package:[^\s]+\.dart:\d+:\d+',
+        ).firstMatch(nodeStr);
         if (match != null) {
           return match.group(0);
         }
@@ -4603,11 +4600,7 @@ class SelfTestBridge {
 
     for (final providerId in allProviderIds) {
       if (!_stateProviders.containsKey(providerId)) {
-        nodes.add({
-          'id': providerId,
-          'type': 'unknown',
-          'name': providerId,
-        });
+        nodes.add({'id': providerId, 'type': 'unknown', 'name': providerId});
       }
     }
 
@@ -4615,11 +4608,7 @@ class SelfTestBridge {
     for (final entry in _providerDependencies.entries) {
       final consumer = entry.key;
       for (final dependency in entry.value) {
-        edges.add({
-          'from': consumer,
-          'to': dependency,
-          'type': 'depends',
-        });
+        edges.add({'from': consumer, 'to': dependency, 'type': 'depends'});
       }
     }
 
@@ -4635,19 +4624,12 @@ class SelfTestBridge {
               e['type'] == 'depends',
         );
         if (!existsAsDependsEdge) {
-          edges.add({
-            'from': provider,
-            'to': dependent,
-            'type': 'notifies',
-          });
+          edges.add({'from': provider, 'to': dependent, 'type': 'notifies'});
         }
       }
     }
 
-    return {
-      'nodes': nodes,
-      'edges': edges,
-    };
+    return {'nodes': nodes, 'edges': edges};
   }
 
   /// Analyze what would be affected by changing a provider.
@@ -4668,9 +4650,7 @@ class SelfTestBridge {
     transitiveDependents.removeAll(directDependents);
 
     // Affected widgets
-    final affectedWidgets = <String>{
-      ..._widgetConsumers[providerId] ?? {},
-    };
+    final affectedWidgets = <String>{..._widgetConsumers[providerId] ?? {}};
     // Also include widgets affected by dependents
     for (final dependent in [...directDependents, ...transitiveDependents]) {
       affectedWidgets.addAll(_widgetConsumers[dependent] ?? {});
@@ -4716,7 +4696,7 @@ class SelfTestBridge {
       // Find path from provider to specific widget
       final visited = <String>{providerId};
       final queue = <List<String>>[
-        [providerId]
+        [providerId],
       ];
 
       while (queue.isNotEmpty) {
@@ -4736,10 +4716,7 @@ class SelfTestBridge {
             });
             transformations.add('$node depends on ${currentPath[i - 1]}');
           }
-          path.add({
-            'node': widgetId,
-            'type': 'widget',
-          });
+          path.add({'node': widgetId, 'type': 'widget'});
           transformations.add('$widgetId consumes $current');
           break;
         }
@@ -4756,10 +4733,7 @@ class SelfTestBridge {
       // Trace to all consuming widgets
       final directWidgets = _widgetConsumers[providerId] ?? <String>{};
       for (final widget in directWidgets) {
-        path.add({
-          'node': widget,
-          'type': 'widget',
-        });
+        path.add({'node': widget, 'type': 'widget'});
         transformations.add('$widget consumes $providerId');
       }
 
@@ -4775,10 +4749,7 @@ class SelfTestBridge {
       }
     }
 
-    return {
-      'path': path,
-      'transformations': transformations,
-    };
+    return {'path': path, 'transformations': transformations};
   }
 
   /// Find providers that are defined but never used.
@@ -4835,24 +4806,27 @@ class SelfTestBridge {
         newState = AppLifecycleState.hidden;
         break;
       default:
-        throw Exception('Invalid lifecycle state: $stateStr. '
-            'Valid states: paused, resumed, inactive, detached, hidden');
+        throw Exception(
+          'Invalid lifecycle state: $stateStr. '
+          'Valid states: paused, resumed, inactive, detached, hidden',
+        );
     }
 
     _currentLifecycleState = newState;
 
     // Record in history
-    _lifecycleHistory.add(AppLifecycleEvent(
-      state: newState,
-      timestamp: DateTime.now(),
-    ));
+    _lifecycleHistory.add(
+      AppLifecycleEvent(state: newState, timestamp: DateTime.now()),
+    );
 
     // Notify all observers through the binding
     try {
       final binding = WidgetsBinding.instance;
       binding.handleAppLifecycleStateChanged(newState);
-      _logConsole('info',
-          'Lifecycle state changed: ${previousState.name} -> ${newState.name}');
+      _logConsole(
+        'info',
+        'Lifecycle state changed: ${previousState.name} -> ${newState.name}',
+      );
     } catch (e) {
       _logConsole('error', 'Failed to notify lifecycle observers: $e');
     }
@@ -4917,11 +4891,7 @@ class SelfTestBridge {
 
     _logConsole('info', 'Memory pressure simulated: $level');
 
-    return {
-      'success': true,
-      'level': level,
-      'clearedCaches': _clearedCaches,
-    };
+    return {'success': true, 'level': level, 'clearedCaches': _clearedCaches};
   }
 
   /// Simulate system locale change.
@@ -4930,10 +4900,7 @@ class SelfTestBridge {
 
     // Parse locale string (e.g., "en_US", "fr_FR")
     final parts = localeStr.split('_');
-    final newLocale = Locale(
-      parts[0],
-      parts.length > 1 ? parts[1] : null,
-    );
+    final newLocale = Locale(parts[0], parts.length > 1 ? parts[1] : null);
 
     _currentLocale = newLocale;
 
@@ -4943,8 +4910,10 @@ class SelfTestBridge {
     try {
       // Force a rebuild of the widget tree by scheduling a frame
       WidgetsBinding.instance.scheduleFrame();
-      _logConsole('info',
-          'Locale changed: ${previousLocale.toString()} -> ${newLocale.toString()}');
+      _logConsole(
+        'info',
+        'Locale changed: ${previousLocale.toString()} -> ${newLocale.toString()}',
+      );
     } catch (e) {
       _logConsole('error', 'Failed to notify locale change: $e');
     }
@@ -4987,7 +4956,8 @@ class SelfTestBridge {
 
   /// Simulate system brightness mode change.
   Future<Map<String, dynamic>> _simulateBrightnessChange(
-      String brightnessStr) async {
+    String brightnessStr,
+  ) async {
     final previousBrightness = _currentBrightness;
 
     // Parse brightness string
@@ -5001,7 +4971,8 @@ class SelfTestBridge {
         break;
       default:
         throw Exception(
-            'Invalid brightness: $brightnessStr. Valid values: light, dark');
+          'Invalid brightness: $brightnessStr. Valid values: light, dark',
+        );
     }
 
     _currentBrightness = newBrightness;
@@ -5012,8 +4983,10 @@ class SelfTestBridge {
     try {
       // Force a rebuild of the widget tree by scheduling a frame
       WidgetsBinding.instance.scheduleFrame();
-      _logConsole('info',
-          'Brightness changed: ${previousBrightness.name} -> ${newBrightness.name}');
+      _logConsole(
+        'info',
+        'Brightness changed: ${previousBrightness.name} -> ${newBrightness.name}',
+      );
     } catch (e) {
       _logConsole('error', 'Failed to notify brightness change: $e');
     }
@@ -5048,7 +5021,9 @@ class SelfTestBridge {
 
   /// Start recording time-travel snapshots
   Map<String, dynamic> _timeTravelStart(
-      bool captureOnInteraction, int? intervalMs) {
+    bool captureOnInteraction,
+    int? intervalMs,
+  ) {
     if (_isRecordingTimeline) {
       return {
         'success': false,
@@ -5066,14 +5041,11 @@ class SelfTestBridge {
     // Set up interval-based capturing if specified
     if (intervalMs != null && intervalMs > 0) {
       _snapshotTimer?.cancel();
-      _snapshotTimer = Timer.periodic(
-        Duration(milliseconds: intervalMs),
-        (_) {
-          if (_isRecordingTimeline) {
-            _captureSnapshotInternal(label: 'auto');
-          }
-        },
-      );
+      _snapshotTimer = Timer.periodic(Duration(milliseconds: intervalMs), (_) {
+        if (_isRecordingTimeline) {
+          _captureSnapshotInternal(label: 'auto');
+        }
+      });
     }
 
     return {
@@ -5105,12 +5077,14 @@ class SelfTestBridge {
   Map<String, dynamic> _timeTravelList() {
     return {
       'snapshots': _timelineSnapshots
-          .map((s) => {
-                'id': s.id,
-                'label': s.label,
-                'timestamp': s.timestamp.millisecondsSinceEpoch,
-                'route': s.currentRoute,
-              })
+          .map(
+            (s) => {
+              'id': s.id,
+              'label': s.label,
+              'timestamp': s.timestamp.millisecondsSinceEpoch,
+              'route': s.currentRoute,
+            },
+          )
           .toList(),
       'isRecording': _isRecordingTimeline,
       'totalCount': _timelineSnapshots.length,
@@ -5119,7 +5093,9 @@ class SelfTestBridge {
 
   /// Restore app to a previous snapshot state
   Future<Map<String, dynamic>> _timeTravelGoto(
-      String? snapshotId, int? index) async {
+    String? snapshotId,
+    int? index,
+  ) async {
     _AppSnapshot? snapshot;
 
     if (snapshotId != null) {
@@ -5152,10 +5128,7 @@ class SelfTestBridge {
         'route': snapshot.currentRoute,
       };
     } catch (e) {
-      return {
-        'success': false,
-        'error': 'Failed to restore snapshot: $e',
-      };
+      return {'success': false, 'error': 'Failed to restore snapshot: $e'};
     }
   }
 
@@ -5236,11 +5209,7 @@ class SelfTestBridge {
       final toValue = toSnapshot.storageSnapshot[key];
 
       if (fromValue == null && toValue != null) {
-        storageChanges.add({
-          'key': key,
-          'type': 'added',
-          'newValue': toValue,
-        });
+        storageChanges.add({'key': key, 'type': 'added', 'newValue': toValue});
       } else if (fromValue != null && toValue == null) {
         storageChanges.add({
           'key': key,
@@ -5284,7 +5253,8 @@ class SelfTestBridge {
       'stateChanges': stateChanges,
       'storageChanges': storageChanges,
       'widgetChanges': widgetChanges,
-      'timeDeltaMs': toSnapshot.timestamp.millisecondsSinceEpoch -
+      'timeDeltaMs':
+          toSnapshot.timestamp.millisecondsSinceEpoch -
           fromSnapshot.timestamp.millisecondsSinceEpoch,
     };
   }
@@ -5368,7 +5338,8 @@ class SelfTestBridge {
           config!.dispatchAction!('_restore', entry.value);
         } catch (e) {
           debugPrint(
-              '[SelfTestBridge] Failed to restore provider ${entry.key}: $e');
+            '[SelfTestBridge] Failed to restore provider ${entry.key}: $e',
+          );
         }
       }
     }
@@ -5450,10 +5421,7 @@ class SelfTestBridge {
 
     _logConsole('info', 'Simulated notification: $title ($action)');
 
-    return {
-      'success': true,
-      'notificationId': notificationId,
-    };
+    return {'success': true, 'notificationId': notificationId};
   }
 
   /// Simulate user tapping a notification.
@@ -5465,8 +5433,9 @@ class SelfTestBridge {
     String? actionId,
   ) async {
     // Find the notification
-    final index =
-        _notificationHistory.indexWhere((n) => n.id == notificationId);
+    final index = _notificationHistory.indexWhere(
+      (n) => n.id == notificationId,
+    );
     if (index == -1) {
       return {
         'success': false,
@@ -5493,24 +5462,23 @@ class SelfTestBridge {
 
     _logConsole('info', 'Notification tapped: ${notification.title}');
 
-    return {
-      'success': true,
-      'navigatedTo': navigatedTo,
-    };
+    return {'success': true, 'navigatedTo': navigatedTo};
   }
 
   /// Get history of simulated notifications.
   Map<String, dynamic> _getNotificationHistory() {
     return {
       'notifications': _notificationHistory
-          .map((n) => {
-                'id': n.id,
-                'title': n.title,
-                'body': n.body,
-                'data': n.data,
-                'timestamp': n.timestamp.millisecondsSinceEpoch,
-                'action': n.action,
-              })
+          .map(
+            (n) => {
+              'id': n.id,
+              'title': n.title,
+              'body': n.body,
+              'data': n.data,
+              'timestamp': n.timestamp.millisecondsSinceEpoch,
+              'action': n.action,
+            },
+          )
           .toList(),
       'count': _notificationHistory.length,
     };
@@ -5551,9 +5519,7 @@ class SelfTestBridge {
     _notificationHistory.clear();
     _notificationIdCounter = 0;
 
-    return {
-      'cleared': count,
-    };
+    return {'cleared': count};
   }
 
   /// Get mock FCM token.
@@ -5562,9 +5528,7 @@ class SelfTestBridge {
   /// The token is generated once and reused for subsequent calls.
   Map<String, dynamic> _getFcmToken() {
     _mockFcmToken ??= 'mock_fcm_token_${DateTime.now().millisecondsSinceEpoch}';
-    return {
-      'token': _mockFcmToken,
-    };
+    return {'token': _mockFcmToken};
   }
 
   // ===========================================================================
@@ -5576,7 +5540,9 @@ class SelfTestBridge {
   /// Parses the URL and attempts to navigate using the configured router.
   /// Records the event in history for later inspection.
   Future<Map<String, dynamic>> _simulateDeepLink(
-      String url, String source) async {
+    String url,
+    String source,
+  ) async {
     final uri = Uri.parse(url);
     final manager = SelfTestManager();
 
@@ -5651,9 +5617,7 @@ class SelfTestBridge {
 
   /// Get history of deep links received during the session.
   Map<String, dynamic> _getDeepLinkHistory() {
-    return {
-      'links': _deepLinkHistory.map((e) => e.toJson()).toList(),
-    };
+    return {'links': _deepLinkHistory.map((e) => e.toJson()).toList()};
   }
 
   /// Register URL schemes that the app handles.
@@ -5661,10 +5625,7 @@ class SelfTestBridge {
     final previousSchemes = _registeredSchemes.toList();
     _registeredSchemes.addAll(schemes);
 
-    return {
-      'registered': schemes,
-      'previousSchemes': previousSchemes,
-    };
+    return {'registered': schemes, 'previousSchemes': previousSchemes};
   }
 
   /// Test that a deep link routes correctly without actually navigating.
@@ -5727,9 +5688,7 @@ class SelfTestBridge {
     final count = _deepLinkHistory.length;
     _deepLinkHistory.clear();
 
-    return {
-      'cleared': count,
-    };
+    return {'cleared': count};
   }
 
   // ===========================================================================
@@ -5742,41 +5701,49 @@ class SelfTestBridge {
       _navigationObserver = NavigationInspectorObserver(
         onPush: (route, previousRoute) {
           _routeStack.add(route);
-          _navigationHistory.add(NavigationEvent(
-            action: 'push',
-            from: previousRoute?.settings.name,
-            to: route.settings.name ?? 'unknown',
-            timestamp: DateTime.now(),
-            arguments: route.settings.arguments,
-          ));
+          _navigationHistory.add(
+            NavigationEvent(
+              action: 'push',
+              from: previousRoute?.settings.name,
+              to: route.settings.name ?? 'unknown',
+              timestamp: DateTime.now(),
+              arguments: route.settings.arguments,
+            ),
+          );
         },
         onPop: (route, previousRoute) {
           _routeStack.remove(route);
-          _navigationHistory.add(NavigationEvent(
-            action: 'pop',
-            from: route.settings.name ?? 'unknown',
-            to: previousRoute?.settings.name ?? 'unknown',
-            timestamp: DateTime.now(),
-          ));
+          _navigationHistory.add(
+            NavigationEvent(
+              action: 'pop',
+              from: route.settings.name ?? 'unknown',
+              to: previousRoute?.settings.name ?? 'unknown',
+              timestamp: DateTime.now(),
+            ),
+          );
         },
         onReplace: (newRoute, oldRoute) {
           if (oldRoute != null) _routeStack.remove(oldRoute);
           if (newRoute != null) _routeStack.add(newRoute);
-          _navigationHistory.add(NavigationEvent(
-            action: 'replace',
-            from: oldRoute?.settings.name,
-            to: newRoute?.settings.name ?? 'unknown',
-            timestamp: DateTime.now(),
-          ));
+          _navigationHistory.add(
+            NavigationEvent(
+              action: 'replace',
+              from: oldRoute?.settings.name,
+              to: newRoute?.settings.name ?? 'unknown',
+              timestamp: DateTime.now(),
+            ),
+          );
         },
         onRemove: (route, previousRoute) {
           _routeStack.remove(route);
-          _navigationHistory.add(NavigationEvent(
-            action: 'remove',
-            from: route.settings.name ?? 'unknown',
-            to: previousRoute?.settings.name ?? 'unknown',
-            timestamp: DateTime.now(),
-          ));
+          _navigationHistory.add(
+            NavigationEvent(
+              action: 'remove',
+              from: route.settings.name ?? 'unknown',
+              to: previousRoute?.settings.name ?? 'unknown',
+              timestamp: DateTime.now(),
+            ),
+          );
         },
       );
       _navigationObserverAttached = true;
@@ -5836,14 +5803,14 @@ class SelfTestBridge {
         .reversed
         .toList();
 
-    return {
-      'history': history,
-    };
+    return {'history': history};
   }
 
   /// Pop routes until a condition is met
   Future<Map<String, dynamic>> _popUntil(
-      String? route, String? predicate) async {
+    String? route,
+    String? predicate,
+  ) async {
     final manager = SelfTestManager();
     int poppedCount = 0;
 
@@ -5879,10 +5846,7 @@ class SelfTestBridge {
       currentRoute = _routeStack.last.settings.name ?? 'unknown';
     }
 
-    return {
-      'poppedCount': poppedCount,
-      'currentRoute': currentRoute,
-    };
+    return {'poppedCount': poppedCount, 'currentRoute': currentRoute};
   }
 
   /// Check if current route can be popped
@@ -5896,10 +5860,7 @@ class SelfTestBridge {
       canPop = _routeStack.length > 1;
     }
 
-    return {
-      'canPop': canPop,
-      'stackDepth': _routeStack.length,
-    };
+    return {'canPop': canPop, 'stackDepth': _routeStack.length};
   }
 
   /// Get registered navigation observers
@@ -5918,15 +5879,10 @@ class SelfTestBridge {
 
     // Try to get observers from GoRouter if available
     if (router != null) {
-      observers.add({
-        'type': 'GoRouter',
-        'name': 'App Router',
-      });
+      observers.add({'type': 'GoRouter', 'name': 'App Router'});
     }
 
-    return {
-      'observers': observers,
-    };
+    return {'observers': observers};
   }
 
   /// Simulate back gesture
@@ -5964,10 +5920,7 @@ class SelfTestBridge {
       currentRoute = _routeStack.last.settings.name ?? 'unknown';
     }
 
-    return {
-      'popped': popped,
-      'currentRoute': currentRoute,
-    };
+    return {'popped': popped, 'currentRoute': currentRoute};
   }
 
   /// Get route settings
@@ -5990,9 +5943,7 @@ class SelfTestBridge {
     }
 
     if (targetRoute == null) {
-      return {
-        'error': 'Route not found',
-      };
+      return {'error': 'Route not found'};
     }
 
     dynamic arguments;
@@ -6023,7 +5974,8 @@ class SelfTestBridge {
     }
     if (arguments is Map) {
       return arguments.map(
-          (k, v) => MapEntry(k.toString(), _serializeNavigationArguments(v)));
+        (k, v) => MapEntry(k.toString(), _serializeNavigationArguments(v)),
+      );
     }
     if (arguments is List) {
       return arguments.map(_serializeNavigationArguments).toList();
@@ -6135,8 +6087,9 @@ class SelfTestBridge {
       visitElement(rootElement);
     }
 
-    final coveragePercent =
-        totalWidgets > 0 ? (labeledWidgets / totalWidgets * 100) : 100.0;
+    final coveragePercent = totalWidgets > 0
+        ? (labeledWidgets / totalWidgets * 100)
+        : 100.0;
 
     return {
       'totalWidgets': totalWidgets,
@@ -6154,11 +6107,7 @@ class SelfTestBridge {
 
     final owner = WidgetsBinding.instance.pipelineOwner.semanticsOwner;
     if (owner == null) {
-      return {
-        'tree': [],
-        'flatList': [],
-        'error': 'Semantics not enabled.',
-      };
+      return {'tree': [], 'flatList': [], 'error': 'Semantics not enabled.'};
     }
 
     void visitSemantics(SemanticsNode node, List<Map<String, dynamic>> parent) {
@@ -6251,7 +6200,11 @@ class SelfTestBridge {
   }
 
   _SemanticSuggestion? _generateSemanticSuggestion(
-      Element element, Widget widget, String widgetType, String? currentLabel) {
+    Element element,
+    Widget widget,
+    String widgetType,
+    String? currentLabel,
+  ) {
     final suggestedLabel = _inferSemanticLabel(element, widget);
     if (suggestedLabel == null || suggestedLabel.isEmpty) return null;
 
@@ -6373,7 +6326,7 @@ class SelfTestBridge {
       0xe866: 'favorite',
       0xe87d: 'star',
       0xe8e5: 'notifications',
-      0xe8d3: 'refresh'
+      0xe8d3: 'refresh',
     };
     return icons[icon.codePoint] ?? 'icon_${icon.codePoint}';
   }
@@ -6383,7 +6336,8 @@ class SelfTestBridge {
     void search(Element el) {
       if (hint != null) return;
       if (el.widget is TextField) {
-        hint = (el.widget as TextField).decoration?.hintText ??
+        hint =
+            (el.widget as TextField).decoration?.hintText ??
             (el.widget as TextField).decoration?.labelText;
       }
       el.visitChildren(search);
@@ -6397,11 +6351,13 @@ class SelfTestBridge {
     double c = 0.5;
     if (!label.contains('button') &&
         !label.contains('input') &&
-        label.length > 5) c += 0.2;
+        label.length > 5)
+      c += 0.2;
     final t = widget.runtimeType.toString();
     if (t.contains('ElevatedButton') ||
         t.contains('TextButton') ||
-        t.contains('TextField')) c += 0.2;
+        t.contains('TextField'))
+      c += 0.2;
     if (t.contains('GestureDetector') || t.contains('InkWell')) c -= 0.1;
     return c.clamp(0.0, 1.0);
   }
@@ -6435,7 +6391,9 @@ class SelfTestBridge {
         .replaceAll(RegExp(r'\s+'), '_')
         .toLowerCase();
     r = r.replaceAllMapped(
-        RegExp(r'(?<!_)([A-Z])'), (m) => '_${m.group(1)!.toLowerCase()}');
+      RegExp(r'(?<!_)([A-Z])'),
+      (m) => '_${m.group(1)!.toLowerCase()}',
+    );
     r = r.replaceAll(RegExp(r'^_+|_+$'), '').replaceAll(RegExp(r'_+'), '_');
     return r.isEmpty ? 'widget' : r;
   }
@@ -6476,7 +6434,7 @@ class SelfTestBridge {
         'left': node.rect.left,
         'top': node.rect.top,
         'width': node.rect.width,
-        'height': node.rect.height
+        'height': node.rect.height,
       },
       'actions': _extractSemanticsActions(node),
     };
@@ -6546,7 +6504,7 @@ class SelfTestBridge {
       'line': 0,
       'before': before,
       'after': after,
-      'suggestedLabel': sl
+      'suggestedLabel': sl,
     };
   }
 
@@ -6560,11 +6518,13 @@ class SelfTestBridge {
   // WIDGET TEST GENERATION IMPLEMENTATIONS
   // ===========================================================================
 
-  Map<String, dynamic> _startTestRecording(String testName,
-      {String? description}) {
+  Map<String, dynamic> _startTestRecording(
+    String testName, {
+    String? description,
+  }) {
     if (_isRecordingTest) {
       return {
-        'error': 'A test recording is already in progress. Stop it first.'
+        'error': 'A test recording is already in progress. Stop it first.',
       };
     }
 
@@ -6574,10 +6534,7 @@ class SelfTestBridge {
     _recordedSteps.clear();
     _isRecordingTest = true;
 
-    return {
-      'recording': true,
-      'testId': _currentTestId,
-    };
+    return {'recording': true, 'testId': _currentTestId};
   }
 
   Map<String, dynamic> _stopTestRecording(String format) {
@@ -6587,10 +6544,12 @@ class SelfTestBridge {
 
     final testCode = _generateTestCode(format);
     final imports = _getTestImports(format);
-    final interactionCount =
-        _recordedSteps.where((s) => s.type == 'interaction').length;
-    final assertionCount =
-        _recordedSteps.where((s) => s.type == 'assertion').length;
+    final interactionCount = _recordedSteps
+        .where((s) => s.type == 'interaction')
+        .length;
+    final assertionCount = _recordedSteps
+        .where((s) => s.type == 'assertion')
+        .length;
 
     _isRecordingTest = false;
     _currentTestId = null;
@@ -6608,25 +6567,31 @@ class SelfTestBridge {
   }
 
   Map<String, dynamic> _recordAssertion(
-      String widgetId, String assertion, dynamic expected) {
+    String widgetId,
+    String assertion,
+    dynamic expected,
+  ) {
     if (!_isRecordingTest) {
       return {
         'error':
-            'No test recording in progress. Start one with recordTestStart.'
+            'No test recording in progress. Start one with recordTestStart.',
       };
     }
 
-    _recordedSteps.add(_RecordedStep(
-      type: 'assertion',
-      action: assertion,
-      params: {'widgetId': widgetId, 'expected': expected},
-      timestamp: DateTime.now(),
-    ));
+    _recordedSteps.add(
+      _RecordedStep(
+        type: 'assertion',
+        action: assertion,
+        params: {'widgetId': widgetId, 'expected': expected},
+        timestamp: DateTime.now(),
+      ),
+    );
 
     return {
       'added': true,
-      'assertionIndex':
-          _recordedSteps.where((s) => s.type == 'assertion').length,
+      'assertionIndex': _recordedSteps
+          .where((s) => s.type == 'assertion')
+          .length,
     };
   }
 
@@ -6634,26 +6599,25 @@ class SelfTestBridge {
     if (!_isRecordingTest) {
       return {
         'error':
-            'No test recording in progress. Start one with recordTestStart.'
+            'No test recording in progress. Start one with recordTestStart.',
       };
     }
 
-    _recordedSteps.add(_RecordedStep(
-      type: 'comment',
-      action: 'comment',
-      params: {'comment': comment},
-      timestamp: DateTime.now(),
-    ));
+    _recordedSteps.add(
+      _RecordedStep(
+        type: 'comment',
+        action: 'comment',
+        params: {'comment': comment},
+        timestamp: DateTime.now(),
+      ),
+    );
 
     return {'added': true};
   }
 
   Map<String, dynamic> _getRecordedSteps() {
     if (!_isRecordingTest) {
-      return {
-        'isRecording': false,
-        'steps': <Map<String, dynamic>>[],
-      };
+      return {'isRecording': false, 'steps': <Map<String, dynamic>>[]};
     }
 
     return {
@@ -6672,7 +6636,9 @@ class SelfTestBridge {
   }
 
   Map<String, dynamic> _generateTestFromScenario(
-      Map<String, dynamic> scenario, String format) {
+    Map<String, dynamic> scenario,
+    String format,
+  ) {
     final name = scenario['name'] as String? ?? 'test';
     final description = scenario['description'] as String?;
     final steps =
@@ -6690,33 +6656,38 @@ class SelfTestBridge {
         type = 'interaction';
       }
 
-      scenarioSteps.add(_RecordedStep(
-        type: type,
-        action: action,
-        params: params,
-        timestamp: DateTime.now(),
-      ));
+      scenarioSteps.add(
+        _RecordedStep(
+          type: type,
+          action: action,
+          params: params,
+          timestamp: DateTime.now(),
+        ),
+      );
     }
 
-    final testCode =
-        _generateTestCodeFromSteps(scenarioSteps, name, description, format);
+    final testCode = _generateTestCodeFromSteps(
+      scenarioSteps,
+      name,
+      description,
+      format,
+    );
     final imports = _getTestImports(format);
 
-    return {
-      'testCode': testCode,
-      'imports': imports,
-    };
+    return {'testCode': testCode, 'imports': imports};
   }
 
   void _recordInteractionStep(String action, Map<String, dynamic> params) {
     if (!_isRecordingTest) return;
 
-    _recordedSteps.add(_RecordedStep(
-      type: 'interaction',
-      action: action,
-      params: Map<String, dynamic>.from(params),
-      timestamp: DateTime.now(),
-    ));
+    _recordedSteps.add(
+      _RecordedStep(
+        type: 'interaction',
+        action: action,
+        params: Map<String, dynamic>.from(params),
+        timestamp: DateTime.now(),
+      ),
+    );
   }
 
   List<String> _getTestImports(String format) {
@@ -6762,10 +6733,12 @@ class SelfTestBridge {
       case 'integration_test':
         buffer.writeln("void main() {");
         buffer.writeln(
-            "  IntegrationTestWidgetsFlutterBinding.ensureInitialized();");
+          "  IntegrationTestWidgetsFlutterBinding.ensureInitialized();",
+        );
         buffer.writeln();
         buffer.writeln(
-            "  testWidgets('$testName', (WidgetTester tester) async {");
+          "  testWidgets('$testName', (WidgetTester tester) async {",
+        );
         break;
       case 'patrol':
         buffer.writeln("void main() {");
@@ -6775,7 +6748,8 @@ class SelfTestBridge {
       default:
         buffer.writeln("void main() {");
         buffer.writeln(
-            "  testWidgets('$testName', (WidgetTester tester) async {");
+          "  testWidgets('$testName', (WidgetTester tester) async {",
+        );
     }
 
     if (description != null) {
@@ -6817,8 +6791,12 @@ class SelfTestBridge {
     }
   }
 
-  String _generateInteractionCode(String action, Map<String, dynamic> params,
-      String tester, bool isPatrol) {
+  String _generateInteractionCode(
+    String action,
+    Map<String, dynamic> params,
+    String tester,
+    bool isPatrol,
+  ) {
     final widgetId = params['widgetId'] as String?;
 
     switch (action) {
@@ -6846,10 +6824,12 @@ class SelfTestBridge {
       case 'scroll':
         final direction = params['direction'] as String? ?? 'down';
         final delta = params['delta'] as num? ?? 300;
-        final dx =
-            direction == 'left' ? delta : (direction == 'right' ? -delta : 0);
-        final dy =
-            direction == 'up' ? delta : (direction == 'down' ? -delta : 0);
+        final dx = direction == 'left'
+            ? delta
+            : (direction == 'right' ? -delta : 0);
+        final dy = direction == 'up'
+            ? delta
+            : (direction == 'down' ? -delta : 0);
         if (widgetId != null) {
           return "    await $tester.drag(find.byKey(Key('$widgetId')), Offset($dx, $dy));\n    await $tester.pumpAndSettle();";
         }
@@ -6994,13 +6974,13 @@ class _SemanticSuggestion {
   });
 
   Map<String, dynamic> toJson() => {
-        'widgetType': widgetType,
-        'currentLabel': currentLabel,
-        'suggestedLabel': suggestedLabel,
-        'confidence': confidence,
-        'location': location,
-        'reason': reason,
-      };
+    'widgetType': widgetType,
+    'currentLabel': currentLabel,
+    'suggestedLabel': suggestedLabel,
+    'confidence': confidence,
+    'location': location,
+    'reason': reason,
+  };
 }
 
 class AppLifecycleEvent {
@@ -7010,9 +6990,9 @@ class AppLifecycleEvent {
   AppLifecycleEvent({required this.state, required this.timestamp});
 
   Map<String, dynamic> toJson() => {
-        'state': state.name,
-        'timestamp': timestamp.millisecondsSinceEpoch,
-      };
+    'state': state.name,
+    'timestamp': timestamp.millisecondsSinceEpoch,
+  };
 }
 
 /// Configuration for a state provider
@@ -7055,11 +7035,7 @@ class _ChannelMockConfig {
   final String? errorCode;
   final String? errorMessage;
 
-  const _ChannelMockConfig({
-    this.response,
-    this.errorCode,
-    this.errorMessage,
-  });
+  const _ChannelMockConfig({this.response, this.errorCode, this.errorMessage});
 }
 
 /// Test pointer for simulating gestures
@@ -7071,33 +7047,19 @@ class TestPointer {
 
   PointerDownEvent down(Offset position) {
     _pointer++;
-    return PointerDownEvent(
-      pointer: _pointer,
-      position: position,
-      kind: kind,
-    );
+    return PointerDownEvent(pointer: _pointer, position: position, kind: kind);
   }
 
   PointerMoveEvent move(Offset position) {
-    return PointerMoveEvent(
-      pointer: _pointer,
-      position: position,
-      kind: kind,
-    );
+    return PointerMoveEvent(pointer: _pointer, position: position, kind: kind);
   }
 
   PointerUpEvent up() {
-    return PointerUpEvent(
-      pointer: _pointer,
-      kind: kind,
-    );
+    return PointerUpEvent(pointer: _pointer, kind: kind);
   }
 
   PointerHoverEvent hover(Offset position) {
-    return PointerHoverEvent(
-      position: position,
-      kind: kind,
-    );
+    return PointerHoverEvent(position: position, kind: kind);
   }
 }
 
@@ -7112,10 +7074,10 @@ class _RebuildInfo {
   String? location;
 
   Map<String, dynamic> toJson() => {
-        'count': count,
-        'reasons': reasons.toList(),
-        if (location != null) 'location': location,
-      };
+    'count': count,
+    'reasons': reasons.toList(),
+    if (location != null) 'location': location,
+  };
 }
 
 /// Memory sample for profiling
@@ -7126,9 +7088,9 @@ class _MemorySample {
   _MemorySample({required this.timestamp, required this.heapUsed});
 
   Map<String, dynamic> toJson() => {
-        'timestamp': timestamp.millisecondsSinceEpoch,
-        'heapUsed': heapUsed,
-      };
+    'timestamp': timestamp.millisecondsSinceEpoch,
+    'heapUsed': heapUsed,
+  };
 }
 
 /// Deep link event for tracking deep link history
@@ -7150,13 +7112,13 @@ class DeepLinkEvent {
   });
 
   Map<String, dynamic> toJson() => {
-        'url': url,
-        'timestamp': timestamp.millisecondsSinceEpoch,
-        'source': source,
-        'handled': handled,
-        'route': route,
-        'handledBy': handledBy,
-      };
+    'url': url,
+    'timestamp': timestamp.millisecondsSinceEpoch,
+    'source': source,
+    'handled': handled,
+    'route': route,
+    'handledBy': handledBy,
+  };
 }
 
 /// Recorded step for test generation
@@ -7178,13 +7140,13 @@ class _RecordedStep {
   });
 
   Map<String, dynamic> toJson() => {
-        'type': type,
-        'action': action,
-        if (widgetId != null) 'widgetId': widgetId,
-        'params': params,
-        'timestamp': timestamp.millisecondsSinceEpoch,
-        if (comment != null) 'comment': comment,
-      };
+    'type': type,
+    'action': action,
+    if (widgetId != null) 'widgetId': widgetId,
+    'params': params,
+    'timestamp': timestamp.millisecondsSinceEpoch,
+    if (comment != null) 'comment': comment,
+  };
 }
 
 /// Navigation event for history tracking
@@ -7204,12 +7166,12 @@ class NavigationEvent {
   });
 
   Map<String, dynamic> toJson() => {
-        'action': action,
-        'from': from,
-        'to': to,
-        'timestamp': timestamp.millisecondsSinceEpoch,
-        if (arguments != null) 'arguments': arguments,
-      };
+    'action': action,
+    'from': from,
+    'to': to,
+    'timestamp': timestamp.millisecondsSinceEpoch,
+    if (arguments != null) 'arguments': arguments,
+  };
 }
 
 /// Navigation observer that reports events to the bridge
@@ -7268,14 +7230,14 @@ class _AppSnapshot {
   });
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'label': label,
-        'timestamp': timestamp.millisecondsSinceEpoch,
-        'currentRoute': currentRoute,
-        'providerStates': providerStates,
-        'storageSnapshot': storageSnapshot,
-        'widgetTreeDigest': widgetTreeDigest,
-      };
+    'id': id,
+    'label': label,
+    'timestamp': timestamp.millisecondsSinceEpoch,
+    'currentRoute': currentRoute,
+    'providerStates': providerStates,
+    'storageSnapshot': storageSnapshot,
+    'widgetTreeDigest': widgetTreeDigest,
+  };
 
   factory _AppSnapshot.fromJson(Map<String, dynamic> json) {
     return _AppSnapshot(

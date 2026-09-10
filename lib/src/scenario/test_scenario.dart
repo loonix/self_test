@@ -35,24 +35,28 @@ class TestScenario {
       try {
         await _executeStep(step);
         stopwatch.stop();
-        results.add(StepResult(
-          index: i,
-          action: actionName,
-          success: true,
-          duration: stopwatch.elapsed,
-          step: step,
-        ));
+        results.add(
+          StepResult(
+            index: i,
+            action: actionName,
+            success: true,
+            duration: stopwatch.elapsed,
+            step: step,
+          ),
+        );
         passedSteps++;
       } catch (e) {
         stopwatch.stop();
-        results.add(StepResult(
-          index: i,
-          action: actionName,
-          success: false,
-          error: e.toString(),
-          duration: stopwatch.elapsed,
-          step: step,
-        ));
+        results.add(
+          StepResult(
+            index: i,
+            action: actionName,
+            success: false,
+            error: e.toString(),
+            duration: stopwatch.elapsed,
+            step: step,
+          ),
+        );
         return TestScenarioResult(
           success: false,
           passedSteps: passedSteps,
@@ -97,9 +101,9 @@ class TestScenario {
         );
         break;
       case 'wait':
-        await Future.delayed(Duration(
-          milliseconds: (step.params['milliseconds'] as int?) ?? 100,
-        ));
+        await Future.delayed(
+          Duration(milliseconds: (step.params['milliseconds'] as int?) ?? 100),
+        );
         break;
       case 'screenshot':
         await manager.captureScreenshot(step.params['name'] as String?);
@@ -157,8 +161,11 @@ class TestStep {
   }
 
   /// Factory constructor for enterText step
-  factory TestStep.enterText(String widgetId, String text,
-      {String? description}) {
+  factory TestStep.enterText(
+    String widgetId,
+    String text, {
+    String? description,
+  }) {
     return TestStep(
       actionType: 'enterText',
       params: {'widgetId': widgetId, 'text': text},
@@ -207,13 +214,13 @@ class TestScenarioResult {
   int get failedCount => totalSteps - passedSteps;
 
   Map<String, dynamic> toJson() => {
-        'success': success,
-        'passedSteps': passedSteps,
-        'totalSteps': totalSteps,
-        if (error != null) 'error': error,
-        if (failedAtStep != null) 'failedAtStep': failedAtStep,
-        'stepResults': stepResults.map((r) => r.toJson()).toList(),
-      };
+    'success': success,
+    'passedSteps': passedSteps,
+    'totalSteps': totalSteps,
+    if (error != null) 'error': error,
+    if (failedAtStep != null) 'failedAtStep': failedAtStep,
+    'stepResults': stepResults.map((r) => r.toJson()).toList(),
+  };
 }
 
 /// Result of a single step.
@@ -240,11 +247,11 @@ class StepResult {
   bool get passed => success;
 
   Map<String, dynamic> toJson() => {
-        'index': index,
-        'action': action,
-        'success': success,
-        if (error != null) 'error': error,
-        'durationMs': duration.inMilliseconds,
-        if (screenshotPath != null) 'screenshotPath': screenshotPath,
-      };
+    'index': index,
+    'action': action,
+    'success': success,
+    if (error != null) 'error': error,
+    'durationMs': duration.inMilliseconds,
+    if (screenshotPath != null) 'screenshotPath': screenshotPath,
+  };
 }

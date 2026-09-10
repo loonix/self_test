@@ -43,7 +43,8 @@ class ExampleStateTestController {
   void expectLoginBtnDoesNotExist() {
     if (SelfTestManager().activeTestNodes.containsKey('login_btn')) {
       throw StateError(
-          'A self_test node is still registered for id "login_btn"');
+        'A self_test node is still registered for id "login_btn"',
+      );
     }
   }
 
@@ -58,7 +59,8 @@ class ExampleStateTestController {
   void expectUsernameFieldDoesNotExist() {
     if (SelfTestManager().activeTestNodes.containsKey('username_field')) {
       throw StateError(
-          'A self_test node is still registered for id "username_field"');
+        'A self_test node is still registered for id "username_field"',
+      );
     }
   }
 }

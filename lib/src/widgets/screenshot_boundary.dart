@@ -41,9 +41,6 @@ class _ScreenshotBoundaryState extends State<ScreenshotBoundary> {
 
   @override
   Widget build(BuildContext context) {
-    return RepaintBoundary(
-      key: _boundaryKey,
-      child: widget.child,
-    );
+    return RepaintBoundary(key: _boundaryKey, child: widget.child);
   }
 }

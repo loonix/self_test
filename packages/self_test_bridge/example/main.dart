@@ -12,10 +12,7 @@ void main() async {
 
   // Start the bridge in debug mode only
   if (kDebugMode) {
-    final bridge = SelfTestBridge(
-      router: _router,
-      port: 9999,
-    );
+    final bridge = SelfTestBridge(router: _router, port: 9999);
     await bridge.start();
     debugPrint('SelfTestBridge started on port 9999');
   }

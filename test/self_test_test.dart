@@ -15,10 +15,7 @@ void main() {
 
     test('register and trigger tap', () {
       bool tapped = false;
-      final node = TestNode(
-        id: 'test_button',
-        onTap: () => tapped = true,
-      );
+      final node = TestNode(id: 'test_button', onTap: () => tapped = true);
       manager.registerTestNode(node);
 
       manager.trigger('test_button');

@@ -19,22 +19,24 @@ void main() {
   });
 
   Widget app({bool? showControls}) => MaterialApp(
-        home: SelfTestRoot(
-          showControls: showControls,
-          child: const Scaffold(body: Text('app under test')),
-        ),
-      );
+    home: SelfTestRoot(
+      showControls: showControls,
+      child: const Scaffold(body: Text('app under test')),
+    ),
+  );
 
-  testWidgets('by default pumpAndSettle returns under the test binding',
-      (tester) async {
+  testWidgets('by default pumpAndSettle returns under the test binding', (
+    tester,
+  ) async {
     await tester.pumpWidget(app());
     await tester.pumpAndSettle();
 
     expect(find.text('app under test'), findsOneWidget);
   });
 
-  testWidgets('by default the controls are not drawn in a test',
-      (tester) async {
+  testWidgets('by default the controls are not drawn in a test', (
+    tester,
+  ) async {
     await tester.pumpWidget(app());
     await tester.pumpAndSettle();
 
@@ -50,8 +52,9 @@ void main() {
     expect(find.text('app under test'), findsOneWidget);
   });
 
-  testWidgets('showControls: true draws them, for a test that wants them',
-      (tester) async {
+  testWidgets('showControls: true draws them, for a test that wants them', (
+    tester,
+  ) async {
     await tester.pumpWidget(app(showControls: true));
     // Deliberately pump rather than settle: with the controls up, settling is
     // exactly what does not terminate.
@@ -62,8 +65,9 @@ void main() {
     expect(find.text('app under test'), findsOneWidget);
   });
 
-  testWidgets('the child is still reachable through the wrapper',
-      (tester) async {
+  testWidgets('the child is still reachable through the wrapper', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       MaterialApp(
         home: SelfTestRoot(
@@ -86,8 +90,9 @@ void main() {
 
 void _waitForAnimations() {
   group('waitForAnimations', () {
-    testWidgets('returns under the test binding instead of deadlocking',
-        (tester) async {
+    testWidgets('returns under the test binding instead of deadlocking', (
+      tester,
+    ) async {
       await tester.pumpWidget(const MaterialApp(home: SizedBox()));
 
       // A real Future.delayed never completes here: the test owns the clock
@@ -98,8 +103,9 @@ void _waitForAnimations() {
       expect(SelfTestManager().isTestMode, isTrue);
     });
 
-    testWidgets('an action followed by waitForAnimations completes',
-        (tester) async {
+    testWidgets('an action followed by waitForAnimations completes', (
+      tester,
+    ) async {
       var tapped = false;
       await tester.pumpWidget(
         MaterialApp(

@@ -210,9 +210,10 @@ class _SelfTestInspectorState extends State<SelfTestInspector> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Connection',
-                      style:
-                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const Text(
+                    'Connection',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
                   const SizedBox(height: 8),
                   Row(
                     children: [
@@ -254,19 +255,25 @@ class _SelfTestInspectorState extends State<SelfTestInspector> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Control Panel',
-                        style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold)),
+                    const Text(
+                      'Control Panel',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     Row(
                       children: [
                         Text(
-                            'Self-Test Mode: ${_isModeActive ? 'Active' : 'Inactive'}'),
+                          'Self-Test Mode: ${_isModeActive ? 'Active' : 'Inactive'}',
+                        ),
                         const SizedBox(width: 16),
                         ElevatedButton(
                           onPressed: () => _setMode(!_isModeActive),
-                          child:
-                              Text(_isModeActive ? 'Deactivate' : 'Activate'),
+                          child: Text(
+                            _isModeActive ? 'Deactivate' : 'Activate',
+                          ),
                         ),
                         const SizedBox(width: 16),
                         ElevatedButton(
@@ -289,22 +296,28 @@ class _SelfTestInspectorState extends State<SelfTestInspector> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Quick Actions',
-                        style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold)),
+                    const Text(
+                      'Quick Actions',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     Row(
                       children: [
                         Expanded(
                           child: DropdownButton<String>(
-                            value:
-                                _nodes.isNotEmpty ? _nodes.first['id'] : null,
+                            value: _nodes.isNotEmpty
+                                ? _nodes.first['id']
+                                : null,
                             hint: const Text('Select Node'),
                             items: _nodes.map((node) {
                               return DropdownMenuItem<String>(
                                 value: node['id'],
                                 child: Text(
-                                    '${node['id']} (${node['hasTap'] ? 'Tap' : ''}${node['hasTextChange'] ? 'Text' : ''})'),
+                                  '${node['id']} (${node['hasTap'] ? 'Tap' : ''}${node['hasTextChange'] ? 'Text' : ''})',
+                                ),
                               );
                             }).toList(),
                             onChanged: (value) {},
@@ -313,8 +326,9 @@ class _SelfTestInspectorState extends State<SelfTestInspector> {
                         const SizedBox(width: 16),
                         ElevatedButton(
                           onPressed: () {
-                            final selectedId =
-                                _nodes.isNotEmpty ? _nodes.first['id'] : null;
+                            final selectedId = _nodes.isNotEmpty
+                                ? _nodes.first['id']
+                                : null;
                             if (selectedId != null) {
                               _runCommand('trigger', selectedId);
                             }
@@ -327,14 +341,16 @@ class _SelfTestInspectorState extends State<SelfTestInspector> {
                           child: TextField(
                             controller: _textController,
                             decoration: const InputDecoration(
-                                labelText: 'Text to Enter'),
+                              labelText: 'Text to Enter',
+                            ),
                           ),
                         ),
                         const SizedBox(width: 16),
                         ElevatedButton(
                           onPressed: () {
-                            final selectedId =
-                                _nodes.isNotEmpty ? _nodes.first['id'] : null;
+                            final selectedId = _nodes.isNotEmpty
+                                ? _nodes.first['id']
+                                : null;
                             final text = _textController.text;
                             if (selectedId != null && text.isNotEmpty) {
                               _runCommand('enterText', selectedId, text);
@@ -358,9 +374,13 @@ class _SelfTestInspectorState extends State<SelfTestInspector> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Logs',
-                        style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold)),
+                    const Text(
+                      'Logs',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     Expanded(
                       child: ListView.builder(

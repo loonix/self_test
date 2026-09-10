@@ -2,6 +2,13 @@
 
 ### Breaking
 
+- Minimum Flutter is now 3.35.0 (Dart 3.9.0), raised from a declared 3.24.0
+  that was never true. `lib/recording_fields` passes widget properties that
+  only exist from 3.35 (`Switch.activeThumbColor` and friends), so installing
+  0.1.0 on Flutter 3.24 produced eight compile errors inside this package.
+  3.35.0 is the oldest version the whole suite is verified against, and CI now
+  runs against it on every push so the number stays honest.
+
 - The `build_runner` generator has moved to its own package, `self_test_gen`.
   Add it to `dev_dependencies` to keep using annotations. In exchange, the core
   package no longer depends on `analyzer`, `source_gen`, `build` or
@@ -45,6 +52,10 @@
   the manager. It was a `StatelessWidget` that returned its child, so capture
   photographed whichever boundary happened to come first in the tree, or
   nothing.
+
+- `self_test_gen` moved to `source_gen` 2.x and `analyzer` 7.x. Its output is
+  unchanged; the old pins held it to a `dart_style` that predates the Dart 3.7
+  formatter, so generated code could not match `dart format`.
 
 ### Added
 

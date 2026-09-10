@@ -14,8 +14,8 @@ import 'test_node.dart';
 
 // Forward declaration for SelfTestableWidget to avoid circular imports
 // The actual type is defined in widgets/self_testable_widget.dart
-typedef RecordingBuilder = Widget Function(
-    Widget child, dynamic selfTestableWidget);
+typedef RecordingBuilder =
+    Widget Function(Widget child, dynamic selfTestableWidget);
 
 /// Singleton manager for self-testing functionality.
 class SelfTestManager {
@@ -133,7 +133,8 @@ class SelfTestManager {
         final value = node.currentText ?? '';
         await _recordUserAction('assertText', id, value);
         debugPrint(
-            '[SelfTest] Added assertion: assertText on "$id" with value "$value"');
+          '[SelfTest] Added assertion: assertText on "$id" with value "$value"',
+        );
       } else {
         printWarning('Node "$id" not found for assertion');
       }
@@ -153,13 +154,15 @@ class SelfTestManager {
   void restartWidgetTree() {
     _rebuildCounter++;
     debugPrint(
-        '[SelfTest] Restarting widget tree (rebuild counter: $_rebuildCounter, rootKey: $rootKey)');
+      '[SelfTest] Restarting widget tree (rebuild counter: $_rebuildCounter, rootKey: $rootKey)',
+    );
     if (rootKey?.currentState != null) {
       debugPrint('[SelfTest] Calling setState on root key');
       (rootKey!.currentState as dynamic).setState(() {});
     } else {
       printWarning(
-          'rootKey is null or currentState is null (rootKey: $rootKey)');
+        'rootKey is null or currentState is null (rootKey: $rootKey)',
+      );
       // Try to find and set the root key if it exists
       if (rootKey == null) {
         debugPrint('[SelfTest] Attempting to set root key');
@@ -174,8 +177,9 @@ class SelfTestManager {
   }
 
   @Deprecated(
-      'Renamed to initializeRecordingStore; there is no database any more. '
-      'Will be removed in 0.3.0.')
+    'Renamed to initializeRecordingStore; there is no database any more. '
+    'Will be removed in 0.3.0.',
+  )
   Future<void> initializeDatabase() => initializeRecordingStore();
 
   /// Gets the active test nodes (for testing purposes).
@@ -211,7 +215,8 @@ class SelfTestManager {
   void registerTestNode(TestNode node) {
     _activeTestNodes[node.id] = node;
     debugPrint(
-        '[SelfTest] Registered TestNode: "${node.id}" (tap: ${node.onTap != null}, text: ${node.onTextChange != null})');
+      '[SelfTest] Registered TestNode: "${node.id}" (tap: ${node.onTap != null}, text: ${node.onTextChange != null})',
+    );
   }
 
   /// Unregisters a test node.
@@ -231,7 +236,8 @@ class SelfTestManager {
       _isRecordingModeActive = true;
       setRecordingMode(RecordingMode.recording);
       debugPrint(
-          '[SelfTest] Started recording script: "$name" (id: ${script.id})');
+        '[SelfTest] Started recording script: "$name" (id: ${script.id})',
+      );
     } catch (e, stackTrace) {
       debugPrint('[SelfTest] ERROR starting recording: $e');
       debugPrint('[SelfTest] Stack trace: $stackTrace');
@@ -247,12 +253,16 @@ class SelfTestManager {
   }
 
   /// Records a user action during recording.
-  Future<void> _recordUserAction(String action, String targetId,
-      [String? value]) async {
+  Future<void> _recordUserAction(
+    String action,
+    String targetId, [
+    String? value,
+  ]) async {
     try {
       if (!_isRecordingModeActive || _currentScriptId == null) {
         debugPrint(
-            '[SelfTest] Not recording, skipping action: $action on $targetId');
+          '[SelfTest] Not recording, skipping action: $action on $targetId',
+        );
         return;
       }
       await _store.recordStep(
@@ -278,8 +288,10 @@ class SelfTestManager {
     await _store.clear();
   }
 
-  @Deprecated('Renamed to clearRecordings; there is no database any more. '
-      'Will be removed in 0.3.0.')
+  @Deprecated(
+    'Renamed to clearRecordings; there is no database any more. '
+    'Will be removed in 0.3.0.',
+  )
   Future<void> clearDatabase() => clearRecordings();
 
   /// Gets all test scripts.
@@ -312,7 +324,8 @@ class SelfTestManager {
       } else {
         printError('TestNode "$id" not found or has no tap callback');
         throw Exception(
-            'TestNode with id "$id" not found or has no tap callback.');
+          'TestNode with id "$id" not found or has no tap callback.',
+        );
       }
     } catch (e, stackTrace) {
       debugPrint('[SelfTest] ERROR in trigger("$id"): $e');
@@ -325,7 +338,8 @@ class SelfTestManager {
   Future<void> enterText(String id, String text) async {
     try {
       debugPrint(
-          '[SelfTest] Looking for TestNode: "$id" to enter text: "$text"');
+        '[SelfTest] Looking for TestNode: "$id" to enter text: "$text"',
+      );
       debugPrint('[SelfTest] Active nodes: ${_activeTestNodes.keys.toList()}');
       final node = _activeTestNodes[id];
       if (node != null && node.onTextChange != null) {
@@ -338,7 +352,8 @@ class SelfTestManager {
       } else {
         printError('TestNode "$id" not found or has no text change callback');
         throw Exception(
-            'TestNode with id "$id" not found or has no text change callback.');
+          'TestNode with id "$id" not found or has no text change callback.',
+        );
       }
     } catch (e, stackTrace) {
       debugPrint('[SelfTest] ERROR in enterText("$id", "$text"): $e');
@@ -364,11 +379,13 @@ class SelfTestManager {
 
       // Show running indicator
       setRecordingMode(
-          RecordingMode.recording); // Reuse recording mode for visual feedback
+        RecordingMode.recording,
+      ); // Reuse recording mode for visual feedback
 
       for (final step in steps) {
         debugPrint(
-            '[SelfTest] Executing step: ${step.action} on ${step.targetId}');
+          '[SelfTest] Executing step: ${step.action} on ${step.targetId}',
+        );
         switch (step.action) {
           case 'trigger':
             await trigger(step.targetId);
@@ -382,28 +399,36 @@ class SelfTestManager {
             final node = _activeTestNodes[step.targetId];
             if (node == null) {
               debugPrint(
-                  '[SelfTest] ASSERTION FAILED: Widget "${step.targetId}" not found');
+                '[SelfTest] ASSERTION FAILED: Widget "${step.targetId}" not found',
+              );
               throw AssertionError(
-                  'Assertion failed: Widget "${step.targetId}" not found for text assertion');
+                'Assertion failed: Widget "${step.targetId}" not found for text assertion',
+              );
             }
             if (node.currentText != step.value) {
               debugPrint(
-                  '[SelfTest] ASSERTION FAILED: Expected "${step.value}" but got "${node.currentText}"');
+                '[SelfTest] ASSERTION FAILED: Expected "${step.value}" but got "${node.currentText}"',
+              );
               throw AssertionError(
-                  'Assertion failed: Expected "${step.value}" but got "${node.currentText}" for widget "${step.targetId}"');
+                'Assertion failed: Expected "${step.value}" but got "${node.currentText}" for widget "${step.targetId}"',
+              );
             }
             debugPrint(
-                '[SelfTest] ASSERTION PASSED: "${step.targetId}" has text "${step.value}"');
+              '[SelfTest] ASSERTION PASSED: "${step.targetId}" has text "${step.value}"',
+            );
             break;
           case 'assertExists':
             if (!_activeTestNodes.containsKey(step.targetId)) {
               debugPrint(
-                  '[SelfTest] ASSERTION FAILED: Widget "${step.targetId}" does not exist');
+                '[SelfTest] ASSERTION FAILED: Widget "${step.targetId}" does not exist',
+              );
               throw AssertionError(
-                  'Assertion failed: Widget "${step.targetId}" does not exist');
+                'Assertion failed: Widget "${step.targetId}" does not exist',
+              );
             }
             debugPrint(
-                '[SelfTest] ASSERTION PASSED: "${step.targetId}" exists');
+              '[SelfTest] ASSERTION PASSED: "${step.targetId}" exists',
+            );
             break;
           default:
             debugPrint('[SelfTest] Unknown action: ${step.action}');
@@ -446,7 +471,8 @@ class SelfTestManager {
     debugPrint('[SelfTest] ensureVisible called for id: "$id"');
     final node = _activeTestNodes[id];
     debugPrint(
-        '[SelfTest] Found node: ${node != null}, context: ${node?.context != null}');
+      '[SelfTest] Found node: ${node != null}, context: ${node?.context != null}',
+    );
     if (node != null && node.context != null) {
       debugPrint('[SelfTest] Attempting to scroll to "$id"');
       try {
@@ -456,14 +482,18 @@ class SelfTestManager {
           scrollController = PrimaryScrollController.of(node.context!);
           // For list items, estimate position based on item index
           final parts = id.split('_');
-          final itemIndex =
-              parts.length > 1 ? int.tryParse(parts.last) ?? 0 : 0;
+          final itemIndex = parts.length > 1
+              ? int.tryParse(parts.last) ?? 0
+              : 0;
           final estimatedPosition =
               itemIndex * 72.0; // Rough estimate of item height
           final clampedPosition = estimatedPosition.clamp(
-              0.0, scrollController.position.maxScrollExtent);
+            0.0,
+            scrollController.position.maxScrollExtent,
+          );
           debugPrint(
-              '[SelfTest] Scrolling to estimated position $clampedPosition for item $itemIndex');
+            '[SelfTest] Scrolling to estimated position $clampedPosition for item $itemIndex',
+          );
           await scrollController.animateTo(
             clampedPosition,
             duration: const Duration(milliseconds: 300),
@@ -472,7 +502,8 @@ class SelfTestManager {
           debugPrint('[SelfTest] Scrolling completed for "$id"');
         } catch (e2) {
           debugPrint(
-              '[SelfTest] ScrollController approach failed for "$id": $e2');
+            '[SelfTest] ScrollController approach failed for "$id": $e2',
+          );
           // Final fallback
           try {
             await Scrollable.ensureVisible(
@@ -483,12 +514,14 @@ class SelfTestManager {
               const Duration(seconds: 2),
               onTimeout: () {
                 debugPrint(
-                    '[SelfTest] Scrollable.ensureVisible timed out for "$id"');
+                  '[SelfTest] Scrollable.ensureVisible timed out for "$id"',
+                );
               },
             );
           } catch (e3) {
             debugPrint(
-                '[SelfTest] All scrolling approaches failed for "$id": $e3');
+              '[SelfTest] All scrolling approaches failed for "$id": $e3',
+            );
           }
         }
       } catch (e) {
@@ -543,7 +576,8 @@ class SelfTestManager {
     final boundary = _findScreenshotBoundary();
     if (boundary == null) {
       printWarning(
-          'No RenderRepaintBoundary to capture. Wrap the app in a ScreenshotBoundary.');
+        'No RenderRepaintBoundary to capture. Wrap the app in a ScreenshotBoundary.',
+      );
       return null;
     }
 
@@ -592,8 +626,10 @@ class SelfTestManager {
     if (bytes == null) return null;
 
     try {
-      final slug =
-          (name ?? 'screenshot').replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+      final slug = (name ?? 'screenshot').replaceAll(
+        RegExp(r'[^a-zA-Z0-9_-]'),
+        '_',
+      );
       final fileName = '${slug}_${DateTime.now().millisecondsSinceEpoch}.png';
       final path = await _screenshotWriter.write(
         bytes,
@@ -658,9 +694,9 @@ class SelfTestManager {
 
   /// The current test run as JSON, ready to be written out by the host app.
   Map<String, dynamic> exportTestRun() => {
-        'name': _currentTestRun,
-        'passed': _testRunLog.every((step) => step['passed'] == true),
-        'stepCount': _testRunLog.length,
-        'steps': _testRunLog,
-      };
+    'name': _currentTestRun,
+    'passed': _testRunLog.every((step) => step['passed'] == true),
+    'stepCount': _testRunLog.length,
+    'steps': _testRunLog,
+  };
 }
