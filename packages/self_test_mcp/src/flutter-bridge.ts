@@ -252,9 +252,17 @@ export class FlutterBridge {
       console.error(`Connecting to Flutter app at ${redactToken(url)}...`);
 
       let settled = false;
-      const failWith = (message: string) => {
-        if (settled) return;
+      // Held so the 5s timer stops holding the event loop open once the
+      // connection has succeeded or failed.
+      let connectTimer: NodeJS.Timeout | undefined;
+      const settle = (): boolean => {
+        if (settled) return false;
         settled = true;
+        if (connectTimer) clearTimeout(connectTimer);
+        return true;
+      };
+      const failWith = (message: string) => {
+        if (!settle()) return;
         console.error(message);
         reject(
           message.includes("HTTP 403") ? new BridgeAuthError(message) : new Error(message)
@@ -267,8 +275,7 @@ export class FlutterBridge {
       this.setupSocketHandlers(this.ws);
 
       this.ws.on("open", () => {
-        if (settled) return;
-        settled = true;
+        if (!settle()) return;
         console.error("Connected to Flutter app");
         resolve();
       });
@@ -285,9 +292,9 @@ export class FlutterBridge {
       });
 
       // Connection timeout
-      setTimeout(() => {
+      connectTimer = setTimeout(() => {
         if (this.ws?.readyState !== WebSocket.OPEN) {
-          failWith(`Connection timeout: no response from the bridge at ${url}.`);
+          failWith(`Connection timeout: no response from the bridge at ${redactToken(url)}.`);
         }
       }, 5000);
     });
