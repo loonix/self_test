@@ -5,14 +5,92 @@ An MCP (Model Context Protocol) server that enables AI agents to interact with F
 ## Quick Start
 
 ```bash
-# Build the MCP server
-npm install && npm run build
+# Check it runs, without needing an app, a bridge or a browser
+npx self-test-mcp --help
+npx self-test-mcp --version
+
+# Or from a clone
+npm install && npm run build && npm test
 
 # Add to Claude Code (interactive)
 ./scripts/setup-claude.sh
-
-# Or add manually to ~/.claude/settings.json
 ```
+
+`--help` and `--version` answer and exit 0 before anything connects, so the
+CLI can be introspected on a machine with nothing running.
+
+## The bridge token
+
+The bridge binds to loopback and **requires a token**. The Flutter app prints
+its URL at startup:
+
+```
+self_test bridge listening on ws://127.0.0.1:9999?token=7f3c9a1b2e
+```
+
+Give that token to the MCP server as a flag or an environment variable:
+
+```bash
+self-test-mcp --token 7f3c9a1b2e
+SELF_TEST_TOKEN=7f3c9a1b2e self-test-mcp
+```
+
+The flag wins over the environment variable. The token travels both as the
+`?token=` query parameter and as an `x-self-test-token` header, so either end
+of the handshake can check it, and it is redacted from the server's own log
+lines.
+
+If the token is wrong or absent the bridge refuses the handshake with HTTP
+403. That arrives from `ws` as `Unexpected server response: 403`, which reads
+like a crashed app; the server reports it as what it is instead:
+
+```
+Bridge refused the connection at ws://127.0.0.1:9999: wrong or missing token
+(HTTP 403). No token was supplied. The Flutter app prints its bridge URL at
+startup, for example ws://127.0.0.1:9999?token=abc123; pass that token as
+--token <token> or set SELF_TEST_TOKEN.
+```
+
+## Locators
+
+A widget is addressed by what is on screen, not by an id the app had to
+register in advance. Every action tool takes a locator:
+
+```json
+{ "by": "text", "value": "Sign in", "exact": true, "index": 0 }
+```
+
+| Field | Meaning |
+|---|---|
+| `by` | `text`, `key`, `id`, `semanticsLabel`, `type` or `tooltip` |
+| `value` | What to match, for example `"Sign in"` |
+| `exact` | Whole string rather than substring. **`by: "text"` only.** Default `true` |
+| `index` | Which match to use when several match. Default `0` |
+
+Call `flutter_describe_screen` first: it lists every widget on screen with a
+ready-made locator for each, so nothing has to be guessed.
+
+`widgetId` still works on every action tool for apps that register self_test
+ids. Pass a locator or a `widgetId`, not both — the server refuses a call
+that gives both rather than silently picking one.
+
+## Command line
+
+| Flag | Default | Environment variable |
+|---|---|---|
+| `--token <token>` | none | `SELF_TEST_TOKEN` |
+| `--host <host>` | `127.0.0.1` | `FLUTTER_APP_HOST` |
+| `--port <port>` | `9999` | `FLUTTER_APP_PORT` |
+| `--mode <mode>` | `server` | `BRIDGE_MODE` |
+| `--url <url>` | `http://localhost:8080` | `FLUTTER_APP_URL` |
+| `--goldens-dir <dir>` | `test/goldens` | `FLUTTER_GOLDENS_DIR` |
+| `--headless` / `--no-headless` | headless | `PLAYWRIGHT_HEADLESS` |
+| `-h`, `--help` | | |
+| `-v`, `--version` | | |
+
+Playwright is only loaded in `web-external` mode, so the `postinstall` that
+downloads Chromium is optional. An install run with `--ignore-scripts`, as CI
+does, still builds and starts the server in `client` and `server` modes.
 
 ## Architecture
 
@@ -28,7 +106,7 @@ npm install && npm run build
 │                        (TypeScript/Node)                         │
 │  ┌─────────────────────────────────────────────────────────────┐│
 │  │  60+ Tools (Playwright Parity)                              ││
-│  │  - Locators: snapshot, getByRole, getByText                 ││
+│  │  - Locators: describeScreen, find, exists, readText         ││
 │  │  - Actions: tap, type, scroll, drag, hover, focus           ││
 │  │  - Assertions: expect, expectScreenshot, goldens            ││
 │  │  - Network: mockHttp, blockHttp, networkLog, harExport      ││
@@ -37,7 +115,7 @@ npm install && npm run build
 │  │  - Tracing: traceStart, traceStop, console, errors          ││
 │  └─────────────────────────────────────────────────────────────┘│
 └─────────────────────────────┬───────────────────────────────────┘
-                              │ WebSocket (ws://localhost:9999)
+                              │ WebSocket (ws://127.0.0.1:9999?token=...)
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                      Flutter App                                 │
@@ -105,16 +183,18 @@ Add to `~/.claude/settings.json`:
 {
   "mcpServers": {
     "flutter-self-test": {
-      "command": "node",
-      "args": ["/path/to/self_test_mcp/dist/index.js"],
+      "command": "npx",
+      "args": ["-y", "self-test-mcp", "--port", "9999"],
       "env": {
-        "FLUTTER_APP_HOST": "localhost",
-        "FLUTTER_APP_PORT": "9999"
+        "SELF_TEST_TOKEN": "the-token-the-app-printed"
       }
     }
   }
 }
 ```
+
+Keep the token in `env` rather than in `args`: an argument is visible to
+anything that can list processes.
 
 ### 3. Flutter App Integration
 
@@ -164,23 +244,31 @@ if (kDebugMode) {
 
 | Tool | Description | Playwright Equivalent |
 |------|-------------|----------------------|
-| `flutter_snapshot` | Get accessibility snapshot of current screen | `page.accessibility.snapshot()` |
+| `flutter_describe_screen` | **Call this first.** Every widget on screen, each with a ready-made locator | `page.accessibility.snapshot()` |
+| `flutter_find` | One widget by locator, or null | `page.locator().first()` |
+| `flutter_exists` | Whether a widget is in the tree | `locator.count() > 0` |
+| `flutter_is_visible` | Whether a widget is on screen and painted | `locator.isVisible()` |
+| `flutter_read_text` | The widget's text, or null | `locator.textContent()` |
+| `flutter_snapshot` | Older id-based snapshot | `page.accessibility.snapshot()` |
 | `flutter_get_by_role` | Find widgets by semantic role | `page.getByRole()` |
 | `flutter_get_by_text` | Find widgets by text content | `page.getByText()` |
 
 ### Actions
 
-| Tool | Description | Playwright Equivalent |
-|------|-------------|----------------------|
-| `flutter_tap` | Tap/click a widget | `locator.click()` |
-| `flutter_type` | Type text into input | `locator.fill()` |
-| `flutter_clear` | Clear input field | `locator.clear()` |
-| `flutter_press_key` | Press keyboard key | `keyboard.press()` |
-| `flutter_scroll` | Scroll in direction | `mouse.wheel()` |
-| `flutter_scroll_to` | Scroll until widget visible | `locator.scrollIntoViewIfNeeded()` |
-| `flutter_drag` | Drag and drop | `page.dragAndDrop()` |
-| `flutter_long_press` | Long press widget | N/A (Flutter-specific) |
-| `flutter_double_tap` | Double tap widget | `locator.dblclick()` |
+Tools marked with a locator take `{by, value, exact, index}`, or a `widgetId`
+for apps that still register ids.
+
+| Tool | Locator | Description | Playwright Equivalent |
+|------|:---:|-------------|----------------------|
+| `flutter_tap` | yes | Tap/click a widget | `locator.click()` |
+| `flutter_type` | yes | Type text into input | `locator.fill()` |
+| `flutter_clear` | | Clear input field | `locator.clear()` |
+| `flutter_press_key` | | Press keyboard key | `keyboard.press()` |
+| `flutter_scroll` | yes | Scroll by `dx`/`dy`, or by direction | `mouse.wheel()` |
+| `flutter_scroll_to` | | Scroll until widget visible | `locator.scrollIntoViewIfNeeded()` |
+| `flutter_drag` | yes | Drag by `dx`/`dy`, or drop onto another widget | `page.dragAndDrop()` |
+| `flutter_long_press` | yes | Long press widget | N/A (Flutter-specific) |
+| `flutter_double_tap` | yes | Double tap widget | `locator.dblclick()` |
 | `flutter_hover` | Hover over widget | `locator.hover()` |
 | `flutter_focus` | Focus on widget | `locator.focus()` |
 | `flutter_select` | Select dropdown option | `locator.selectOption()` |
@@ -585,7 +673,8 @@ npm start
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `BRIDGE_MODE` | `server` | Bridge mode: `client`, `server`, or `web-external` |
-| `FLUTTER_APP_HOST` | `localhost` | WebSocket host (client/server modes) |
+| `SELF_TEST_TOKEN` | none | Token the bridge requires (client/server modes) |
+| `FLUTTER_APP_HOST` | `127.0.0.1` | WebSocket host (client/server modes) |
 | `FLUTTER_APP_PORT` | `9999` | WebSocket port (client/server modes) |
 | `FLUTTER_APP_URL` | `http://localhost:8080` | Flutter app URL (web-external mode) |
 | `PLAYWRIGHT_HEADLESS` | `true` | Run browser headless (web-external mode) |
@@ -593,15 +682,23 @@ npm start
 
 ## Troubleshooting
 
+### "wrong or missing token (HTTP 403)"
+The bridge rejected the handshake. This is not a network problem.
+1. Read the token from the URL the Flutter app printed at startup
+2. Pass it as `--token <token>`, or set `SELF_TEST_TOKEN`
+3. Restarting the app usually issues a new token, so copy it again
+
 ### "Connection refused"
 1. Ensure Flutter app is running with `SelfTestBridge` started
 2. Check port 9999 is not blocked
 3. Verify `FLUTTER_APP_PORT` matches bridge port
+4. The bridge binds to loopback, so connect to `127.0.0.1`, not a LAN address
 
 ### "Widget not found"
-1. Use `flutter_snapshot` to see available widgets
-2. Add `Semantics` labels to your widgets for stable IDs
-3. Use `flutter_wait` before interacting with widgets
+1. Use `flutter_describe_screen` to see what is on screen and copy a locator
+2. Try `exact: false` on a `by: "text"` locator to match a substring
+3. If several widgets match, pick one with `index`
+4. Use `flutter_wait` before interacting with widgets
 
 ### "Unstable ID warning"
 Add semantic labels to widgets:
