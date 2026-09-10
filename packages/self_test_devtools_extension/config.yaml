@@ -1,0 +1,8 @@
+name: self_test
+issueTracker: https://github.com/loonix/self_test/issues
+version: 0.0.1
+
+extensions:
+  - name: selfTest
+    path: devtools_extension
+    description: "DevTools extension for Self-Test package"
