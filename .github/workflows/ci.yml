@@ -174,6 +174,29 @@ jobs:
         working-directory: packages/self_test_mcp
         run: npm run build
 
+  devtools:
+    name: The DevTools panel builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      # devtools_extensions 0.1.x passed --web-renderer to `flutter build web`,
+      # which no longer exists, so the panel could not be built at all against
+      # either supported Flutter version. Nothing noticed, because nothing
+      # built it. This does.
+      - name: Build the panel
+        working-directory: packages/self_test_devtools_extension
+        run: |
+          set -euo pipefail
+          flutter pub get
+          dart run devtools_extensions build_and_copy \
+            --source=. --dest=../../extension/devtools
+
   pana:
     name: pub.dev score
     runs-on: ubuntu-latest

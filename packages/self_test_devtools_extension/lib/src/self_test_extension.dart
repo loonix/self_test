@@ -1,6 +1,50 @@
 import 'dart:convert';
-import 'package:flutter/material.dart';
+
 import 'package:devtools_extensions/devtools_extensions.dart';
+import 'package:flutter/material.dart';
+
+/// How one widget on the running app's screen is addressed from here.
+///
+/// The panel used to list only widgets the app had wrapped in
+/// `SelfTestableWidget`, which on an app that has not been changed for testing
+/// is none of them. It now lists whatever is on screen and works out how to
+/// point at each one.
+class ScreenWidget {
+  ScreenWidget(this.json, this.index);
+
+  final Map<String, dynamic> json;
+
+  /// Which match this is among the widgets sharing its locator, so two rows
+  /// reading "Delete" do not both act on the first one.
+  final int index;
+
+  String get type => json['type'] as String? ?? 'Widget';
+  String? get id => json['id'] as String?;
+  String? get key => json['key'] as String?;
+  String? get text => json['text'] as String?;
+  String? get tooltip => json['tooltip'] as String?;
+  bool get enabled => json['enabled'] as bool? ?? true;
+  bool get interactive => json['interactive'] as bool? ?? false;
+
+  /// The most specific way to point at this widget that will still be true
+  /// after the app rebuilds.
+  (String, String) get locator {
+    if (id != null) return ('id', id!);
+    if (key != null) return ('key', key!);
+    if (tooltip != null) return ('tooltip', tooltip!);
+    if (text != null && text!.isNotEmpty) return ('text', text!);
+    return ('type', type);
+  }
+
+  String get label {
+    final parts = <String>[type];
+    if (text != null && text!.isNotEmpty) parts.add('"${text!}"');
+    if (id != null) parts.add('#${id!}');
+    if (tooltip != null) parts.add('tooltip: ${tooltip!}');
+    if (!enabled) parts.add('disabled');
+    return parts.join('  ');
+  }
+}
 
 class SelfTestExtension extends StatefulWidget {
   const SelfTestExtension({super.key});
@@ -10,215 +54,159 @@ class SelfTestExtension extends StatefulWidget {
 }
 
 class _SelfTestExtensionState extends State<SelfTestExtension> {
-  bool _isModeActive = false;
-  List<Map<String, dynamic>> _nodes = [];
-  List<String> _logs = [];
+  List<ScreenWidget> _widgets = const [];
+  final List<String> _logs = [];
   final TextEditingController _textController = TextEditingController();
+  bool _loading = false;
 
   @override
   void initState() {
     super.initState();
-    _loadNodes();
+    _refresh();
   }
 
-  Future<void> _loadNodes() async {
+  @override
+  void dispose() {
+    _textController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _refresh() async {
+    setState(() => _loading = true);
     try {
       final response = await serviceManager.callServiceExtensionOnMainIsolate(
         'ext.selfTest.getNodes',
       );
-      final data = jsonDecode(response.json!['value'] as String);
-      setState(() {
-        _nodes = List<Map<String, dynamic>>.from(data['nodes']);
-      });
-    } catch (e) {
-      _addLog('Error loading nodes: $e');
+      final data =
+          jsonDecode(response.json!['value'] as String) as Map<String, dynamic>;
+      final raw = (data['nodes'] as List<dynamic>).cast<Map<String, dynamic>>();
+
+      // Count as we go, so the index sent with each locator matches the
+      // position the app will resolve it to.
+      final seen = <String, int>{};
+      final widgets = <ScreenWidget>[];
+      for (final node in raw) {
+        final candidate = ScreenWidget(node, 0);
+        final key = '${candidate.locator.$1}:${candidate.locator.$2}';
+        final index = seen[key] ?? 0;
+        seen[key] = index + 1;
+        widgets.add(ScreenWidget(node, index));
+      }
+
+      setState(() => _widgets = widgets);
+      _log('Listed ${widgets.length} widgets');
+    } catch (error) {
+      _log('Could not list widgets: $error');
+    } finally {
+      setState(() => _loading = false);
     }
   }
 
-  Future<void> _setMode(bool active) async {
+  Future<void> _run(String command, ScreenWidget widget, [String? text]) async {
+    final (by, value) = widget.locator;
     try {
-      await serviceManager.callServiceExtensionOnMainIsolate(
-        'ext.selfTest.setMode',
-        args: {'active': active.toString()},
-      );
-      setState(() {
-        _isModeActive = active;
-      });
-      _addLog('Self-test mode ${active ? 'activated' : 'deactivated'}');
-      if (active) {
-        await _loadNodes();
-      } else {
-        setState(() {
-          _nodes = [];
-        });
-      }
-    } catch (e) {
-      _addLog('Error setting mode: $e');
-    }
-  }
-
-  Future<void> _runCommand(String command, String id, [String? text]) async {
-    try {
-      final args = {'command': command, 'id': id};
-      if (text != null) {
-        args['text'] = text;
-      }
       await serviceManager.callServiceExtensionOnMainIsolate(
         'ext.selfTest.runCommand',
-        args: args,
+        args: {
+          'command': command,
+          'by': by,
+          'value': value,
+          'index': '${widget.index}',
+          if (text != null) 'text': text,
+        },
       );
-      _addLog('Executed $command on $id${text != null ? ' with "$text"' : ''}');
-      await _loadNodes(); // Refresh nodes after command
-    } catch (e) {
-      _addLog('Error running command: $e');
+      _log('$command on $by "$value" (index ${widget.index})');
+      await _refresh();
+    } catch (error) {
+      _log('$command failed on $by "$value": $error');
     }
   }
 
-  void _addLog(String message) {
+  void _log(String message) {
     setState(() {
-      _logs.add('${DateTime.now().toIso8601String()}: $message');
+      _logs.insert(0, '${DateTime.now().toIso8601String()}  $message');
+      if (_logs.length > 200) _logs.removeLast();
     });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Self-Test DevTools')),
+      appBar: AppBar(
+        title: const Text('self_test'),
+        actions: [
+          IconButton(
+            tooltip: 'Refresh',
+            onPressed: _loading ? null : _refresh,
+            icon: const Icon(Icons.refresh),
+          ),
+        ],
+      ),
       body: Column(
         children: [
-          // Control Panel
-          Card(
-            margin: const EdgeInsets.all(8),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Control Panel',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Text(
-                        'Self-Test Mode: ${_isModeActive ? 'Active' : 'Inactive'}',
-                      ),
-                      const SizedBox(width: 16),
-                      ElevatedButton(
-                        onPressed: () => _setMode(!_isModeActive),
-                        child: Text(_isModeActive ? 'Deactivate' : 'Activate'),
-                      ),
-                      const SizedBox(width: 16),
-                      ElevatedButton(
-                        onPressed: () => _runCommand('restartWidgetTree', ''),
-                        child: const Text('Restart App'),
-                      ),
-                    ],
-                  ),
-                ],
+          Padding(
+            padding: const EdgeInsets.all(8),
+            child: TextField(
+              controller: _textController,
+              decoration: const InputDecoration(
+                labelText: 'Text to type',
+                border: OutlineInputBorder(),
+                isDense: true,
               ),
             ),
           ),
-
-          // Quick Actions
-          Card(
-            margin: const EdgeInsets.all(8),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Quick Actions',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: DropdownButton<String>(
-                          value: _nodes.isNotEmpty ? _nodes.first['id'] : null,
-                          hint: const Text('Select Node'),
-                          items: _nodes.map((node) {
-                            return DropdownMenuItem<String>(
-                              value: node['id'],
-                              child: Text(
-                                '${node['id']} (${node['hasTap'] ? 'Tap' : ''}${node['hasTextChange'] ? 'Text' : ''})',
-                              ),
-                            );
-                          }).toList(),
-                          onChanged: (value) {},
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      ElevatedButton(
-                        onPressed: () {
-                          final selectedId = _nodes.isNotEmpty
-                              ? _nodes.first['id']
-                              : null;
-                          if (selectedId != null) {
-                            _runCommand('trigger', selectedId);
-                          }
-                        },
-                        child: const Text('Trigger'),
-                      ),
-                      const SizedBox(width: 16),
-                      SizedBox(
-                        width: 200,
-                        child: TextField(
-                          controller: _textController,
-                          decoration: const InputDecoration(
-                            labelText: 'Text to Enter',
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      ElevatedButton(
-                        onPressed: () {
-                          final selectedId = _nodes.isNotEmpty
-                              ? _nodes.first['id']
-                              : null;
-                          final text = _textController.text;
-                          if (selectedId != null && text.isNotEmpty) {
-                            _runCommand('enterText', selectedId, text);
-                          }
-                        },
-                        child: const Text('Enter Text'),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // Logs
           Expanded(
-            child: Card(
-              margin: const EdgeInsets.all(8),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Logs',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
+            flex: 3,
+            child: _widgets.isEmpty
+                ? const Center(
+                    child: Text(
+                      'Nothing listed yet. Refresh with the app in the '
+                      'foreground.',
                     ),
-                    const SizedBox(height: 8),
-                    Expanded(
-                      child: ListView.builder(
-                        itemCount: _logs.length,
-                        itemBuilder: (context, index) {
-                          return Text(_logs[index]);
-                        },
-                      ),
-                    ),
-                  ],
+                  )
+                : ListView.builder(
+                    itemCount: _widgets.length,
+                    itemBuilder: (context, i) {
+                      final widget = _widgets[i];
+                      return ListTile(
+                        dense: true,
+                        title: Text(widget.label),
+                        subtitle: Text(
+                          '${widget.locator.$1}: ${widget.locator.$2}'
+                          '${widget.index == 0 ? '' : ' (index ${widget.index})'}',
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            TextButton(
+                              onPressed: widget.enabled
+                                  ? () => _run('tap', widget)
+                                  : null,
+                              child: const Text('Tap'),
+                            ),
+                            TextButton(
+                              onPressed: () =>
+                                  _run('type', widget, _textController.text),
+                              child: const Text('Type'),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+          ),
+          const Divider(height: 1),
+          Expanded(
+            child: ListView.builder(
+              itemCount: _logs.length,
+              itemBuilder: (context, i) => Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 2,
+                ),
+                child: Text(
+                  _logs[i],
+                  style: Theme.of(context).textTheme.bodySmall,
                 ),
               ),
             ),

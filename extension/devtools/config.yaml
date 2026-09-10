@@ -1,0 +1,13 @@
+# Where DevTools looks for an extension: the PUBLISHED package's
+# extension/devtools/ directory. The panel lived in
+# packages/self_test_devtools_extension/config.yaml, which DevTools never
+# reads, so the tab could not be discovered at all.
+#
+# Rebuild the bundle beside this file with:
+#   cd packages/self_test_devtools_extension
+#   dart run devtools_extensions build_and_copy \
+#     --source=. --dest=../../extension/devtools
+name: self_test
+issueTracker: https://github.com/loonix/self_test/issues
+version: 0.2.0
+materialIconCodePoint: '0xe30a'

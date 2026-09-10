@@ -10,7 +10,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  devtools_extensions: ^0.1.0
+  devtools_extensions: ^0.5.1
   vm_service: ^14.2.1
 
 dev_dependencies:

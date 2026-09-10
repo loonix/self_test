@@ -45,3 +45,15 @@ package-lock.json
 
 # Codex task specs: orchestration scaffolding, not shipped source.
 .tasks/
+
+# The DevTools panel's built bundle is part of the published package: DevTools
+# loads it from extension/devtools/build, so a consumer who installs from
+# pub.dev gets the tab only if this is committed. The blanket build/ rule above
+# would have excluded it, which is why the tab could never have worked for
+# anyone but us.
+!extension/devtools/build/
+!extension/devtools/build/**
+
+# canvaskit is 31 of the bundle's 38 MB and DevTools already serves its own,
+# so shipping a second copy costs every consumer that download for nothing.
+extension/devtools/build/canvaskit/
