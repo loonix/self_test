@@ -1,7 +1,7 @@
 import 'dart:async';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
@@ -57,6 +57,62 @@ class SelfTestManager {
 
   // Widget builder registry for extensibility
   final Map<Type, RecordingBuilder> _recordingBuilders = {};
+
+  // ---------------------------------------------------------------------------
+  // Release guard
+  // ---------------------------------------------------------------------------
+
+  static bool _allowedInReleaseBuilds = false;
+
+  /// Pretends the app is a release build, so the guard can be tested.
+  ///
+  /// `kReleaseMode` is a compile-time constant and is false in every test, so
+  /// without a seam the one behaviour that matters here is the one behaviour
+  /// nothing can check.
+  @visibleForTesting
+  static bool? debugSimulateReleaseBuild;
+
+  /// Whether the package may touch the app at all.
+  ///
+  /// False in a release build. Everything this package can do to an app is
+  /// also what an attacker would want to do to it: read the whole widget tree,
+  /// tap anything, type anything, photograph the screen. In debug and profile
+  /// that is the point; in the build that reaches a user it is a remote
+  /// control, and the bridge listens on a socket.
+  ///
+  /// Call [enableInReleaseBuilds] to opt in deliberately, which a device farm
+  /// running signed release builds has to do.
+  static bool get isEnabled {
+    if (_allowedInReleaseBuilds) return true;
+    final simulated = debugSimulateReleaseBuild;
+    if (simulated != null) return !simulated;
+    return kDebugMode || kProfileMode;
+  }
+
+  /// Opts a release build in to being driven. There is no way to do this by
+  /// accident, which is the point.
+  static void enableInReleaseBuilds() {
+    _allowedInReleaseBuilds = true;
+    printWarning(
+      'self_test is now enabled in release builds. Anything that can reach '
+      'the bridge can drive this app.',
+    );
+  }
+
+  /// Undoes [enableInReleaseBuilds].
+  @visibleForTesting
+  static void resetReleaseBuildOptIn() {
+    _allowedInReleaseBuilds = false;
+  }
+
+  void _requireEnabled(String action) {
+    if (isEnabled) return;
+    throw StateError(
+      'self_test refused to $action: it is disabled in release builds. '
+      'If this build is meant to be driven, for example on a device farm, '
+      'call SelfTestManager.enableInReleaseBuilds() first.',
+    );
+  }
 
   /// Helper function to print formatted warnings with color and clear formatting.
   static void printWarning(String message) {
@@ -216,7 +272,11 @@ class SelfTestManager {
   }
 
   /// Registers a test node.
+  ///
+  /// Does nothing in a release build, so a build that ships this package by
+  /// accident does not also build a map of everything it could be driven by.
   void registerTestNode(TestNode node) {
+    if (!isEnabled) return;
     _activeTestNodes[node.id] = node;
     debugPrint(
       '[SelfTest] Registered TestNode: "${node.id}" (tap: ${node.onTap != null}, text: ${node.onTextChange != null})',
@@ -233,6 +293,7 @@ class SelfTestManager {
 
   /// Starts recording a new test script.
   Future<void> startRecording(String name) async {
+    _requireEnabled('start recording "$name"');
     try {
       debugPrint('[SelfTest] Starting recording for script: "$name"');
       final script = await _store.createScript(name);
@@ -342,28 +403,41 @@ class SelfTestManager {
   /// The widget [locator] points at.
   ///
   /// Throws [WidgetNotFoundError], which lists what was on screen instead.
-  WidgetSnapshot find(SelfTestLocator locator) => _scanner.resolve(locator);
+  WidgetSnapshot find(SelfTestLocator locator) {
+    if (!isEnabled) throw WidgetNotFoundError(locator, 0, const []);
+    return _scanner.resolve(locator);
+  }
 
   /// Every widget [locator] matches, in tree order. Empty when none do.
+  ///
+  /// Empty in a release build: see [isEnabled]. Reading the widget tree is a
+  /// disclosure on its own, so the guard covers the questions as well as the
+  /// actions.
   List<WidgetSnapshot> findAll(SelfTestLocator locator) =>
-      _scanner.findAll(locator);
+      isEnabled ? _scanner.findAll(locator) : const [];
 
   /// Whether [locator] matches anything in the widget tree right now.
   ///
   /// A list keeps items built after they scroll out of view, so this can be
   /// true for something the user cannot see. Ask [isVisible] for that.
-  bool exists(SelfTestLocator locator) => _scanner.tryResolve(locator) != null;
+  bool exists(SelfTestLocator locator) => _tryResolve(locator) != null;
 
   /// Whether [locator] matches something the user can actually see.
   bool isVisible(SelfTestLocator locator) =>
-      _scanner.tryResolve(locator)?.isOnScreen ?? false;
+      _tryResolve(locator)?.isOnScreen ?? false;
+
+  /// Resolution that answers "nothing here" in a release build, so every
+  /// question routes through the guard rather than each caller remembering to.
+  WidgetSnapshot? _tryResolve(SelfTestLocator locator) =>
+      isEnabled ? _scanner.tryResolve(locator) : null;
 
   /// Everything on screen that can be acted on, plus the labels around it.
   ///
   /// This is what an agent asks for before deciding what to do, and what the
   /// bridge answers a discovery request with. It needs no registration: the
   /// widgets are read straight off the element tree.
-  List<WidgetSnapshot> describeScreen() => _scanner.describeInteractive();
+  List<WidgetSnapshot> describeScreen() =>
+      isEnabled ? _scanner.describeInteractive() : const [];
 
   /// Taps the widget [locator] points at, with a real pointer event.
   ///
@@ -436,6 +510,7 @@ class SelfTestManager {
   /// Types [text] into the field [locator] points at, through the same path
   /// the soft keyboard uses.
   Future<void> typeInto(SelfTestLocator locator, String text) async {
+    _requireEnabled('type into $locator');
     final target = _scanner.resolve(locator);
     await _drive(locator, 'enterText', text, () async {
       _textInput.enterText(target.element, text);
@@ -446,6 +521,7 @@ class SelfTestManager {
 
   /// Fires the keyboard action of the field [locator] points at.
   Future<void> submit(SelfTestLocator locator) async {
+    _requireEnabled('submit $locator');
     final target = _scanner.resolve(locator);
     await _drive(locator, 'submit', null, () async {
       _textInput.submit(target.element);
@@ -455,12 +531,13 @@ class SelfTestManager {
   /// The text the widget [locator] points at is showing, or null when it
   /// shows none.
   String? readText(SelfTestLocator locator) {
-    final target = _scanner.tryResolve(locator);
+    final target = _tryResolve(locator);
     if (target == null) return null;
     return target.text ?? _textInput.textOf(target.element);
   }
 
   WidgetSnapshot _requireTappable(SelfTestLocator locator) {
+    _requireEnabled('tap $locator');
     final target = _scanner.resolve(locator);
     if (!target.hasSize) {
       throw StateError(
@@ -526,6 +603,7 @@ class SelfTestManager {
   /// invoking the registered `onTap` when it is not, which is the case for a
   /// node registered without a laid-out widget behind it.
   Future<void> trigger(String id) async {
+    _requireEnabled('trigger "$id"');
     final target = _scanner.tryResolve(SelfTestLocator.id(id));
     if (target != null && target.hasSize) {
       await _drive(
@@ -565,6 +643,7 @@ class SelfTestManager {
   /// field is on screen, and falls back to the registered `onTextChange`
   /// callback when it is not.
   Future<void> enterText(String id, String text) async {
+    _requireEnabled('enter text into "$id"');
     final target = _scanner.tryResolve(SelfTestLocator.id(id));
     if (target != null && target.hasSize) {
       try {
@@ -815,6 +894,7 @@ class SelfTestManager {
   /// root usually is. The fallback is best effort: wrap the app in a
   /// [ScreenshotBoundary] to make the target explicit.
   Future<Uint8List?> captureScreenshotBytes({double pixelRatio = 3.0}) async {
+    _requireEnabled('capture a screenshot');
     final boundary = _findScreenshotBoundary();
     if (boundary == null) {
       printWarning(
