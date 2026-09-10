@@ -1,13 +1,48 @@
 {
   "name": "self-test-mcp",
-  "version": "2.1.0",
-  "description": "MCP server for Flutter self_test framework with Playwright web-external mode",
-  "main": "dist/index.js",
+  "version": "2.2.0",
+  "description": "MCP server that lets an AI agent drive a Flutter app built with self_test, addressing widgets by universal locators",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "flutter",
+    "self_test",
+    "testing",
+    "ui-testing",
+    "automation",
+    "locators",
+    "playwright"
+  ],
+  "homepage": "https://github.com/loonix/self_test/tree/main/packages/self_test_mcp#readme",
+  "bugs": {
+    "url": "https://github.com/loonix/self_test/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/loonix/self_test.git",
+    "directory": "packages/self_test_mcp"
+  },
+  "license": "MIT",
   "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "self-test-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "PLAYWRIGHT_PARITY.md",
+    "claude-code-config.example.json"
+  ],
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node -e \"require('fs').chmodSync('dist/index.js', 0o755)\"",
     "start": "node dist/index.js",
     "dev": "tsx watch src/index.ts",
+    "test": "npm run build && node --test test/",
     "postinstall": "playwright install chromium || true"
   },
   "dependencies": {

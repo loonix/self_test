@@ -1,29 +1,69 @@
 #!/usr/bin/env node
 
+import { createRequire } from "node:module";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { FlutterBridge } from "./flutter-bridge.js";
-import { PlaywrightBridge } from "./playwright-bridge.js";
+import type { PlaywrightBridge } from "./playwright-bridge.js";
+import { parseCliArgs, usageText } from "./cli.js";
+import {
+  locatorSchema,
+  describeTarget,
+  targetParams,
+  type LocatorInput,
+} from "./locator.js";
 
-// Configuration from environment
-const FLUTTER_HOST = process.env.FLUTTER_APP_HOST || "localhost";
-const FLUTTER_PORT = parseInt(process.env.FLUTTER_APP_PORT || "9999", 10);
-const GOLDENS_DIR = process.env.FLUTTER_GOLDENS_DIR || "test/goldens";
+const VERSION = readVersion();
+
+function readVersion(): string {
+  try {
+    const require = createRequire(import.meta.url);
+    return require("../package.json").version as string;
+  } catch {
+    return "unknown";
+  }
+}
+
+// --help and --version answer before anything is connected, started or
+// downloaded. This is the only place allowed to exit the process.
+const cli = parseCliArgs(process.argv.slice(2));
+
+if (cli.help) {
+  process.stdout.write(usageText(VERSION));
+  process.exit(0);
+}
+if (cli.version) {
+  process.stdout.write(`${VERSION}\n`);
+  process.exit(0);
+}
+if (cli.errors.length > 0) {
+  for (const error of cli.errors) console.error(error);
+  console.error("");
+  console.error(usageText(VERSION));
+  process.exit(2);
+}
+
+// Configuration, from flags first and the environment second.
+const FLUTTER_HOST = cli.host;
+const FLUTTER_PORT = cli.port;
+const GOLDENS_DIR = cli.goldensDir;
 // BRIDGE_MODE:
 //   "client" - MCP connects to Flutter app's WebSocket server (native platforms)
 //   "server" - MCP runs WebSocket server, Flutter app connects to it (Flutter Web with bridge)
 //   "web-external" - Use Playwright to automate Flutter Web via semantics tree (no bridge needed!)
-const BRIDGE_MODE = (process.env.BRIDGE_MODE || "server") as "client" | "server" | "web-external";
+const BRIDGE_MODE = cli.mode;
 // For web-external mode: URL of the Flutter web app
-const FLUTTER_APP_URL = process.env.FLUTTER_APP_URL || "http://localhost:8080";
+const FLUTTER_APP_URL = cli.appUrl;
 // For web-external mode: run browser headless or visible
-const PLAYWRIGHT_HEADLESS = process.env.PLAYWRIGHT_HEADLESS !== "false";
+const PLAYWRIGHT_HEADLESS = cli.headless;
+// The bridge binds to loopback and requires this token.
+const SELF_TEST_TOKEN = cli.token;
 
 // Create MCP server
 const server = new McpServer({
   name: "flutter-self-test",
-  version: "2.1.0",
+  version: VERSION,
 });
 
 // Bridge instance - can be FlutterBridge or PlaywrightBridge
@@ -35,6 +75,12 @@ async function ensureBridge(): Promise<FlutterBridge | PlaywrightBridge> {
     if (BRIDGE_MODE === "web-external") {
       // Use Playwright to automate Flutter Web directly via semantics tree
       // No SelfTestBridge needed in the Flutter app!
+      //
+      // Imported here rather than at the top of the file so that starting the
+      // server, and `--help`, never load Playwright. Its postinstall only
+      // downloads a browser, so an install run with --ignore-scripts still
+      // works for every other mode.
+      const { PlaywrightBridge } = await import("./playwright-bridge.js");
       bridge = new PlaywrightBridge(FLUTTER_APP_URL, {
         headless: PLAYWRIGHT_HEADLESS,
         goldensDir: GOLDENS_DIR,
@@ -43,12 +89,25 @@ async function ensureBridge(): Promise<FlutterBridge | PlaywrightBridge> {
       console.error(`Bridge initialized in web-external mode (Playwright) at ${FLUTTER_APP_URL}`);
     } else {
       // Use WebSocket bridge (requires SelfTestBridge in Flutter app)
-      bridge = new FlutterBridge(FLUTTER_HOST, FLUTTER_PORT, BRIDGE_MODE);
+      bridge = new FlutterBridge(FLUTTER_HOST, FLUTTER_PORT, BRIDGE_MODE, {
+        token: SELF_TEST_TOKEN,
+      });
       await bridge.connect();
       console.error(`Bridge initialized in ${BRIDGE_MODE} mode`);
     }
   }
   return bridge;
+}
+
+/** Shorthand for a plain-text tool result. */
+function text(body: string) {
+  return { content: [{ type: "text" as const, text: body }] };
+}
+
+/** Shorthand for a failed tool result, keeping the message the caller needs. */
+function failed(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return { content: [{ type: "text" as const, text: `Failed: ${message}` }], isError: true };
 }
 
 // Format snapshot for AI readability
@@ -104,8 +163,162 @@ function formatSnapshot(snapshot: any): string {
 }
 
 // ============================================================================
-// LOCATORS - Playwright-style element finding
+// LOCATORS - address a widget by what is on screen
 // ============================================================================
+
+/** One widget from describeScreen / find, as a markdown table row. */
+function widgetRow(w: any): string {
+  const address =
+    w.text != null ? `text=${JSON.stringify(w.text)}`
+    : w.key != null ? `key=${JSON.stringify(w.key)}`
+    : w.semantics != null ? `semanticsLabel=${JSON.stringify(w.semantics)}`
+    : w.tooltip != null ? `tooltip=${JSON.stringify(w.tooltip)}`
+    : w.id != null ? `id=${JSON.stringify(w.id)}`
+    : `type=${JSON.stringify(w.type ?? "unknown")}`;
+
+  const state = [
+    w.enabled === false ? "disabled" : "enabled",
+    w.interactive ? "interactive" : "static",
+    w.onScreen === false ? "off-screen" : "on-screen",
+  ].join(", ");
+
+  const r = w.rect ?? {};
+  const rect =
+    r.x == null ? "" : `${Math.round(r.x)},${Math.round(r.y)} ${Math.round(r.w)}x${Math.round(r.h)}`;
+
+  const cell = (v: unknown) => (v == null || v === "" ? "-" : String(v).replace(/\|/g, "\\|"));
+
+  return `| ${cell(w.type)} | ${cell(w.text)} | ${cell(w.id ?? w.key)} | ${cell(w.semantics)} | ${cell(w.tooltip)} | ${state} | ${cell(rect)} | \`${address.replace(/\|/g, "\\|")}\` |`;
+}
+
+function formatWidgets(widgets: any[]): string {
+  if (!widgets || widgets.length === 0) {
+    return "_No widgets reported. The app may still be starting, or the screen may be empty._\n";
+  }
+  let out = "| Type | Text | Id/Key | Semantics | Tooltip | State | Rect | Locator |\n";
+  out += "|---|---|---|---|---|---|---|---|\n";
+  for (const w of widgets) out += widgetRow(w) + "\n";
+  return out;
+}
+
+server.tool(
+  "flutter_describe_screen",
+  "Describe every widget currently on screen. Call this FIRST: it tells you " +
+    "what is there and gives a ready-made locator for each widget, so no " +
+    "widget id has to be registered by the app in advance. Feed the Locator " +
+    "column straight into flutter_tap, flutter_type and the rest.",
+  {},
+  async () => {
+    try {
+      const b = await ensureBridge();
+      const result = await b.send("describeScreen", {});
+      const widgets = result?.widgets ?? [];
+      let out = `# Screen\n\n**Widgets:** ${widgets.length}\n\n`;
+      out += formatWidgets(widgets);
+      out += `\nAddress a widget with {by, value, exact, index}: \`by\` is one of ` +
+        `text, key, id, semanticsLabel, type or tooltip; \`exact\` (default true) ` +
+        `applies to text only; \`index\` (default 0) picks between duplicates.\n`;
+      return text(out);
+    } catch (e) {
+      return failed(e);
+    }
+  }
+);
+
+server.tool(
+  "flutter_find",
+  "Find a single widget by locator and return its full description, or null " +
+    "if nothing matches. Use it to check an assumption before acting.",
+  {
+    locator: locatorSchema.describe("Locator, e.g. {by: 'text', value: 'Sign in'}."),
+  },
+  async ({ locator }) => {
+    try {
+      const params = targetParams({ locator: locator as LocatorInput });
+      const b = await ensureBridge();
+      const result = await b.send("find", params);
+      const widget = result?.widget ?? null;
+      if (!widget) {
+        return text(`No widget matches ${describeTarget({ locator: locator as LocatorInput })}.`);
+      }
+      return text(
+        `Found ${describeTarget({ locator: locator as LocatorInput })}:\n\n` +
+          formatWidgets([widget]) +
+          `\n\`\`\`json\n${JSON.stringify(widget, null, 2)}\n\`\`\`\n`
+      );
+    } catch (e) {
+      return failed(e);
+    }
+  }
+);
+
+server.tool(
+  "flutter_exists",
+  "Whether a widget matching the locator exists in the tree, visible or not.",
+  {
+    locator: locatorSchema.optional().describe("Locator, e.g. {by: 'text', value: 'Sign in'}."),
+    widgetId: z.string().optional().describe("Legacy registered widget id. Prefer a locator."),
+  },
+  async ({ locator, widgetId }) => {
+    try {
+      const params = targetParams({ locator: locator as LocatorInput | undefined, widgetId });
+      const b = await ensureBridge();
+      const result = await b.send("exists", params);
+      const found = result?.result === true;
+      return text(
+        `${describeTarget({ locator: locator as LocatorInput | undefined, widgetId })} ` +
+          `${found ? "exists" : "does not exist"}.`
+      );
+    } catch (e) {
+      return failed(e);
+    }
+  }
+);
+
+server.tool(
+  "flutter_is_visible",
+  "Whether a widget matching the locator is on screen and painted.",
+  {
+    locator: locatorSchema.optional().describe("Locator, e.g. {by: 'text', value: 'Sign in'}."),
+    widgetId: z.string().optional().describe("Legacy registered widget id. Prefer a locator."),
+  },
+  async ({ locator, widgetId }) => {
+    try {
+      const params = targetParams({ locator: locator as LocatorInput | undefined, widgetId });
+      const b = await ensureBridge();
+      const result = await b.send("isVisible", params);
+      const visible = result?.result === true;
+      return text(
+        `${describeTarget({ locator: locator as LocatorInput | undefined, widgetId })} ` +
+          `is ${visible ? "visible" : "not visible"}.`
+      );
+    } catch (e) {
+      return failed(e);
+    }
+  }
+);
+
+server.tool(
+  "flutter_read_text",
+  "Read the text of a widget, for example a label or a text field's contents. " +
+    "Returns null if the widget has no text.",
+  {
+    locator: locatorSchema.optional().describe("Locator, e.g. {by: 'key', value: 'total'}."),
+    widgetId: z.string().optional().describe("Legacy registered widget id. Prefer a locator."),
+  },
+  async ({ locator, widgetId }) => {
+    try {
+      const params = targetParams({ locator: locator as LocatorInput | undefined, widgetId });
+      const b = await ensureBridge();
+      const result = await b.send("readText", params);
+      const value = result?.text ?? null;
+      const target = describeTarget({ locator: locator as LocatorInput | undefined, widgetId });
+      return text(value === null ? `${target} has no text.` : `${target} reads: ${JSON.stringify(value)}`);
+    } catch (e) {
+      return failed(e);
+    }
+  }
+);
 
 server.tool(
   "flutter_snapshot",
@@ -152,18 +365,23 @@ server.tool(
 
 server.tool(
   "flutter_tap",
-  "Tap/click a widget. Auto-waits for widget to be visible and enabled.",
+  "Tap/click a widget. Auto-waits for widget to be visible and enabled. " +
+    "Address it with a locator from flutter_describe_screen; widgetId is only " +
+    "for apps that still register ids.",
   {
-    widgetId: z.string().describe("Widget ID from snapshot"),
+    locator: locatorSchema.optional().describe("Locator, e.g. {by: 'text', value: 'Sign in'}."),
+    widgetId: z.string().optional().describe("Legacy registered widget id. Prefer a locator."),
     timeout: z.number().optional().describe("Timeout in ms (default: 5000)"),
   },
-  async ({ widgetId, timeout }) => {
-    const b = await ensureBridge();
+  async ({ locator, widgetId, timeout }) => {
+    const target = { locator: locator as LocatorInput | undefined, widgetId };
     try {
-      await b.send("tap", { widgetId, timeout: timeout || 5000 });
-      return { content: [{ type: "text", text: `✅ Tapped [${widgetId}]` }] };
-    } catch (e: any) {
-      return { content: [{ type: "text", text: `❌ Failed: ${e.message}` }], isError: true };
+      const params = targetParams(target);
+      const b = await ensureBridge();
+      await b.send("tap", { ...params, timeout: timeout ?? 5000 });
+      return text(`Tapped ${describeTarget(target)}`);
+    } catch (e) {
+      return failed(e);
     }
   }
 );
@@ -172,18 +390,21 @@ server.tool(
   "flutter_type",
   "Type text into an input field. Clears existing text first unless append is true.",
   {
-    widgetId: z.string().describe("Input widget ID"),
+    locator: locatorSchema.optional().describe("Locator, e.g. {by: 'key', value: 'email'}."),
+    widgetId: z.string().optional().describe("Legacy registered widget id. Prefer a locator."),
     text: z.string().describe("Text to type"),
     append: z.boolean().optional().describe("Append to existing text (default: false)"),
     submit: z.boolean().optional().describe("Press enter/submit after typing"),
   },
-  async ({ widgetId, text, append, submit }) => {
-    const b = await ensureBridge();
+  async ({ locator, widgetId, text: value, append, submit }) => {
+    const target = { locator: locator as LocatorInput | undefined, widgetId };
     try {
-      await b.send("type", { widgetId, text, append, submit });
-      return { content: [{ type: "text", text: `✅ Typed "${text}" into [${widgetId}]` }] };
-    } catch (e: any) {
-      return { content: [{ type: "text", text: `❌ Failed: ${e.message}` }], isError: true };
+      const params = targetParams(target);
+      const b = await ensureBridge();
+      await b.send("type", { ...params, text: value, append, submit });
+      return text(`Typed ${JSON.stringify(value)} into ${describeTarget(target)}`);
+    } catch (e) {
+      return failed(e);
     }
   }
 );
@@ -214,18 +435,68 @@ server.tool(
   }
 );
 
+/**
+ * Translate a compass direction into the drag offset the bridge takes.
+ *
+ * The offset is the finger's movement, not the content's: scrolling down
+ * means dragging up, so `down` is a negative dy. Callers who would rather be
+ * explicit can pass dx/dy instead and skip this entirely.
+ */
+function scrollOffset(
+  direction: "up" | "down" | "left" | "right",
+  delta: number
+): { dx: number; dy: number } {
+  switch (direction) {
+    case "down": return { dx: 0, dy: -delta };
+    case "up": return { dx: 0, dy: delta };
+    case "right": return { dx: -delta, dy: 0 };
+    case "left": return { dx: delta, dy: 0 };
+  }
+}
+
 server.tool(
   "flutter_scroll",
-  "Scroll within a scrollable widget.",
+  "Scroll a scrollable widget. Give a locator plus either dx/dy (the finger's " +
+    "movement in pixels) or a direction. Scrolling down drags up, so " +
+    "direction:'down' is a negative dy.",
   {
-    widgetId: z.string().optional().describe("Scrollable widget ID (uses first if not specified)"),
-    direction: z.enum(["up", "down", "left", "right"]),
-    delta: z.number().optional().describe("Scroll amount in pixels (default: 300)"),
+    locator: locatorSchema.optional().describe("The scrollable, e.g. {by: 'type', value: 'ListView'}."),
+    dx: z.number().optional().describe("Horizontal drag in pixels. Used with a locator."),
+    dy: z.number().optional().describe("Vertical drag in pixels. Used with a locator."),
+    widgetId: z.string().optional().describe("Legacy scrollable widget id. Prefer a locator."),
+    direction: z.enum(["up", "down", "left", "right"]).optional().describe("Alternative to dx/dy."),
+    delta: z.number().optional().describe("Scroll amount in pixels for `direction` (default: 300)"),
   },
-  async ({ widgetId, direction, delta }) => {
-    const b = await ensureBridge();
-    await b.send("scroll", { widgetId, direction, delta: delta || 300 });
-    return { content: [{ type: "text", text: `✅ Scrolled ${direction}` }] };
+  async ({ locator, dx, dy, widgetId, direction, delta }) => {
+    try {
+      if (locator) {
+        const params = targetParams({ locator: locator as LocatorInput });
+        let offset: { dx: number; dy: number };
+        if (dx !== undefined || dy !== undefined) {
+          offset = { dx: dx ?? 0, dy: dy ?? 0 };
+        } else if (direction) {
+          offset = scrollOffset(direction, delta ?? 300);
+        } else {
+          throw new Error("Pass dx/dy or a direction to say how far to scroll.");
+        }
+        const b = await ensureBridge();
+        await b.send("scroll", { ...params, ...offset });
+        return text(
+          `Scrolled ${describeTarget({ locator: locator as LocatorInput })} ` +
+            `by dx=${offset.dx}, dy=${offset.dy}`
+        );
+      }
+
+      // Legacy id path: the old app-side handler takes a direction, not an offset.
+      if (!direction) {
+        throw new Error("Pass a direction when scrolling by widgetId.");
+      }
+      const b = await ensureBridge();
+      await b.send("scroll", { widgetId, direction, delta: delta ?? 300 });
+      return text(`Scrolled ${direction}`);
+    } catch (e) {
+      return failed(e);
+    }
   }
 );
 
@@ -246,15 +517,42 @@ server.tool(
 
 server.tool(
   "flutter_drag",
-  "Drag from one widget to another (drag and drop).",
+  "Drag a widget by an offset, or drag one widget onto another. Give a " +
+    "locator with dx/dy for the offset form; sourceId/targetId is the older " +
+    "id-based drag and drop.",
   {
-    sourceId: z.string().describe("Widget to drag from"),
-    targetId: z.string().describe("Widget to drop on"),
+    locator: locatorSchema.optional().describe("Widget to drag, e.g. {by: 'key', value: 'card-1'}."),
+    dx: z.number().optional().describe("Horizontal distance in pixels."),
+    dy: z.number().optional().describe("Vertical distance in pixels."),
+    sourceId: z.string().optional().describe("Legacy: widget id to drag from."),
+    targetId: z.string().optional().describe("Legacy: widget id to drop on."),
   },
-  async ({ sourceId, targetId }) => {
-    const b = await ensureBridge();
-    await b.send("drag", { sourceId, targetId });
-    return { content: [{ type: "text", text: `✅ Dragged [${sourceId}] to [${targetId}]` }] };
+  async ({ locator, dx, dy, sourceId, targetId }) => {
+    try {
+      if (locator) {
+        if (dx === undefined && dy === undefined) {
+          throw new Error("Pass dx and/or dy to say how far to drag.");
+        }
+        const params = targetParams({ locator: locator as LocatorInput });
+        const b = await ensureBridge();
+        await b.send("drag", { ...params, dx: dx ?? 0, dy: dy ?? 0 });
+        return text(
+          `Dragged ${describeTarget({ locator: locator as LocatorInput })} ` +
+            `by dx=${dx ?? 0}, dy=${dy ?? 0}`
+        );
+      }
+
+      if (!sourceId || !targetId) {
+        throw new Error(
+          "Pass a locator with dx/dy, or both sourceId and targetId for the legacy drag and drop."
+        );
+      }
+      const b = await ensureBridge();
+      await b.send("drag", { sourceId, targetId });
+      return text(`Dragged [${sourceId}] to [${targetId}]`);
+    } catch (e) {
+      return failed(e);
+    }
   }
 );
 
@@ -262,24 +560,40 @@ server.tool(
   "flutter_long_press",
   "Long press on a widget (for context menus, etc.).",
   {
-    widgetId: z.string(),
+    locator: locatorSchema.optional().describe("Locator, e.g. {by: 'text', value: 'Inbox'}."),
+    widgetId: z.string().optional().describe("Legacy registered widget id. Prefer a locator."),
     duration: z.number().optional().describe("Duration in ms (default: 500)"),
   },
-  async ({ widgetId, duration }) => {
-    const b = await ensureBridge();
-    await b.send("longPress", { widgetId, duration: duration || 500 });
-    return { content: [{ type: "text", text: `✅ Long pressed [${widgetId}]` }] };
+  async ({ locator, widgetId, duration }) => {
+    const target = { locator: locator as LocatorInput | undefined, widgetId };
+    try {
+      const params = targetParams(target);
+      const b = await ensureBridge();
+      await b.send("longPress", { ...params, duration: duration ?? 500 });
+      return text(`Long pressed ${describeTarget(target)}`);
+    } catch (e) {
+      return failed(e);
+    }
   }
 );
 
 server.tool(
   "flutter_double_tap",
   "Double tap on a widget.",
-  { widgetId: z.string() },
-  async ({ widgetId }) => {
-    const b = await ensureBridge();
-    await b.send("doubleTap", { widgetId });
-    return { content: [{ type: "text", text: `✅ Double tapped [${widgetId}]` }] };
+  {
+    locator: locatorSchema.optional().describe("Locator, e.g. {by: 'text', value: 'Zoom'}."),
+    widgetId: z.string().optional().describe("Legacy registered widget id. Prefer a locator."),
+  },
+  async ({ locator, widgetId }) => {
+    const target = { locator: locator as LocatorInput | undefined, widgetId };
+    try {
+      const params = targetParams(target);
+      const b = await ensureBridge();
+      await b.send("doubleTap", params);
+      return text(`Double tapped ${describeTarget(target)}`);
+    } catch (e) {
+      return failed(e);
+    }
   }
 );
 
@@ -3707,7 +4021,15 @@ server.tool(
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("Flutter self_test MCP server v2.0.0 running (Playwright parity)");
+  console.error(`Flutter self_test MCP server v${VERSION} running in ${BRIDGE_MODE} mode`);
+
+  if (BRIDGE_MODE !== "web-external" && !SELF_TEST_TOKEN) {
+    console.error(
+      "No bridge token configured. The bridge requires one: pass --token " +
+        "<token> or set SELF_TEST_TOKEN, using the token from the URL the " +
+        "Flutter app prints at startup."
+    );
+  }
 
   // In server mode, eagerly start the WebSocket server so Flutter Web can connect
   if (BRIDGE_MODE === "server") {
@@ -3716,4 +4038,7 @@ async function main() {
   }
 }
 
-main().catch(console.error);
+main().catch((error) => {
+  console.error(error instanceof Error ? error.message : error);
+  process.exitCode = 1;
+});
