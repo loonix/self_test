@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:self_test/self_test.dart';
-import 'package:self_test/src/models.dart';
 
 void main() {
   group('TestCodeGenerator', () {
@@ -18,7 +17,7 @@ void main() {
       );
 
       final steps = [
-        TestStep(
+        RecordedStep(
           id: 1,
           scriptId: 1,
           order: 0,
@@ -26,7 +25,7 @@ void main() {
           targetId: 'username',
           value: 'user@example.com',
         ),
-        TestStep(
+        RecordedStep(
           id: 2,
           scriptId: 1,
           order: 1,
@@ -34,14 +33,14 @@ void main() {
           targetId: 'password',
           value: 'password123',
         ),
-        TestStep(
+        RecordedStep(
           id: 3,
           scriptId: 1,
           order: 2,
           action: 'trigger',
           targetId: 'login_button',
         ),
-        TestStep(
+        RecordedStep(
           id: 4,
           scriptId: 1,
           order: 3,

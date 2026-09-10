@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../core/manager.dart';
 import '../core/recording_mode.dart';
 import '../models.dart';
@@ -249,46 +250,57 @@ class _ControlPanelState extends State<ControlPanel> {
   }
 
   Future<void> _exportDart(BuildContext context) async {
-    try {
-      debugPrint('[SelfTest] Exporting script: ${selectedScript!.name}');
-      final steps = widget.manager.getTestSteps(selectedScript!.id);
-      final generator = TestCodeGenerator();
-      await generator.exportToDart(selectedScript!, steps);
-      debugPrint('[SelfTest] Export completed');
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Test exported to app documents/test_generated')),
-        );
-      }
-    } catch (e, stackTrace) {
-      debugPrint('[SelfTest] ERROR exporting: $e');
-      debugPrint('[SelfTest] Stack trace: $stackTrace');
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Export failed: $e')),
-        );
-      }
-    }
+    await _copyGenerated(
+      context,
+      label: 'Dart test',
+      extension: 'dart',
+      build: (generator, script, steps) =>
+          generator.generateTestCode(script, steps),
+    );
   }
 
   Future<void> _exportJson(BuildContext context) async {
+    await _copyGenerated(
+      context,
+      label: 'JSON export',
+      extension: 'json',
+      build: (generator, script, steps) =>
+          generator.generateJsonExport(script, steps),
+    );
+  }
+
+  /// Generates code for the selected script and puts it on the clipboard.
+  ///
+  /// The clipboard, not a file: writing into the app's documents directory
+  /// needed path_provider as a runtime dependency of every consumer app, and
+  /// left the developer digging through a sandbox to find the result.
+  Future<void> _copyGenerated(
+    BuildContext context, {
+    required String label,
+    required String extension,
+    required String Function(
+            TestCodeGenerator generator, TestScript script, List<RecordedStep> steps)
+        build,
+  }) async {
+    final script = selectedScript;
+    if (script == null) return;
     try {
-      debugPrint('[SelfTest] Exporting script to JSON: ${selectedScript!.name}');
-      final steps = widget.manager.getTestSteps(selectedScript!.id);
+      final steps = widget.manager.getTestSteps(script.id);
       final generator = TestCodeGenerator();
-      await generator.exportToJson(selectedScript!, steps);
-      debugPrint('[SelfTest] JSON export completed');
+      final source = build(generator, script, steps);
+      await Clipboard.setData(ClipboardData(text: source));
+      final fileName = generator.fileNameFor(script, extension: extension);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Test exported to JSON in app documents/test_generated')),
+          SnackBar(content: Text('$label copied to clipboard, save as $fileName')),
         );
       }
     } catch (e, stackTrace) {
-      debugPrint('[SelfTest] ERROR exporting to JSON: $e');
+      debugPrint('[SelfTest] ERROR generating $label: $e');
       debugPrint('[SelfTest] Stack trace: $stackTrace');
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('JSON export failed: $e')),
+          SnackBar(content: Text('$label failed: $e')),
         );
       }
     }

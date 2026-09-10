@@ -1,22 +1,13 @@
-import 'package:hive_ce/hive.dart';
-
-part 'models.g.dart';
-
-@HiveType(typeId: 0)
-class TestScript extends HiveObject {
-  @HiveField(0)
+/// A recorded test script: a named sequence of user actions captured from a
+/// running app.
+///
+/// Plain data. Persisting it is the job of a [RecordingStore] implementation,
+/// so nothing here depends on a storage engine.
+class TestScript {
   int id;
-
-  @HiveField(1)
   String name;
-
-  @HiveField(2)
   DateTime createdAt;
-
-  @HiveField(3)
   String lastRunStatus;
-
-  @HiveField(4)
   DateTime? lastRunDate;
 
   TestScript({
@@ -26,6 +17,18 @@ class TestScript extends HiveObject {
     this.lastRunStatus = 'PENDING',
     this.lastRunDate,
   });
+
+  factory TestScript.fromJson(Map<String, dynamic> json) {
+    return TestScript(
+      id: json['id'] as int,
+      name: json['name'] as String,
+      createdAt: DateTime.parse(json['createdAt'] as String),
+      lastRunStatus: json['lastRunStatus'] as String? ?? 'PENDING',
+      lastRunDate: json['lastRunDate'] == null
+          ? null
+          : DateTime.parse(json['lastRunDate'] as String),
+    );
+  }
 
   Map<String, dynamic> toJson() {
     return {
@@ -38,27 +41,22 @@ class TestScript extends HiveObject {
   }
 }
 
-@HiveType(typeId: 1)
-class TestStep extends HiveObject {
-  @HiveField(0)
+/// One action inside a recorded [TestScript].
+///
+/// Named `RecordedStep` rather than `TestStep` on purpose: `TestStep` is the
+/// published scenario-command type in `self_test.dart`, which is a different
+/// concept (an instruction to execute, not a stored row).
+class RecordedStep {
   int id;
-
-  @HiveField(1)
   int scriptId;
-
-  @HiveField(2)
   int order;
 
-  @HiveField(3)
-  String action; // 'trigger', 'enterText', 'assertText', 'assertExists'
-
-  @HiveField(4)
+  /// One of `trigger`, `enterText`, `assertText`, `assertExists`.
+  String action;
   String targetId;
-
-  @HiveField(5)
   String? value;
 
-  TestStep({
+  RecordedStep({
     required this.id,
     required this.scriptId,
     required this.order,
@@ -66,6 +64,17 @@ class TestStep extends HiveObject {
     required this.targetId,
     this.value,
   });
+
+  factory RecordedStep.fromJson(Map<String, dynamic> json) {
+    return RecordedStep(
+      id: json['id'] as int,
+      scriptId: json['scriptId'] as int,
+      order: json['order'] as int,
+      action: json['action'] as String,
+      targetId: json['targetId'] as String,
+      value: json['value'] as String?,
+    );
+  }
 
   Map<String, dynamic> toJson() {
     return {

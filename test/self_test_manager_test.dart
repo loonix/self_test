@@ -1,15 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:self_test/self_test.dart';
-import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
-import 'dart:io';
-
-class MockPathProviderPlatform extends PathProviderPlatform {
-  @override
-  Future<String?> getApplicationDocumentsPath() async {
-    return Directory.systemTemp.path;
-  }
-}
 
 // Mock custom widget for testing
 class MockCustomWidget extends StatelessWidget {
@@ -24,10 +15,6 @@ class MockCustomWidget extends StatelessWidget {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-
-  setUpAll(() {
-    PathProviderPlatform.instance = MockPathProviderPlatform();
-  });
 
   group('SelfTestManager', () {
     late SelfTestManager manager;

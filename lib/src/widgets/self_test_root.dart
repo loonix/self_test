@@ -330,7 +330,7 @@ class _SelfTestRootState extends State<SelfTestRoot> {
 
   Future<void> _showControlPanel(BuildContext ctx, SelfTestManager manager) async {
     // Initialize database if needed
-    await manager.initializeDatabase();
+    await manager.initializeRecordingStore();
 
     if (!mounted) return;
 
