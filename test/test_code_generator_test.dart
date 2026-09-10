@@ -54,15 +54,29 @@ void main() {
 
       final code = generator.generateTestCode(script, steps);
 
-      expect(code, contains("test('Login Test'"));
+      expect(code, contains("testWidgets('Login Test'"));
       expect(
         code,
-        contains("await manager.enterText('username', 'user@example.com');"),
+        contains(
+          "await manager.typeInto(const SelfTestLocator.id('username'), "
+          "'user@example.com');",
+        ),
       );
-      expect(code, contains("await manager.trigger('login_button');"));
-      // node0, not node: assertion locals are numbered so two assertText
-      // steps in one body cannot redeclare the same name.
-      expect(code, contains("expect(node0?.currentText, 'Welcome!');"));
+      expect(
+        code,
+        contains(
+          "await manager.tap(const SelfTestLocator.id('login_button'));",
+        ),
+      );
+      expect(
+        code,
+        contains(
+          "expect(manager.readText(const SelfTestLocator.id("
+          "'welcome_message')), 'Welcome!');",
+        ),
+      );
+      // Every action is followed by a pump. A driven tap is a real pointer
+      // event now, so nothing it changes is visible until the frame after.
     });
   });
 }
@@ -90,16 +104,17 @@ void _regressionTests() {
       value: value,
     );
 
-    test('numbers assertion locals so two assertText steps do not collide', () {
+    test('two assertions in one body declare nothing that could collide', () {
       final source = generator.generateTestCode(script, [
         step('assertText', 'username', value: 'a', id: 0),
         step('assertText', 'password', value: 'b', id: 1),
       ]);
 
-      // Two `final node = ...` in one block would not compile.
-      expect(source.contains('final node0 ='), isTrue);
-      expect(source.contains('final node1 ='), isTrue);
-      expect(RegExp(r'final node\d+ =').allMatches(source).length, 2);
+      // The old generator declared `final node = ...` per assertion, so two
+      // of them in one body did not compile. Assertions are expressions now,
+      // which is why the numbering that used to fix that is gone.
+      expect(source.contains('final node'), isFalse);
+      expect(RegExp(r'expect\(manager\.readText').allMatches(source).length, 2);
     });
 
     test('escapes a recorded value holding a quote', () {
@@ -135,7 +150,7 @@ void _regressionTests() {
           step('enterText', 'username'),
         ]);
 
-        expect(source.contains("enterText('username', '')"), isTrue);
+        expect(source.contains("SelfTestLocator.id('username'), '')"), isTrue);
         expect(source.contains('null'), isFalse);
       },
     );
@@ -165,7 +180,7 @@ void _regressionTests() {
         const [],
       );
 
-      expect(source.contains(r"test('user\'s login'"), isTrue);
+      expect(source.contains(r"testWidgets('user\'s login'"), isTrue);
     });
   });
 }
