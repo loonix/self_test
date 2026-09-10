@@ -1,3 +1,4 @@
+import '../locator/locator.dart';
 import '../models.dart';
 
 /// Storage for recorded test scripts and their steps.
@@ -24,6 +25,7 @@ abstract class RecordingStore {
     required String action,
     required String targetId,
     String? value,
+    SelfTestLocator? locator,
   });
 
   /// All stored scripts. Returns empty rather than throwing when the store is
@@ -78,6 +80,7 @@ class InMemoryRecordingStore implements RecordingStore {
     required String action,
     required String targetId,
     String? value,
+    SelfTestLocator? locator,
   }) async {
     final order = _steps.values.where((s) => s.scriptId == scriptId).length;
     final step = RecordedStep(
@@ -86,6 +89,7 @@ class InMemoryRecordingStore implements RecordingStore {
       order: order,
       action: action,
       targetId: targetId,
+      locator: locator,
       value: value,
     );
     _steps[step.id] = step;

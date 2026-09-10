@@ -184,6 +184,28 @@ class SelfTestManager {
     _currentViewingScript = script;
   }
 
+  /// Records that [locator] is showing [expected], defaulting to whatever it
+  /// shows right now.
+  ///
+  /// This is what makes a recording worth replaying: without an assertion the
+  /// generated test drives the app and checks nothing, so it passes on a
+  /// screen that went blank.
+  ///
+  /// Pass `expectText: false` to record only that the widget is there, which
+  /// is the right assertion for a button or an icon.
+  Future<void> recordAssertion(
+    SelfTestLocator locator, {
+    String? expected,
+    bool expectText = true,
+  }) async {
+    if (!expectText) {
+      await _recordUserAction('assertExists', locator.value, null, locator);
+      return;
+    }
+    final value = expected ?? readText(locator) ?? '';
+    await _recordUserAction('assertText', locator.value, value, locator);
+  }
+
   /// Adds an assertion for the given id.
   Future<void> addAssertion(String id) async {
     try {
@@ -191,7 +213,12 @@ class SelfTestManager {
       final node = _activeTestNodes[id];
       if (node != null) {
         final value = node.currentText ?? '';
-        await _recordUserAction('assertText', id, value);
+        await _recordUserAction(
+          'assertText',
+          id,
+          value,
+          SelfTestLocator.id(id),
+        );
         debugPrint(
           '[SelfTest] Added assertion: assertText on "$id" with value "$value"',
         );
@@ -322,6 +349,7 @@ class SelfTestManager {
     String action,
     String targetId, [
     String? value,
+    SelfTestLocator? locator,
   ]) async {
     try {
       if (!_isRecordingModeActive || _currentScriptId == null) {
@@ -335,6 +363,7 @@ class SelfTestManager {
         action: action,
         targetId: targetId,
         value: value,
+        locator: locator,
       );
     } catch (e, stackTrace) {
       debugPrint('[SelfTest] ERROR recording action: $e');
@@ -568,7 +597,10 @@ class SelfTestManager {
     Future<void> Function() gesture,
   ) async {
     if (_isRecordingModeActive) {
-      await _recordUserAction(action, locator.value, value);
+      // The whole locator, not just its value: recording only the value of a
+      // text locator and replaying it as an id looks for a widget registered
+      // under "Sign in", which is not what was driven.
+      await _recordUserAction(action, locator.value, value, locator);
     }
     _drivingDepth++;
     try {
@@ -585,7 +617,7 @@ class SelfTestManager {
   Future<void> recordTap(String id) async {
     if (_drivingDepth > 0) return;
     if (!_isRecordingModeActive) return;
-    await _recordUserAction('trigger', id);
+    await _recordUserAction('trigger', id, null, SelfTestLocator.id(id));
   }
 
   /// Records a text change the user just made on a registered widget.
@@ -593,7 +625,7 @@ class SelfTestManager {
     _activeTestNodes[id]?.currentText = value;
     if (_drivingDepth > 0) return;
     if (!_isRecordingModeActive) return;
-    await _recordUserAction('enterText', id, value);
+    await _recordUserAction('enterText', id, value, SelfTestLocator.id(id));
   }
 
   /// Taps the widget registered under [id].
@@ -701,53 +733,7 @@ class SelfTestManager {
         debugPrint(
           '[SelfTest] Executing step: ${step.action} on ${step.targetId}',
         );
-        switch (step.action) {
-          case 'trigger':
-            await trigger(step.targetId);
-            break;
-          case 'enterText':
-            if (step.value != null) {
-              await enterText(step.targetId, step.value!);
-            }
-            break;
-          case 'assertText':
-            final node = _activeTestNodes[step.targetId];
-            if (node == null) {
-              debugPrint(
-                '[SelfTest] ASSERTION FAILED: Widget "${step.targetId}" not found',
-              );
-              throw AssertionError(
-                'Assertion failed: Widget "${step.targetId}" not found for text assertion',
-              );
-            }
-            if (node.currentText != step.value) {
-              debugPrint(
-                '[SelfTest] ASSERTION FAILED: Expected "${step.value}" but got "${node.currentText}"',
-              );
-              throw AssertionError(
-                'Assertion failed: Expected "${step.value}" but got "${node.currentText}" for widget "${step.targetId}"',
-              );
-            }
-            debugPrint(
-              '[SelfTest] ASSERTION PASSED: "${step.targetId}" has text "${step.value}"',
-            );
-            break;
-          case 'assertExists':
-            if (!_activeTestNodes.containsKey(step.targetId)) {
-              debugPrint(
-                '[SelfTest] ASSERTION FAILED: Widget "${step.targetId}" does not exist',
-              );
-              throw AssertionError(
-                'Assertion failed: Widget "${step.targetId}" does not exist',
-              );
-            }
-            debugPrint(
-              '[SelfTest] ASSERTION PASSED: "${step.targetId}" exists',
-            );
-            break;
-          default:
-            debugPrint('[SelfTest] Unknown action: ${step.action}');
-        }
+        await replayStep(step);
         await waitForAnimations();
       }
 
@@ -764,6 +750,56 @@ class SelfTestManager {
       // Deactivate test mode
       setTestMode(false);
       restartWidgetTree();
+    }
+  }
+
+  /// Replays one recorded step.
+  ///
+  /// A step recorded against a locator replays through the locator, which is
+  /// what lets a session recorded on an app with no wrappers replay at all. A
+  /// step recorded against an id keeps the id path, because that one falls
+  /// back to the registered callback when the widget is not on screen and a
+  /// recording made that way relies on it.
+  Future<void> replayStep(RecordedStep step) async {
+    final locator = step.target;
+    final byId = locator.strategy == LocatorStrategy.id;
+
+    switch (step.action) {
+      case 'trigger':
+        byId ? await trigger(step.targetId) : await tap(locator);
+      case 'doubleTap':
+        await doubleTap(locator);
+      case 'longPress':
+        await longPress(locator);
+      case 'enterText':
+        final text = step.value ?? '';
+        byId
+            ? await enterText(step.targetId, text)
+            : await typeInto(locator, text);
+      case 'submit':
+        await submit(locator);
+      case 'assertText':
+        final actual = byId
+            ? _activeTestNodes[step.targetId]?.currentText
+            : readText(locator);
+        if (actual != step.value) {
+          throw AssertionError(
+            'Assertion failed for $locator: expected "${step.value}", '
+            'found "$actual".',
+          );
+        }
+      case 'assertExists':
+        final present = byId
+            ? _activeTestNodes.containsKey(step.targetId) || exists(locator)
+            : exists(locator);
+        if (!present) {
+          throw AssertionError('Assertion failed: $locator is not there.');
+        }
+      default:
+        printWarning(
+          'Recorded action "${step.action}" is not something this version can '
+          'replay, so the step was skipped.',
+        );
     }
   }
 

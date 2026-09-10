@@ -1,3 +1,5 @@
+import 'locator/locator.dart';
+
 /// A recorded test script: a named sequence of user actions captured from a
 /// running app.
 ///
@@ -56,6 +58,13 @@ class RecordedStep {
   String targetId;
   String? value;
 
+  /// How the widget was addressed when the step was recorded.
+  ///
+  /// Null for a step recorded before locators existed, and for a step recorded
+  /// against a registered id. [targetId] is kept either way, so an old
+  /// recording still replays and an old store still reads.
+  SelfTestLocator? locator;
+
   RecordedStep({
     required this.id,
     required this.scriptId,
@@ -63,9 +72,14 @@ class RecordedStep {
     required this.action,
     required this.targetId,
     this.value,
+    this.locator,
   });
 
+  /// The locator to replay this step with: the recorded one, or the id.
+  SelfTestLocator get target => locator ?? SelfTestLocator.id(targetId);
+
   factory RecordedStep.fromJson(Map<String, dynamic> json) {
+    final locator = json['locator'];
     return RecordedStep(
       id: json['id'] as int,
       scriptId: json['scriptId'] as int,
@@ -73,6 +87,9 @@ class RecordedStep {
       action: json['action'] as String,
       targetId: json['targetId'] as String,
       value: json['value'] as String?,
+      locator: locator is Map<String, dynamic>
+          ? SelfTestLocator.fromJson(locator)
+          : null,
     );
   }
 
@@ -84,6 +101,7 @@ class RecordedStep {
       'action': action,
       'targetId': targetId,
       'value': value,
+      if (locator != null) 'locator': locator!.toJson(),
     };
   }
 }
