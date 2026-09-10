@@ -1,0 +1,167 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A push that lands while an earlier run is still going cancels it: nobody
+# reads the older result once the newer commit exists.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: 3.27.0
+
+jobs:
+  dart:
+    name: Analyze and test (Dart/Flutter)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      # Dependencies are resolved PER PACKAGE. A root `flutter pub get`
+      # resolves the root and example only, and every sub-package then reports
+      # its imports as unresolved: 38 phantom errors that look like broken
+      # code. Do not collapse this into one step.
+      - name: Resolve dependencies
+        run: |
+          set -euo pipefail
+          for dir in . example packages/self_test_bridge \
+                     packages/self_test_inspector \
+                     packages/self_test_devtools_extension; do
+            echo "::group::flutter pub get ($dir)"
+            (cd "$dir" && flutter pub get)
+            echo "::endgroup::"
+          done
+          echo "::group::dart pub get (packages/self_test_gen)"
+          (cd packages/self_test_gen && dart pub get)
+          echo "::endgroup::"
+
+      - name: Verify formatting
+        run: dart format --output=none --set-exit-if-changed .
+
+      # Fails the build on any error, and on any warning outside the bridge.
+      # The bridge carries 10 pre-existing warnings; they are tracked, not
+      # tolerated forever, and this keeps new ones out of everything else.
+      - name: Analyze
+        run: |
+          set -euo pipefail
+          dart analyze > analyze.txt 2>&1 || true
+          cat analyze.txt
+          errors=$(grep -c '^ *error -' analyze.txt || true)
+          new_warnings=$(grep '^ *warning -' analyze.txt \
+            | grep -vc 'packages/self_test_bridge' || true)
+          echo "errors=$errors new_warnings=$new_warnings"
+          if [ "$errors" -ne 0 ]; then
+            echo "::error::$errors analyzer error(s)"; exit 1
+          fi
+          if [ "$new_warnings" -ne 0 ]; then
+            echo "::error::$new_warnings warning(s) outside packages/self_test_bridge"
+            exit 1
+          fi
+
+      - name: Test the core
+        run: flutter test
+
+      - name: Test the code generator
+        run: dart test
+        working-directory: packages/self_test_gen
+
+      - name: Test the bridge
+        run: flutter test
+        working-directory: packages/self_test_bridge
+
+  quickstart:
+    name: The README quickstart works end to end
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      # The documented headline feature was broken for a full release without
+      # anyone noticing, in three independent ways at once, because nothing
+      # ever ran it. This job runs it.
+      - name: Resolve
+        run: |
+          set -euo pipefail
+          flutter pub get
+          (cd packages/self_test_gen && dart pub get)
+          (cd example && flutter pub get)
+
+      - name: Regenerate the example controller
+        working-directory: example
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: The generator produced a controller
+        working-directory: example
+        run: |
+          set -euo pipefail
+          test -f lib/example.g.dart || {
+            echo "::error::build_runner produced no lib/example.g.dart."
+            echo "The generator found no annotations. Check that example.dart"
+            echo "does not import its own generated file: that makes the"
+            echo "library unresolvable and the annotations invisible."
+            exit 1
+          }
+          grep -q 'class ExampleStateTestController' lib/example.g.dart
+
+      # Committed generated code that no longer matches its source is worse
+      # than none: it compiles, so nothing complains, and it lies.
+      - name: Committed generated code is up to date
+        run: git diff --exit-code -- example/lib/example.g.dart
+
+      - name: Drive the app through the generated controller
+        working-directory: example
+        run: flutter test
+
+  mcp:
+    name: Build the MCP server
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: packages/self_test_mcp/package-lock.json
+
+      - name: Install
+        working-directory: packages/self_test_mcp
+        # No lockfile is committed yet, so `npm ci` cannot be used. Switch to
+        # it once one is.
+        run: npm install --ignore-scripts
+
+      - name: Build
+        working-directory: packages/self_test_mcp
+        run: npm run build
+
+  pana:
+    name: pub.dev score
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Score the core package
+        run: |
+          set -euo pipefail
+          flutter pub get
+          dart pub global activate pana
+          dart pub global run pana --no-warning --exit-code-threshold 0 .
