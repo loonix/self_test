@@ -5,7 +5,12 @@ import 'package:self_test/self_test.dart';
 import 'package:self_test_example/main.dart';
 
 void main() {
-  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  // The live binding drops every pointer event that did not come from the
+  // WidgetTester, and self_test drives the app with real ones. Without this
+  // the taps land nowhere and the failures point at the app instead. It has
+  // to be set here: the binding checks that no test changed it.
+  binding.shouldPropagateDevicePointerEvents = true;
 
   group('Self-Test End-to-End Tests', () {
     setUp(() {
