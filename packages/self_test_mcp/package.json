@@ -42,7 +42,7 @@
     "build": "tsc && node -e \"require('fs').chmodSync('dist/index.js', 0o755)\"",
     "start": "node dist/index.js",
     "dev": "tsx watch src/index.ts",
-    "test": "npm run build && node --test \"test/*.test.js\"",
+    "test": "npm run build && node --test test/*.test.js",
     "postinstall": "playwright install chromium || true"
   },
   "dependencies": {
