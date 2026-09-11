@@ -1,0 +1,67 @@
+# What `dart pub publish` must not put inside the self_test archive.
+#
+# A `.pubignore` REPLACES `.gitignore` for packaging, it does not add to it, so
+# everything git ignores has to be repeated here. Leaving it out is not a
+# cosmetic mistake: with only the monorepo rules below, the archive went from
+# 2 MB to 36 MB because every build artifact git hides came back.
+
+# --- The reason this file exists -------------------------------------------
+# The root pubspec sits at the top of a monorepo, so without this the core
+# package ships every sibling package with it: the bridge, the generator, the
+# inspector, the DevTools extension source and the MCP server's Node tree.
+# Two of those are published separately on their own version numbers.
+packages/
+
+# The example is published (pana scores it, and it is the quickstart), but
+# only the parts a reader opens. The platform scaffolding is `flutter create`
+# output and nobody reads it from pub.dev.
+example/android/
+example/ios/
+example/linux/
+example/macos/
+example/windows/
+example/web/
+
+# Monorepo wiring. It points at ../packages, which this file just removed from
+# the archive, so publishing it would hand a reader an example that cannot
+# resolve. Its pubspec.yaml already declares the constraints a real consumer
+# writes, which is the point of keeping the two files apart.
+example/pubspec_overrides.yaml
+
+# --- Repeated from .gitignore ----------------------------------------------
+.dart_tool/
+**/.dart_tool/
+build/
+**/doc/api/
+**/pubspec.lock
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+node_modules/
+**/node_modules/
+**/dist/
+**/package-lock.json
+.tasks/
+.claude/
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.buildlog/
+.history
+.svn/
+migrate_working_dir/
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# --- Exceptions, same as .gitignore ----------------------------------------
+# `extension/devtools/` is how pub.dev and DevTools discover the panel, so the
+# built bundle has to travel inside this archive even though `build/` above
+# would otherwise drop it. canvaskit stays out: it is 31 MB of the bundle and
+# DevTools serves its own copy.
+!extension/devtools/build/
+!extension/devtools/build/**
+extension/devtools/build/canvaskit/
