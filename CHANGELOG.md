@@ -1,5 +1,40 @@
 ## 0.2.0
 
+### Breaking
+
+- Minimum Flutter is now 3.35.0 (Dart 3.9.0), raised from a declared 3.24.0
+  that was never true. `lib/recording_fields` passes widget properties that
+  only exist from 3.35 (`Switch.activeThumbColor` and friends), so installing
+  0.1.0 on Flutter 3.24 produced eight compile errors inside this package.
+  3.35.0 is the oldest version the whole suite is verified against, and CI now
+  runs against it on every push so the number stays honest.
+
+- The `build_runner` generator has moved to its own package, `self_test_gen`.
+  Add it to `dev_dependencies` to keep using annotations. In exchange, the core
+  package no longer depends on `analyzer`, `source_gen`, `build` or
+  `dart_style`, so none of them reach your app any more. Its only dependencies
+  are Flutter and `meta`.
+- Generated controller methods are camelCase, matching what the README always
+  documented: `tapLoginBtn()` rather than `tap_login_btn()`. A private class
+  such as `_LoginFormState` now generates `LoginFormStateTestController`, so it
+  can be referenced from a test.
+- Do not write a `part` directive for the generated file and do not import it
+  from its own source. The builder emits a standalone library; import it from
+  your test. Importing it from its own source leaves that library unresolvable,
+  and the generator then finds no annotations at all.
+- Recording persistence is an interface. `RecordingStore` and
+  `InMemoryRecordingStore` replace `DatabaseService`, and `hive_ce` and
+  `path_provider` are gone. Pass your own implementation to
+  `SelfTestManager().useRecordingStore()` for recordings that survive a
+  restart. `initializeDatabase` and `clearDatabase` are deprecated aliases for
+  `initializeRecordingStore` and `clearRecordings`.
+- The recording model formerly called `TestStep` is now `RecordedStep`.
+  `TestStep` remains the scenario command type it always was in the public API.
+- `TestCodeGenerator` returns strings instead of writing files, so the caller
+  decides where generated code goes.
+- `WidgetCatalog` and `FlowDiscovery` are deprecated. Both only ever returned
+  an empty map.
+
 ### Added
 
 - **Universal locators.** `SelfTestLocator` finds a widget by the text it
@@ -38,6 +73,16 @@
 - `useClock` lets a widget test hand the driver `tester.pump`, which is what a
   long press needs to be held rather than silently degrading to a tap.
 
+
+- Recording, replay and test code generation, merged in from the
+  `feature/visual_tests` line: a recording control panel, a recording-field
+  registry, and `TestCodeGenerator`.
+- A DevTools extension and a standalone inspector under `packages/`.
+- `SelfTestManager.captureScreenshotBytes()` for platform-neutral capture, and
+  `clearScreenshotKey()` so a disposed boundary cannot leave a stale key.
+- MIT license, replacing the previous custom terms.
+- CI covering every package, including a job that runs the README quickstart.
+
 ### Security
 
 - **self_test is inert in a release build.** Every action and every query is
@@ -75,42 +120,6 @@
   `WidgetTester`. The driver now detects it and names the one line that fixes
   it, `binding.shouldPropagateDevicePointerEvents = true`.
 
-### Breaking
-
-- Minimum Flutter is now 3.35.0 (Dart 3.9.0), raised from a declared 3.24.0
-  that was never true. `lib/recording_fields` passes widget properties that
-  only exist from 3.35 (`Switch.activeThumbColor` and friends), so installing
-  0.1.0 on Flutter 3.24 produced eight compile errors inside this package.
-  3.35.0 is the oldest version the whole suite is verified against, and CI now
-  runs against it on every push so the number stays honest.
-
-- The `build_runner` generator has moved to its own package, `self_test_gen`.
-  Add it to `dev_dependencies` to keep using annotations. In exchange, the core
-  package no longer depends on `analyzer`, `source_gen`, `build` or
-  `dart_style`, so none of them reach your app any more. Its only dependencies
-  are Flutter and `meta`.
-- Generated controller methods are camelCase, matching what the README always
-  documented: `tapLoginBtn()` rather than `tap_login_btn()`. A private class
-  such as `_LoginFormState` now generates `LoginFormStateTestController`, so it
-  can be referenced from a test.
-- Do not write a `part` directive for the generated file and do not import it
-  from its own source. The builder emits a standalone library; import it from
-  your test. Importing it from its own source leaves that library unresolvable,
-  and the generator then finds no annotations at all.
-- Recording persistence is an interface. `RecordingStore` and
-  `InMemoryRecordingStore` replace `DatabaseService`, and `hive_ce` and
-  `path_provider` are gone. Pass your own implementation to
-  `SelfTestManager().useRecordingStore()` for recordings that survive a
-  restart. `initializeDatabase` and `clearDatabase` are deprecated aliases for
-  `initializeRecordingStore` and `clearRecordings`.
-- The recording model formerly called `TestStep` is now `RecordedStep`.
-  `TestStep` remains the scenario command type it always was in the public API.
-- `TestCodeGenerator` returns strings instead of writing files, so the caller
-  decides where generated code goes.
-- `WidgetCatalog` and `FlowDiscovery` are deprecated. Both only ever returned
-  an empty map.
-
-### Fixed
 
 - Annotations on class members are found. `LibraryReader.annotatedWith` only
   visits top-level declarations, so annotating a handler, which is what the
@@ -131,17 +140,6 @@
 - `self_test_gen` moved to `source_gen` 2.x and `analyzer` 7.x. Its output is
   unchanged; the old pins held it to a `dart_style` that predates the Dart 3.7
   formatter, so generated code could not match `dart format`.
-
-### Added
-
-- Recording, replay and test code generation, merged in from the
-  `feature/visual_tests` line: a recording control panel, a recording-field
-  registry, and `TestCodeGenerator`.
-- A DevTools extension and a standalone inspector under `packages/`.
-- `SelfTestManager.captureScreenshotBytes()` for platform-neutral capture, and
-  `clearScreenshotKey()` so a disposed boundary cannot leave a stale key.
-- MIT license, replacing the previous custom terms.
-- CI covering every package, including a job that runs the README quickstart.
 
 ## 0.1.0
 
