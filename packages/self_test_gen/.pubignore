@@ -1,0 +1,13 @@
+# A .pubignore REPLACES .gitignore for packaging rather than adding to it, so
+# the build artefacts git hides are repeated here.
+.dart_tool/
+build/
+pubspec.lock
+**/doc/api/
+
+# Monorepo wiring. `dart pub publish` warns about a package whose non-dev
+# dependencies are overridden, and rightly: this file points self_test at
+# ../.., which does not exist for anyone who installed from pub.dev. pub only
+# reads it when this package is the root, so keeping it out of the archive
+# costs nothing and removes the warning.
+pubspec_overrides.yaml

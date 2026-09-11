@@ -7,10 +7,21 @@
 
 # --- The reason this file exists -------------------------------------------
 # The root pubspec sits at the top of a monorepo, so without this the core
-# package ships every sibling package with it: the bridge, the generator, the
-# inspector, the DevTools extension source and the MCP server's Node tree.
-# Two of those are published separately on their own version numbers.
-packages/
+# package ships every sibling package with it: the bridge, the inspector, the
+# DevTools extension source and the MCP server's Node tree, none of which is
+# any use to someone who installed self_test.
+#
+# Listed one by one rather than as `packages/`, and that is not tidiness. An
+# ignore file applies to every package published from underneath it, so
+# `packages/` hid self_test_gen from its OWN `dart pub publish`: the dry run
+# came back with an empty archive and "The pubspec is hidden, probably by
+# .gitignore or pubignore". self_test_gen is the one sibling that publishes,
+# so it is the one that must not be named here. The cost is its 7 KB of source
+# riding along inside the core archive, which is the cheaper wart.
+packages/self_test_bridge/
+packages/self_test_devtools_extension/
+packages/self_test_inspector/
+packages/self_test_mcp/
 
 # The example is published (pana scores it, and it is the quickstart), but
 # only the parts a reader opens. The platform scaffolding is `flutter create`
