@@ -95,14 +95,24 @@ jobs:
         working-directory: packages/self_test_bridge
 
   quickstart:
-    name: The README quickstart works end to end
+    name: The quickstart works end to end (Flutter ${{ matrix.flutter }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Both ends, same as the analyze job, because the generator is the one
+        # thing here whose dependencies pin an analyzer, and an analyzer that
+        # suits one end of the range can be unable to parse the other. It
+        # happened: analyzer 7 could not serialise Dart 3.12's dot shorthands,
+        # so `build_runner build` worked on 3.35.0 and crashed on 3.47.2 while
+        # this job only ever ran one of them.
+        flutter: ['3.35.0', '3.47.2']
     steps:
       - uses: actions/checkout@v4
 
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
+          flutter-version: ${{ matrix.flutter }}
           cache: true
 
       # The documented headline feature was broken for a full release without
