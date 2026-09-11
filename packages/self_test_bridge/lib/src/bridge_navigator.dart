@@ -44,8 +44,9 @@ abstract interface class BridgeNavigator {
   /// With [replace] the current entry is replaced rather than stacked on, which
   /// is what the `navigate` command's `replace` flag asks for.
   ///
-  /// The returned future completes when the navigation has been started and the
-  /// app has had a chance to settle, not when the destination is later popped.
+  /// The returned future completes when the navigation has been started, not
+  /// when the destination is later popped. The bridge settles the frame after
+  /// calling this, so an implementation does not have to.
   Future<void> goTo(String location, {bool replace = false});
 
   /// Goes back one entry, if there is one to go back to.
@@ -117,19 +118,18 @@ class NavigatorStateBridgeNavigator implements BridgeNavigator {
     final state = _requireState();
     // pushNamed's future completes when the pushed route is *popped*, not when
     // it is shown, so awaiting it here would hang until something navigated
-    // back. The bridge only needs the push to have been started.
+    // back. The bridge only needs the push to have been started; it settles
+    // the frame itself afterwards.
     if (replace) {
       unawaited(state.pushReplacementNamed<void, void>(location));
     } else {
       unawaited(state.pushNamed<void>(location));
     }
-    await _settle();
   }
 
   @override
   Future<void> goBack() async {
     await _requireState().maybePop();
-    await _settle();
   }
 
   @override
@@ -160,13 +160,6 @@ class NavigatorStateBridgeNavigator implements BridgeNavigator {
           'arguments': route.settings.arguments.toString(),
       },
   ];
-
-  /// Lets the framework build the frame the navigation caused, so a command
-  /// that reads the tree straight after does not read the old one.
-  Future<void> _settle() => WidgetsBinding.instance.endOfFrame.timeout(
-    const Duration(seconds: 1),
-    onTimeout: () {},
-  );
 }
 
 class _BridgeNavigatorObserver extends NavigatorObserver {

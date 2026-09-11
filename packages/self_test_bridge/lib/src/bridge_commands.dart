@@ -56,7 +56,31 @@ class BridgeResponse {
 class BridgeCommands {
   // =====================================================================
   // LOCATORS
+  //
+  // These five take a `locator` object rather than a registered widget id:
+  //
+  //   {"by": "text|key|id|semanticsLabel|type|tooltip",
+  //    "value": "Sign in", "exact": true, "index": 0}
+  //
+  // `exact` and `index` are optional. Every action command accepts the same
+  // object and prefers it over `widgetId`.
   // =====================================================================
+
+  /// Every actionable widget on screen, as WidgetSnapshot JSON.
+  static const String describeScreen = 'describeScreen';
+
+  /// The first widget a locator matches, or null.
+  static const String find = 'find';
+
+  /// Whether a locator matches anything in the tree.
+  static const String exists = 'exists';
+
+  /// Whether a locator matches something the user can see.
+  static const String isVisible = 'isVisible';
+
+  /// The text the widget a locator matches is showing.
+  static const String readText = 'readText';
+
   static const String getSnapshot = 'getSnapshot';
   static const String getWidgetCatalog = 'getWidgetCatalog';
   static const String getFlowGraph = 'getFlowGraph';
@@ -82,6 +106,9 @@ class BridgeCommands {
   static const String select = 'select';
   static const String toggle = 'toggle';
   static const String setSlider = 'setSlider';
+
+  /// Fires the keyboard action of a text field.
+  static const String submit = 'submit';
 
   // Legacy (kept for compatibility)
   static const String enterText = 'enterText';

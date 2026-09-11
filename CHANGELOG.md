@@ -26,6 +26,25 @@
   drawn at those coordinates now, so a driven gesture refuses instead.
 - `useClock` lets a widget test hand the driver `tester.pump`, which is what a
   long press needs to be held rather than silently degrading to a tap.
+- **The bridge speaks locators.** Every command that named a widget by its
+  registered id now also takes a `locator` object, and prefers it when both are
+  sent:
+
+  ```json
+  {"by": "text|key|id|semanticsLabel|type|tooltip",
+   "value": "Sign in", "exact": true, "index": 0}
+  ```
+
+  `tap`, `doubleTap`, `longPress`, `type`/`enterText`, `submit`, `drag`,
+  `scroll` and `clear` route through the manager's locator API when given one,
+  so they reach widgets the app never registered. `describeScreen`, `find`,
+  `exists`, `isVisible` and `readText` are new and take a locator only;
+  `describeScreen` answers with `WidgetSnapshot` JSON. `submit` is a new
+  command.
+
+  A malformed locator is answered with what is wrong with it - an unknown
+  `by`, a non-string `value`, a negative `index` - rather than a cast error
+  from three layers down.
 
 ### Security
 
@@ -50,6 +69,20 @@
   a remote control for it.
 
 ### Fixed
+
+- **The bridge answered "done" before it had done anything.** `tap`, `type` and
+  eleven other commands called `SelfTestManager.trigger` and `enterText`
+  without awaiting them. Those methods became async when they started
+  dispatching real pointer events, so an agent that tapped and then read the
+  screen was told the tap was finished and shown the screen from before it.
+  `unawaited_futures` is now enforced in that package so it cannot come back.
+- Time-travel capture-on-interaction and test-step recording were implemented
+  and then never called, so both recorded nothing. Recorded comments were
+  dropped between the command and the step.
+- The widget rebuild profiler reported every rebuild as "Frame sample" instead
+  of the reason it had worked out.
+- Starting memory profiling twice abandoned the first timer, leaving two
+  running and interleaving their samples.
 
 - A recorded tap fired the app's handler twice. The recording wrappers called
   the driving API to record the action, which invoked the wrapper's callback,

@@ -674,6 +674,16 @@ class SelfTestBridge {
   }
 
   /// Handle a command from the MCP server
+  /// Runs [command] exactly as one arriving over the socket would, error
+  /// handling included.
+  ///
+  /// The dispatcher is where the bridge's behaviour lives, and a test that
+  /// drove it through a real WebSocket could not also pump a widget tree:
+  /// `flutter_test`'s fake clock and real socket I/O do not mix.
+  @visibleForTesting
+  Future<BridgeResponse> dispatchForTest(BridgeCommand command) =>
+      _handleCommand(command);
+
   Future<BridgeResponse> _handleCommand(BridgeCommand command) async {
     debugPrint('[SelfTestBridge] Handling command: ${command.command}');
 
@@ -730,6 +740,283 @@ class SelfTestBridge {
     _recordInteractionStep(action, params);
   }
 
+  // ===========================================================================
+  // LOCATORS
+  //
+  // Every command that named a widget by its registered id also takes a
+  // `locator` object, which is the wire form of SelfTestLocator:
+  //
+  //   {"by": "text|key|id|semanticsLabel|type|tooltip",
+  //    "value": "Sign in", "exact": true, "index": 0}
+  //
+  // A locator wins over widgetId when both are sent, because a caller that
+  // sends one has the more precise intent. Locators need no registration: they
+  // resolve against the element tree, so they reach widgets a
+  // SelfTestableWidget id never could.
+  // ===========================================================================
+
+  /// The locator a command sent, or null when it sent none.
+  ///
+  /// Throws with the reason when a locator is present but malformed, so the
+  /// caller is told what is wrong with it rather than being handed a cast
+  /// error from three layers down.
+  SelfTestLocator? _locatorFrom(Map<String, dynamic> params) {
+    final raw = params['locator'];
+    if (raw == null) return null;
+    if (raw is! Map) {
+      throw Exception(
+        'The "locator" parameter must be an object such as '
+        '{"by": "text", "value": "Sign in"}, not a ${raw.runtimeType}.',
+      );
+    }
+
+    final json = Map<String, dynamic>.from(raw);
+    final index = json['index'];
+    if (index != null && (index is! int || index < 0)) {
+      throw Exception(
+        'Locator "index" must be an integer of 0 or more, not '
+        '${_describeJsonValue(index)}.',
+      );
+    }
+    final exact = json['exact'];
+    if (exact != null && exact is! bool) {
+      throw Exception(
+        'Locator "exact" must be true or false, not '
+        '${_describeJsonValue(exact)}.',
+      );
+    }
+
+    try {
+      return SelfTestLocator.fromJson(json);
+    } on ArgumentError catch (e) {
+      throw Exception('Bad locator: ${e.message}');
+    }
+  }
+
+  /// The locator a command requires, for the commands that take nothing else.
+  SelfTestLocator _requireLocator(Map<String, dynamic> params) {
+    final locator = _locatorFrom(params);
+    if (locator == null) {
+      throw Exception(
+        'This command needs a "locator" parameter, such as '
+        '{"by": "text", "value": "Sign in"}.',
+      );
+    }
+    return locator;
+  }
+
+  static String _describeJsonValue(Object? value) =>
+      value is String ? '"$value"' : '$value';
+
+  /// The registered widget id a command is aimed at.
+  ///
+  /// Commands that still work through the registered-node map need an id, so a
+  /// locator is resolved against the tree and the id of what it matched is
+  /// used. A locator can match a widget the app never registered, and that
+  /// combination is refused rather than silently acting on something else.
+  String _targetId(Map<String, dynamic> params, {String key = 'widgetId'}) {
+    final locator = _locatorFrom(params);
+    if (locator != null) {
+      final matches = SelfTestManager().findAll(locator);
+      if (matches.isEmpty) {
+        throw Exception('No widget matches $locator.');
+      }
+      if (locator.index >= matches.length) {
+        throw Exception(
+          'Locator $locator asked for index ${locator.index} but only '
+          '${matches.length} widget(s) match.',
+        );
+      }
+      final id = matches[locator.index].id;
+      if (id == null) {
+        throw Exception(
+          'The widget matching $locator has no self-test id, and this command '
+          'works through the registered-widget map. Either wrap it in a '
+          'SelfTestableWidget or use a command that takes a locator directly.',
+        );
+      }
+      return id;
+    }
+
+    final widgetId = params[key];
+    if (widgetId is! String) {
+      throw Exception('This command needs either a "locator" or a "$key".');
+    }
+    return widgetId;
+  }
+
+  static String _requireString(Map<String, dynamic> params, String key) {
+    final value = params[key];
+    if (value is! String) {
+      throw Exception('This command needs a "$key" parameter.');
+    }
+    return value;
+  }
+
+  // ===========================================================================
+  // ACTION COMMANDS
+  //
+  // Each takes the locator path when one was sent and the registered-id path
+  // otherwise, so a caller written against 0.1.0 keeps working.
+  // ===========================================================================
+
+  Future<Map<String, dynamic>> _tapCommand(Map<String, dynamic> params) async {
+    final manager = SelfTestManager();
+    final locator = _locatorFrom(params);
+    if (locator != null) {
+      await manager.tap(locator);
+    } else {
+      final widgetId = _targetId(params);
+      await _waitForWidget(widgetId, params['timeout'] as int? ?? 5000);
+      await manager.trigger(widgetId);
+    }
+    await manager.waitForAnimations();
+    if (_traceScreenshots) {
+      await _captureTraceScreenshot('tap_${locator ?? params['widgetId']}');
+    }
+    return {'success': true};
+  }
+
+  Future<Map<String, dynamic>> _doubleTapCommand(
+    Map<String, dynamic> params,
+  ) async {
+    final locator = _locatorFrom(params);
+    if (locator != null) {
+      await SelfTestManager().doubleTap(locator);
+    } else {
+      await _doubleTap(_targetId(params));
+    }
+    return {'success': true};
+  }
+
+  Future<Map<String, dynamic>> _longPressCommand(
+    Map<String, dynamic> params,
+  ) async {
+    final durationMs = params['duration'] as int? ?? 500;
+    final locator = _locatorFrom(params);
+    if (locator != null) {
+      await SelfTestManager().longPress(
+        locator,
+        hold: Duration(milliseconds: durationMs),
+      );
+    } else {
+      await _longPress(_targetId(params), durationMs);
+    }
+    return {'success': true};
+  }
+
+  Future<Map<String, dynamic>> _typeCommand(Map<String, dynamic> params) async {
+    final manager = SelfTestManager();
+    final text = params['text'] as String;
+    final append = params['append'] as bool? ?? false;
+    final submit = params['submit'] as bool? ?? false;
+
+    final locator = _locatorFrom(params);
+    if (locator != null) {
+      // typeInto replaces the field's contents, so appending means sending
+      // what is there now plus the new text.
+      final value = append ? '${manager.readText(locator) ?? ''}$text' : text;
+      await manager.typeInto(locator, value);
+      if (submit) await manager.submit(locator);
+    } else {
+      final widgetId = _targetId(params);
+      if (!append) {
+        // Clear by entering empty string first
+        await manager.enterText(widgetId, '');
+      }
+      await manager.enterText(widgetId, text);
+      if (submit) await _sendDoneAction();
+    }
+
+    await manager.waitForAnimations();
+    return {'success': true};
+  }
+
+  Future<Map<String, dynamic>> _submitCommand(
+    Map<String, dynamic> params,
+  ) async {
+    final manager = SelfTestManager();
+    final locator = _locatorFrom(params);
+    if (locator != null) {
+      await manager.submit(locator);
+    } else {
+      await _sendDoneAction();
+    }
+    await manager.waitForAnimations();
+    return {'success': true};
+  }
+
+  /// Fires the keyboard's "done" action at whatever holds focus.
+  ///
+  /// The registered-id path has no field to aim at, so it goes through the
+  /// platform channel the soft keyboard uses.
+  Future<void> _sendDoneAction() async {
+    await ServicesBinding.instance.defaultBinaryMessenger.handlePlatformMessage(
+      'flutter/textinput',
+      const JSONMessageCodec().encodeMessage(<String, dynamic>{
+        'method': 'TextInputClient.performAction',
+        'args': <dynamic>[0, 'TextInputAction.done'],
+      }),
+      (ByteData? data) {},
+    );
+  }
+
+  Future<Map<String, dynamic>> _dragCommand(Map<String, dynamic> params) async {
+    final locator = _locatorFrom(params);
+    if (locator != null) {
+      final dx = (params['dx'] as num?)?.toDouble();
+      final dy = (params['dy'] as num?)?.toDouble();
+      if (dx == null && dy == null) {
+        throw Exception(
+          'A drag by locator needs "dx" and/or "dy": how far to drag from the '
+          'widget the locator matches.',
+        );
+      }
+      await SelfTestManager().dragFrom(locator, Offset(dx ?? 0, dy ?? 0));
+    } else {
+      await _drag(
+        _requireString(params, 'sourceId'),
+        _requireString(params, 'targetId'),
+      );
+    }
+    return {'success': true};
+  }
+
+  Future<Map<String, dynamic>> _scrollCommand(
+    Map<String, dynamic> params,
+  ) async {
+    final direction = params['direction'] as String? ?? 'down';
+    final delta = (params['delta'] as num?)?.toDouble() ?? 300.0;
+
+    final locator = _locatorFrom(params);
+    if (locator != null) {
+      await SelfTestManager().scrollBy(
+        locator,
+        _scrollOffset(direction, delta),
+      );
+    } else {
+      await _scroll(params['widgetId'] as String?, direction, delta);
+    }
+    return {'success': true};
+  }
+
+  static Offset _scrollOffset(String direction, double delta) {
+    switch (direction) {
+      // A scroll gesture moves the content the opposite way to the travel, so
+      // scrolling down drags the content up.
+      case 'down':
+        return Offset(0, -delta);
+      case 'up':
+        return Offset(0, delta);
+      case 'left':
+        return Offset(delta, 0);
+      case 'right':
+        return Offset(-delta, 0);
+      default:
+        throw Exception('Unknown scroll direction: $direction');
+    }
+  }
+
   /// Execute a specific command
   Future<dynamic> _executeCommand(BridgeCommand command) async {
     final manager = SelfTestManager();
@@ -739,6 +1026,24 @@ class SelfTestBridge {
       // =====================================================================
       // LOCATORS
       // =====================================================================
+
+      case 'describeScreen':
+        return {
+          'widgets': manager.describeScreen().map((w) => w.toJson()).toList(),
+        };
+
+      case 'find':
+        final found = manager.findAll(_requireLocator(params));
+        return {'widget': found.isEmpty ? null : found.first.toJson()};
+
+      case 'exists':
+        return {'result': manager.exists(_requireLocator(params))};
+
+      case 'isVisible':
+        return {'result': manager.isVisible(_requireLocator(params))};
+
+      case 'readText':
+        return {'text': manager.readText(_requireLocator(params))};
 
       case 'getSnapshot':
         return _getSnapshot();
@@ -771,47 +1076,22 @@ class SelfTestBridge {
       // =====================================================================
 
       case 'tap':
-        final widgetId = params['widgetId'] as String;
-        final timeout = params['timeout'] as int? ?? 5000;
-        await _waitForWidget(widgetId, timeout);
-        await manager.trigger(widgetId);
-        await manager.waitForAnimations();
-        if (_traceScreenshots) await _captureTraceScreenshot('tap_$widgetId');
-        return {'success': true};
+        return await _tapCommand(params);
 
       case 'type':
       case 'enterText':
-        final widgetId = params['widgetId'] as String;
-        final text = params['text'] as String;
-        final append = params['append'] as bool? ?? false;
-        final submit = params['submit'] as bool? ?? false;
+        return await _typeCommand(params);
 
-        if (!append) {
-          // Clear by entering empty string first
-          await manager.enterText(widgetId, '');
-        }
-        await manager.enterText(widgetId, text);
-
-        if (submit) {
-          // Simulate enter key press
-          await ServicesBinding.instance.defaultBinaryMessenger
-              .handlePlatformMessage(
-                'flutter/textinput',
-                const JSONMessageCodec().encodeMessage(<String, dynamic>{
-                  'method': 'TextInputClient.performAction',
-                  'args': <dynamic>[0, 'TextInputAction.done'],
-                }),
-                (ByteData? data) {},
-              );
-        }
-
-        await manager.waitForAnimations();
-        return {'success': true};
+      case 'submit':
+        return await _submitCommand(params);
 
       case 'clear':
-        final widgetId = params['widgetId'] as String;
-        // Clear by entering empty string
-        await manager.enterText(widgetId, '');
+        final locator = _locatorFrom(params);
+        if (locator != null) {
+          await manager.typeInto(locator, '');
+        } else {
+          await manager.enterText(_targetId(params), '');
+        }
         return {'success': true};
 
       case 'pressKey':
@@ -820,62 +1100,44 @@ class SelfTestBridge {
         return {'success': true};
 
       case 'scroll':
-        final widgetId = params['widgetId'] as String?;
-        final direction = params['direction'] as String;
-        final delta = (params['delta'] as num?)?.toDouble() ?? 300.0;
-        await _scroll(widgetId, direction, delta);
-        return {'success': true};
+        return await _scrollCommand(params);
 
       case 'scrollTo':
-        final widgetId = params['widgetId'] as String;
         final scrollableId = params['scrollableId'] as String?;
         final timeout = params['timeout'] as int? ?? 10000;
-        await _scrollToWidget(widgetId, scrollableId, timeout);
+        await _scrollToWidget(_targetId(params), scrollableId, timeout);
         return {'success': true};
 
       case 'drag':
-        final sourceId = params['sourceId'] as String;
-        final targetId = params['targetId'] as String;
-        await _drag(sourceId, targetId);
-        return {'success': true};
+        return await _dragCommand(params);
 
       case 'longPress':
-        final widgetId = params['widgetId'] as String;
-        final duration = params['duration'] as int? ?? 500;
-        await _longPress(widgetId, duration);
-        return {'success': true};
+        return await _longPressCommand(params);
 
       case 'doubleTap':
-        final widgetId = params['widgetId'] as String;
-        await _doubleTap(widgetId);
-        return {'success': true};
+        return await _doubleTapCommand(params);
 
       case 'hover':
-        final widgetId = params['widgetId'] as String;
-        await _hover(widgetId);
+        await _hover(_targetId(params));
         return {'success': true};
 
       case 'focus':
-        final widgetId = params['widgetId'] as String;
-        await _focus(widgetId);
+        await _focus(_targetId(params));
         return {'success': true};
 
       case 'select':
-        final widgetId = params['widgetId'] as String;
         final value = params['value'] as String;
-        await _selectOption(widgetId, value);
+        await _selectOption(_targetId(params), value);
         return {'success': true};
 
       case 'toggle':
-        final widgetId = params['widgetId'] as String;
         final checked = params['checked'] as bool?;
-        await _toggle(widgetId, checked);
+        await _toggle(_targetId(params), checked);
         return {'success': true};
 
       case 'setSlider':
-        final widgetId = params['widgetId'] as String;
         final value = (params['value'] as num).toDouble();
-        await _setSlider(widgetId, value);
+        await _setSlider(_targetId(params), value);
         return {'success': true};
 
       // =====================================================================
@@ -936,7 +1198,9 @@ class SelfTestBridge {
       case 'wait':
       case 'waitFor':
         final condition = params['condition'] as String;
-        final widgetId = params['widgetId'] as String?;
+        final widgetId = params.containsKey('locator')
+            ? _targetId(params)
+            : params['widgetId'] as String?;
         final text = params['text'] as String?;
         final timeout = params['timeout'] as int? ?? 5000;
         final duration = params['duration'] as int?;
@@ -947,15 +1211,16 @@ class SelfTestBridge {
       // =====================================================================
 
       case 'expect':
-        final widgetId = params['widgetId'] as String;
         final assertion = params['assertion'] as String;
         final expected = params['expected'];
         final timeout = params['timeout'] as int? ?? 5000;
-        return await _expect(widgetId, assertion, expected, timeout);
+        return await _expect(_targetId(params), assertion, expected, timeout);
 
       case 'expectScreenshot':
         final name = params['name'] as String;
-        final widgetId = params['widgetId'] as String?;
+        final widgetId = params.containsKey('locator')
+            ? _targetId(params)
+            : params['widgetId'] as String?;
         final threshold = (params['threshold'] as num?)?.toDouble() ?? 0.01;
         final updateBaseline = params['updateBaseline'] as bool? ?? false;
         final goldensDir = params['goldensDir'] as String?;
@@ -978,10 +1243,9 @@ class SelfTestBridge {
 
       case 'assertWidget':
         // Legacy assertion support
-        final widgetId = params['widgetId'] as String;
         final assertion = params['assertion'] as String;
         final expectedText = params['expectedText'] as String?;
-        return _assertWidget(widgetId, assertion, expectedText);
+        return _assertWidget(_targetId(params), assertion, expectedText);
 
       // =====================================================================
       // SCREENSHOTS & VIDEO
@@ -989,7 +1253,9 @@ class SelfTestBridge {
 
       case 'screenshot':
         final name = params['name'] as String? ?? 'screenshot';
-        final widgetId = params['widgetId'] as String?;
+        final widgetId = params.containsKey('locator')
+            ? _targetId(params)
+            : params['widgetId'] as String?;
         final fullPage = params['fullPage'] as bool? ?? false;
         return await _takeScreenshot(name, widgetId, fullPage);
 
@@ -1231,7 +1497,9 @@ class SelfTestBridge {
 
       case 'frameBudgetCheck':
         final action = params['action'] as String;
-        final widgetId = params['widgetId'] as String?;
+        final widgetId = params.containsKey('locator')
+            ? _targetId(params)
+            : params['widgetId'] as String?;
         final actionParams = params['params'] as Map<String, dynamic>? ?? {};
         final budgetMs = (params['budgetMs'] as num?)?.toDouble() ?? 16.67;
         return await _frameBudgetCheck(
@@ -1497,10 +1765,9 @@ class SelfTestBridge {
         return _stopTestRecording(format);
 
       case BridgeCommands.recordAddAssertion:
-        final widgetId = params['widgetId'] as String;
         final assertion = params['assertion'] as String;
         final expected = params['expected'];
-        return _recordAssertion(widgetId, assertion, expected);
+        return _recordAssertion(_targetId(params), assertion, expected);
 
       case BridgeCommands.recordAddComment:
         final comment = params['comment'] as String;
