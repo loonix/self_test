@@ -120,3 +120,21 @@ This test suite provides comprehensive coverage of:
 - Error handling scenarios (100%)
 - Widget lifecycle management (100%)
 - Integration with Flutter testing framework (100%)
+
+### `record_replay_test.dart`
+The loop the package is for, end to end: drive the app, record what was
+driven, generate a test from the recording, and check the committed
+`generated_test.dart` is still what the recorder produces. Regenerate it by
+running this file.
+
+### `generated_test.dart`
+Generated, committed, and run by CI. It is here rather than in
+`integration_test/` because `flutter test integration_test/x.dart` asks for a
+connected device, so a generated test parked there is one CI never runs.
+
+## Driving an app that was never prepared for testing
+
+Everything in this directory drives the example app through the ids it
+registers, because that is what the example demonstrates. None of it is
+required: see `test/no_wrapper_test.dart` in the root package, which drives a
+login screen that imports nothing from self_test, using locators only.

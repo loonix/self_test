@@ -12,7 +12,9 @@ wrapped or annotated before it can be tested.
 ## Features
 
 ### Core Testing
-- **Direct Callback Invocation** - Execute user actions by calling widget callbacks directly instead of injecting touch events
+- **Universal locators** - Address a widget by the text it paints, its key, its tooltip, its semantics label or its type. No wrapper, no annotation, no change to the app
+- **Real pointer events** - Taps, drags, scrolls and long presses go through `GestureBinding`, so hit testing runs and a button behind a dialog is not reachable
+- **Real text entry** - Typing goes through the same method the soft keyboard calls, so input formatters run and a form validates what was actually typed
 - **Runtime Testing** - Run tests in live app environments without external test frameworks
 - **Text Assertions** - Built-in text validation for input fields
 - **Memory Safe** - Automatic registration/unregistration prevents memory leaks
@@ -113,16 +115,45 @@ debugPrint(bridge.url);               // ws://127.0.0.1:9999?token=...
 
 ### Drive an app that has never heard of this package
 
-```dart
-final app = SelfTestManager();
-
-await app.typeInto(SelfTestLocator.text('Username'), 'ada');
-await app.typeInto(SelfTestLocator.text('Password'), 'correct horse');
-await app.tap(SelfTestLocator.text('Sign in'));
-await tester.pump();
-
-expect(app.exists(SelfTestLocator.text('Welcome, ada')), isTrue);
+```bash
+flutter pub add dev:self_test
 ```
+
+`test/login_test.dart`, complete and copy-pasteable:
+
+```dart
+import 'package:flutter_test/flutter_test.dart';
+import 'package:self_test/self_test.dart';
+
+import 'package:your_app/main.dart';
+
+void main() {
+  final app = SelfTestManager();
+
+  testWidgets('a user can sign in', (tester) async {
+    await tester.pumpWidget(const MyApp());
+    await tester.pumpAndSettle();
+
+    // "Username" is the label beside the field, which is how a person names
+    // it. self_test resolves from the label to the field it belongs to.
+    await app.typeInto(const SelfTestLocator.text('Username'), 'ada');
+    await app.typeInto(const SelfTestLocator.text('Password'), 'correct horse');
+    await app.tap(const SelfTestLocator.text('Sign in'));
+    await tester.pumpAndSettle();
+
+    expect(app.exists(const SelfTestLocator.text('Welcome, ada')), isTrue);
+  });
+}
+```
+
+```bash
+flutter test test/login_test.dart
+```
+
+That is the whole quickstart. `MyApp` is your app, unchanged: no
+`SelfTestRoot`, no `SelfTestableWidget`, no annotations, no generated code.
+This exact flow runs in CI on every push as `test/no_wrapper_test.dart`,
+against an app that imports nothing from this package.
 
 Nothing above needs a change to the app. The locator is resolved against the
 element tree at the moment it is used, and the tap is a real
@@ -411,7 +442,7 @@ The self_test ecosystem consists of three components:
 
 | Package | Description | When to Use |
 |---------|-------------|-------------|
-| **self_test** (this package) | Core testing framework with direct callback invocation | Always - enables runtime testing in your Flutter app |
+| **self_test** (this package) | Core: locators, real pointer events, recording | Always - enables runtime testing in your Flutter app |
 | **self_test_bridge** | WebSocket bridge connecting MCP to Flutter | When using AI-powered testing with Claude |
 | **self_test_mcp** | MCP server with 60+ tools for AI agents | When using AI agents for automated testing |
 
@@ -434,24 +465,22 @@ The self_test MCP (Model Context Protocol) server enables AI agents like Claude 
 #### 1. Install MCP Server
 
 ```bash
-cd packages/self_test_mcp
-npm install && npm run build
-
-# Add to Claude Code automatically
-./scripts/setup-claude.sh
+npx self-test-mcp --help
 ```
 
-Or manually add to `~/.claude/settings.json`:
+Add it to `~/.claude/settings.json`. The token is the one your app prints at
+startup: the bridge refuses a connection without it.
 
 ```json
 {
   "mcpServers": {
     "flutter-self-test": {
-      "command": "node",
-      "args": ["/path/to/self_test_mcp/dist/index.js"],
+      "command": "npx",
+      "args": ["self-test-mcp"],
       "env": {
-        "FLUTTER_APP_HOST": "localhost",
-        "FLUTTER_APP_PORT": "9999"
+        "FLUTTER_APP_HOST": "127.0.0.1",
+        "FLUTTER_APP_PORT": "9999",
+        "SELF_TEST_TOKEN": "<the token the app printed>"
       }
     }
   }
@@ -479,10 +508,13 @@ import 'package:self_test_bridge/self_test_bridge.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Start bridge in debug mode only
+  // Debug only. The bridge refuses to start in a release build anyway: it is
+  // a remote control for the app, and it listens on a socket.
   if (kDebugMode) {
     final bridge = SelfTestBridge(port: 9999);
     await bridge.start();
+    // Loopback and a fresh token per run. Give this to the MCP server.
+    debugPrint(bridge.url);
   }
 
   runApp(SelfTestRoot(child: MyApp()));
@@ -492,6 +524,10 @@ void main() async {
 #### 3. Test with Claude
 
 Open Claude Code and ask:
+
+The agent's first call is `flutter_describe_screen`, which answers with every
+widget on screen and a ready-made locator for each. It does not need your app
+to have been prepared in any way.
 
 ```
 Test the login flow in my Flutter app:
