@@ -186,9 +186,21 @@
   photographed whichever boundary happened to come first in the tree, or
   nothing.
 
-- `self_test_gen` moved to `source_gen` 2.x and `analyzer` 7.x. Its output is
-  unchanged; the old pins held it to a `dart_style` that predates the Dart 3.7
-  formatter, so generated code could not match `dart format`.
+- **The generator could not run on current Flutter at all.** `self_test_gen`
+  pinned `analyzer` below 9, and analyzer 7 throws
+  `Missing implementation of visitDotShorthandPropertyAccess` while
+  serialising any library that reaches the Flutter framework, which on Dart
+  3.12 and later is every library. `build_runner build` therefore worked on
+  the declared floor, Flutter 3.35, and crashed on Flutter 3.47. It now takes
+  `analyzer >=8.1.1 <15.0.0`, `source_gen ^4.2.4` and `build >=3.0.2 <5.0.0`,
+  which resolves to analyzer 10 on Dart 3.9 and analyzer 14 on Dart 3.13.
+  Generated output is byte-identical under both. The quickstart CI job now
+  runs on both ends of the range rather than on one of them, which is why
+  nothing caught this.
+- The core package no longer publishes the rest of the monorepo inside itself.
+  A `.pubignore` keeps the bridge, the generator, the inspector and the MCP
+  server's Node tree out of the `self_test` archive, and keeps
+  `extension/devtools/build` in, because that is how DevTools finds the panel.
 
 ## 0.1.0
 

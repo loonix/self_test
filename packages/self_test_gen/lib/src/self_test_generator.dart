@@ -17,8 +17,14 @@ import 'package:source_gen/source_gen.dart';
 /// verbatim in the calls to [SelfTestManager], because that is the key the
 /// widget registered itself under.
 class SelfTestGenerator extends Generator {
-  static const _buttonChecker = TypeChecker.fromRuntime(SelfTestButton);
-  static const _inputChecker = TypeChecker.fromRuntime(SelfTestInput);
+  static const _buttonChecker = TypeChecker.typeNamed(
+    SelfTestButton,
+    inPackage: 'self_test',
+  );
+  static const _inputChecker = TypeChecker.typeNamed(
+    SelfTestInput,
+    inPackage: 'self_test',
+  );
 
   @override
   FutureOr<String> generate(LibraryReader library, BuildStep buildStep) {
@@ -26,22 +32,20 @@ class SelfTestGenerator extends Generator {
     final inputs = <String, List<String>>{};
 
     for (final classElement in library.classes) {
+      // Null for an augmentation, which has nothing to generate a controller
+      // from and no name to give one.
       final className = classElement.name;
+      if (className == null) continue;
 
       // The class declaration itself, then everything declared inside it.
       // LibraryReader.annotatedWith only visits top-level declarations, so
       // walking members here is what makes annotating a handler work at all.
-      //
-      // analyzer 7 deprecated this element model in favour of Element2, but
-      // source_gen 2.0.0 has not migrated: LibraryReader.classes still hands
-      // back ClassElement and TypeChecker.annotationsOf still takes Element.
-      // Drop the ignores when source_gen moves.
-      // ignore: deprecated_member_use
       for (final element in <Element>[
         classElement,
         ...classElement.methods,
         ...classElement.fields,
-        ...classElement.accessors,
+        ...classElement.getters,
+        ...classElement.setters,
       ]) {
         for (final id in _idsOn(element, _buttonChecker)) {
           buttons.putIfAbsent(className, () => <String>[]).add(id);
@@ -73,7 +77,6 @@ class SelfTestGenerator extends Generator {
 
   /// Every id [checker] annotates [element] with. A declaration may carry the
   /// annotation more than once, so this reads all of them, not just the first.
-  // ignore: deprecated_member_use
   Iterable<String> _idsOn(Element element, TypeChecker checker) => checker
       .annotationsOf(element)
       .map((annotation) => _annotationId(ConstantReader(annotation)));
