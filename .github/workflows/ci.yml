@@ -62,24 +62,22 @@ jobs:
       - name: Verify formatting
         run: dart format --output=none --set-exit-if-changed .
 
-      # Fails the build on any error, and on any warning outside the bridge.
-      # The bridge carries 10 pre-existing warnings; they are tracked, not
-      # tolerated forever, and this keeps new ones out of everything else.
+      # Fails the build on any error and on any warning, anywhere. The bridge
+      # used to be exempt because it carried ten of them; it carries none now,
+      # so the exemption is gone and cannot quietly refill.
       - name: Analyze
         run: |
           set -euo pipefail
           dart analyze > analyze.txt 2>&1 || true
           cat analyze.txt
           errors=$(grep -c '^ *error -' analyze.txt || true)
-          new_warnings=$(grep '^ *warning -' analyze.txt \
-            | grep -vc 'packages/self_test_bridge' || true)
-          echo "errors=$errors new_warnings=$new_warnings"
+          warnings=$(grep -c '^ *warning -' analyze.txt || true)
+          echo "errors=$errors warnings=$warnings"
           if [ "$errors" -ne 0 ]; then
             echo "::error::$errors analyzer error(s)"; exit 1
           fi
-          if [ "$new_warnings" -ne 0 ]; then
-            echo "::error::$new_warnings warning(s) outside packages/self_test_bridge"
-            exit 1
+          if [ "$warnings" -ne 0 ]; then
+            echo "::error::$warnings analyzer warning(s)"; exit 1
           fi
 
       - name: Test the core
